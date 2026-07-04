@@ -1,0 +1,59 @@
+# Konfigurasi ros_gz_bridge (ROS 2 Humble <-> Gazebo Fortress).
+#
+# KONTRAK INTERFACE ROV HYDROships (Milestone 1). Lihat docs/ARCHITECTURE.md.
+#
+# Catatan: nama gz_topic_name untuk thruster mengikuti elemen <topic> pada
+# plugin Thruster di hydroships_description. Jika bridge tidak nyambung,
+# jalankan `gz topic -l` saat sim hidup untuk melihat nama topik aktual,
+# lalu samakan di file ini.
+
+# ---- Clock (sinkron waktu sim -> ROS) ----
+- ros_topic_name: "/clock"
+  gz_topic_name: "/clock"
+  ros_type_name: "rosgraph_msgs/msg/Clock"
+  gz_type_name: "gz.msgs.Clock"
+  direction: GZ_TO_ROS
+
+# ---- Odometry ROV (pose & twist) : Gazebo -> ROS ----
+- ros_topic_name: "/hydroships/odom"
+  gz_topic_name: "/model/hydroships/odometry"
+  ros_type_name: "nav_msgs/msg/Odometry"
+  gz_type_name: "gz.msgs.Odometry"
+  direction: GZ_TO_ROS
+
+# ---- Perintah gaya per thruster (N) : ROS -> Gazebo ----
+- ros_topic_name: "/hydroships/thruster_1/thrust"
+  gz_topic_name: "/hydroships/thruster_1/thrust"
+  ros_type_name: "std_msgs/msg/Float64"
+  gz_type_name: "gz.msgs.Double"
+  direction: ROS_TO_GZ
+
+- ros_topic_name: "/hydroships/thruster_2/thrust"
+  gz_topic_name: "/hydroships/thruster_2/thrust"
+  ros_type_name: "std_msgs/msg/Float64"
+  gz_type_name: "gz.msgs.Double"
+  direction: ROS_TO_GZ
+
+- ros_topic_name: "/hydroships/thruster_3/thrust"
+  gz_topic_name: "/hydroships/thruster_3/thrust"
+  ros_type_name: "std_msgs/msg/Float64"
+  gz_type_name: "gz.msgs.Double"
+  direction: ROS_TO_GZ
+
+- ros_topic_name: "/hydroships/thruster_4/thrust"
+  gz_topic_name: "/hydroships/thruster_4/thrust"
+  ros_type_name: "std_msgs/msg/Float64"
+  gz_type_name: "gz.msgs.Double"
+  direction: ROS_TO_GZ
+
+- ros_topic_name: "/hydroships/thruster_5/thrust"
+  gz_topic_name: "/hydroships/thruster_5/thrust"
+  ros_type_name: "std_msgs/msg/Float64"
+  gz_type_name: "gz.msgs.Double"
+  direction: ROS_TO_GZ
+
+- ros_topic_name: "/hydroships/thruster_6/thrust"
+  gz_topic_name: "/hydroships/thruster_6/thrust"
+  ros_type_name: "std_msgs/msg/Float64"
+  gz_type_name: "gz.msgs.Double"
+  direction: ROS_TO_GZ

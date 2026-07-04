@@ -1,0 +1,215 @@
+<?xml version="1.0"?>
+<!--
+  HYDROships ROV - model URDF/xacro untuk KKI 2026 (Milestone 1).
+
+  Frame konvensi ROS (REP-103): x maju (surge), y kiri (sway), z atas (heave).
+
+  Catatan penyederhanaan M1:
+    * Rangka dimodelkan sebagai satu kotak solid 0.345 x 0.345 x 0.286 m.
+      Volume perpindahan air kotak ~0.0340 m^3 -> gaya apung setara ~34.05 kg.
+      Massa total (base + 6 thruster) dibuat SEDIKIT DI BAWAH itu supaya ROV
+      apung pelan saat thruster mati (near-neutral, sedikit positif).
+      Ini placeholder yang di-tune di M2, BUKAN massa ROV asli.
+    * Koefisien hidrodinamika memakai nilai acuan tipe BlueROV2 (di-tune belakangan).
+
+  Geometri & orientasi 6 thruster didokumentasikan di docs/thruster_config.md
+  dan HARUS konsisten dengan tabel THRUSTERS di hydroships_control/thruster_allocator.py.
+-->
+<robot name="hydroships" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- ============================ Parameter ============================ -->
+  <xacro:property name="body_x" value="0.345"/>
+  <xacro:property name="body_y" value="0.345"/>
+  <xacro:property name="body_z" value="0.286"/>
+
+  <!-- Massa base dipilih agar total near-neutral, sedikit positif buoyant. -->
+  <xacro:property name="base_mass" value="33.6"/>
+  <xacro:property name="thruster_mass" value="0.05"/>
+
+  <xacro:property name="fluid_density" value="1000.0"/>
+
+  <!-- Inersia kotak solid untuk base_link. -->
+  <xacro:property name="ixx" value="${base_mass / 12.0 * (body_y*body_y + body_z*body_z)}"/>
+  <xacro:property name="iyy" value="${base_mass / 12.0 * (body_x*body_x + body_z*body_z)}"/>
+  <xacro:property name="izz" value="${base_mass / 12.0 * (body_x*body_x + body_y*body_y)}"/>
+
+  <!-- ============================ base_link ============================ -->
+  <link name="base_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="${base_mass}"/>
+      <inertia ixx="${ixx}" ixy="0.0" ixz="0.0"
+               iyy="${iyy}" iyz="0.0"
+               izz="${izz}"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="${body_x} ${body_y} ${body_z}"/>
+      </geometry>
+      <material name="hydro_yellow">
+        <color rgba="0.9 0.75 0.1 1.0"/>
+      </material>
+    </visual>
+    <!-- Collision box dipakai plugin Buoyancy untuk menghitung volume perpindahan. -->
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="${body_x} ${body_y} ${body_z}"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- ==================== Macro satu thruster ==================== -->
+  <!--
+    name  : nama unik thruster (mis. thruster_1)
+    xyz   : posisi pusat thruster di frame body
+    axis  : arah dorong (unit vector) di frame body; juga sumbu putar propeller
+  -->
+  <xacro:macro name="thruster" params="name xyz axis">
+    <link name="${name}">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="${thruster_mass}"/>
+        <inertia ixx="1e-4" ixy="0.0" ixz="0.0"
+                 iyy="1e-4" iyz="0.0" izz="1e-4"/>
+      </inertial>
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <cylinder radius="0.02" length="0.06"/>
+        </geometry>
+        <material name="hydro_dark">
+          <color rgba="0.1 0.1 0.12 1.0"/>
+        </material>
+      </visual>
+      <!-- Tanpa collision: thruster tidak menambah volume apung. -->
+    </link>
+
+    <!-- Continuous joint: propeller berputar; plugin Thruster memberi gaya
+         sepanjang sumbu joint (= arah dorong). -->
+    <joint name="${name}_joint" type="continuous">
+      <origin xyz="${xyz}" rpy="0 0 0"/>
+      <parent link="base_link"/>
+      <child link="${name}"/>
+      <axis xyz="${axis}"/>
+      <dynamics damping="0.0" friction="0.0"/>
+    </joint>
+  </xacro:macro>
+
+  <!-- ==================== 3 thruster horizontal ==================== -->
+  <!-- Susunan tangensial 120 deg (rh = 0.16 m). Mengontrol surge/sway/yaw.
+       phi = 90, 210, 330 deg; arah dorong d = (-sin phi, cos phi, 0). -->
+  <xacro:thruster name="thruster_1" xyz="0.0     0.16   0.0"  axis="-1.0  0.0   0.0"/>
+  <xacro:thruster name="thruster_2" xyz="-0.1386 -0.08  0.0"  axis="0.5  -0.866 0.0"/>
+  <xacro:thruster name="thruster_3" xyz="0.1386  -0.08  0.0"  axis="0.5   0.866 0.0"/>
+
+  <!-- ==================== 3 thruster vertikal ==================== -->
+  <!-- Arah dorong +z. Mengontrol heave/roll/pitch. -->
+  <xacro:thruster name="thruster_4" xyz="0.12   0.0    0.0"  axis="0.0  0.0  1.0"/>
+  <xacro:thruster name="thruster_5" xyz="-0.10  0.12   0.0"  axis="0.0  0.0  1.0"/>
+  <xacro:thruster name="thruster_6" xyz="-0.10 -0.12   0.0"  axis="0.0  0.0  1.0"/>
+
+  <!-- ==================== Frame sensor (placeholder M3) ==================== -->
+  <link name="imu_link"/>
+  <joint name="imu_joint" type="fixed">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="imu_link"/>
+  </joint>
+
+  <link name="depth_link"/>
+  <joint name="depth_joint" type="fixed">
+    <origin xyz="0 0 0.10" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="depth_link"/>
+  </joint>
+
+  <link name="camera_front_link"/>
+  <joint name="camera_front_joint" type="fixed">
+    <origin xyz="${body_x/2} 0 0" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="camera_front_link"/>
+  </joint>
+
+  <link name="camera_bottom_link"/>
+  <joint name="camera_bottom_joint" type="fixed">
+    <origin xyz="0 0 ${-body_z/2}" rpy="0 1.5708 0"/>
+    <parent link="base_link"/>
+    <child link="camera_bottom_link"/>
+  </joint>
+
+  <!-- ============================================================ -->
+  <!-- ===================  Plugin Gazebo Fortress  =============== -->
+  <!-- ============================================================ -->
+
+  <!-- Hydrodynamics (added-mass + drag Fossen) pada base_link.
+       Nilai acuan tipe BlueROV2; di-tune di M2. -->
+  <gazebo>
+    <plugin filename="gz-sim-hydrodynamics-system"
+            name="gz::sim::systems::Hydrodynamics">
+      <link_name>base_link</link_name>
+      <water_density>${fluid_density}</water_density>
+      <!-- Added mass -->
+      <xDotU>-6.36</xDotU>
+      <yDotV>-7.12</yDotV>
+      <zDotW>-18.68</zDotW>
+      <kDotP>-0.189</kDotP>
+      <mDotQ>-0.135</mDotQ>
+      <nDotR>-0.222</nDotR>
+      <!-- Linear damping -->
+      <xU>-11.7</xU>
+      <yV>-20.0</yV>
+      <zW>-31.9</zW>
+      <kP>-25.0</kP>
+      <mQ>-44.0</mQ>
+      <nR>-5.0</nR>
+      <!-- Quadratic damping -->
+      <xUabsU>-18.18</xUabsU>
+      <yVabsV>-21.66</yVabsV>
+      <zWabsW>-36.99</zWabsW>
+      <kPabsP>-1.55</kPabsP>
+      <mQabsQ>-1.55</mQabsQ>
+      <nRabsR>-1.55</nRabsR>
+    </plugin>
+  </gazebo>
+
+  <!-- Odometry publisher: gz topic /model/hydroships/odometry (gz.msgs.Odometry). -->
+  <gazebo>
+    <plugin filename="gz-sim-odometry-publisher-system"
+            name="gz::sim::systems::OdometryPublisher">
+      <odom_frame>odom</odom_frame>
+      <robot_base_frame>base_link</robot_base_frame>
+      <dimensions>3</dimensions>
+      <odom_publish_frequency>30</odom_publish_frequency>
+    </plugin>
+  </gazebo>
+
+  <!-- Satu plugin Thruster per propeller.
+       Perintah gaya (N) dikirim ke topic gz: hydroships/thruster_i/thrust (gz.msgs.Double). -->
+  <xacro:macro name="thruster_plugin" params="name diameter">
+    <gazebo>
+      <plugin filename="gz-sim-thruster-system"
+              name="gz::sim::systems::Thruster">
+        <namespace>hydroships</namespace>
+        <joint_name>${name}_joint</joint_name>
+        <topic>hydroships/${name}/thrust</topic>
+        <use_angvel_cmd>false</use_angvel_cmd>
+        <fluid_density>${fluid_density}</fluid_density>
+        <propeller_diameter>${diameter}</propeller_diameter>
+        <thrust_coefficient>0.004422</thrust_coefficient>
+        <max_thrust_cmd>50.0</max_thrust_cmd>
+        <min_thrust_cmd>-40.0</min_thrust_cmd>
+      </plugin>
+    </gazebo>
+  </xacro:macro>
+
+  <!-- Horizontal ~ diameter 0.076 (kelas T200); vertikal ~ 0.048 (kelas T100). -->
+  <xacro:thruster_plugin name="thruster_1" diameter="0.076"/>
+  <xacro:thruster_plugin name="thruster_2" diameter="0.076"/>
+  <xacro:thruster_plugin name="thruster_3" diameter="0.076"/>
+  <xacro:thruster_plugin name="thruster_4" diameter="0.048"/>
+  <xacro:thruster_plugin name="thruster_5" diameter="0.048"/>
+  <xacro:thruster_plugin name="thruster_6" diameter="0.048"/>
+
+</robot>

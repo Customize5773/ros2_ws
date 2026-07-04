@@ -1,0 +1,4 @@
+source;share/hydroships_description/local_setup.bash
+source;share/hydroships_description/local_setup.dsv
+source;share/hydroships_description/local_setup.sh
+source;share/hydroships_description/local_setup.zsh

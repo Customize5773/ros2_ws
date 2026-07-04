@@ -1,0 +1,4 @@
+source;share/hydroships_gazebo/local_setup.bash
+source;share/hydroships_gazebo/local_setup.dsv
+source;share/hydroships_gazebo/local_setup.sh
+source;share/hydroships_gazebo/local_setup.zsh

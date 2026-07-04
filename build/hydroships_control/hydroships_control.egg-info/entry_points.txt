@@ -1,0 +1,6 @@
+[console_scripts]
+stabilizer = hydroships_control.stabilizer:main
+teleop_keyboard = hydroships_control.teleop_keyboard:main
+teleop_stabilized = hydroships_control.teleop_stabilized:main
+thruster_allocator = hydroships_control.thruster_allocator:main
+

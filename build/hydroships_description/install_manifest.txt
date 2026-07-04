@@ -1,0 +1,17 @@
+/home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/urdf/hydroships.urdf.xacro
+/home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/meshes/README.md
+/home/rasya/ros2_ws/install/hydroships_description/share/ament_index/resource_index/package_run_dependencies/hydroships_description
+/home/rasya/ros2_ws/install/hydroships_description/share/ament_index/resource_index/parent_prefix_path/hydroships_description
+/home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/environment/ament_prefix_path.sh
+/home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/environment/ament_prefix_path.dsv
+/home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/environment/path.sh
+/home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/environment/path.dsv
+/home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/local_setup.bash
+/home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/local_setup.sh
+/home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/local_setup.zsh
+/home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/local_setup.dsv
+/home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/package.dsv
+/home/rasya/ros2_ws/install/hydroships_description/share/ament_index/resource_index/packages/hydroships_description
+/home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/cmake/hydroships_descriptionConfig.cmake
+/home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/cmake/hydroships_descriptionConfig-version.cmake
+/home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/package.xml

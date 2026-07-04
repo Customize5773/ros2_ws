@@ -1,0 +1,344 @@
+<?xml version="1.0" ?>
+<!--
+  Arena lomba KKI 2026 untuk Gazebo Fortress / gz-sim 6.
+
+  Berisi:
+    * Systems dasar (Physics, UserCommands, SceneBroadcaster, Contact).
+    * Buoyancy uniform (densitas air 1000 kg/m^3) - mengisi air sampai z = 0.
+    * Kolam 5 x 5 m (interior) + 4 dinding pengurung (model "pool").
+    * Volume air visual (semi-transparan) setinggi 0.9 m.
+    * 4 hook/gantungan PVC 3/4" (dia 25 mm) bentuk J di tengah tiap sisi (hook_a..d).
+
+  Datum (konsisten dengan plugin Buoyancy):
+    * Permukaan air         : z = 0
+    * Dasar kolam (atas)    : z = -0.9  (kedalaman air 0.9 m)
+    * Ujung bawah hook (J)  : z = -0.45 (0.45 m dari dasar)
+
+  Plugin Thruster / Hydrodynamics / OdometryPublisher menempel di MODEL ROV
+  (lihat hydroships_description), bukan di world.
+
+  Catatan: pemetaan label A/B/C/D -> sisi masih sementara. Pengacakan posisi
+  (Posisi A, B, C, D akan diacak) dikerjakan belakangan bersama kode tugas/ROV.
+-->
+<sdf version="1.9">
+  <world name="kki_arena">
+
+    <physics name="1ms" type="ignored">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+    </physics>
+
+    <plugin filename="gz-sim-physics-system"
+            name="gz::sim::systems::Physics"/>
+    <plugin filename="gz-sim-user-commands-system"
+            name="gz::sim::systems::UserCommands"/>
+    <plugin filename="gz-sim-scene-broadcaster-system"
+            name="gz::sim::systems::SceneBroadcaster"/>
+    <plugin filename="gz-sim-contact-system"
+            name="gz::sim::systems::Contact"/>
+
+    <!-- Gaya apung uniform: volume air terisi hingga z = 0. -->
+    <plugin filename="gz-sim-buoyancy-system"
+            name="gz::sim::systems::Buoyancy">
+      <uniform_fluid_density>1000.0</uniform_fluid_density>
+    </plugin>
+
+    <scene>
+      <ambient>0.4 0.4 0.4 1</ambient>
+      <background>0.1 0.2 0.35 1</background>
+      <grid>false</grid>
+    </scene>
+
+    <light type="directional" name="sun">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>0.9 0.9 0.9 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <direction>-0.3 0.2 -0.9</direction>
+    </light>
+
+    <!-- ================= Cangkang kolam: lantai + 4 dinding ================= -->
+    <!-- Interior 5 x 5 m; muka dalam dinding di x = +/-2.5, y = +/-2.5.
+         Dinding tebal 0.1 m, tinggi 1.05 m (dari dasar -0.9 sampai freeboard +0.15). -->
+    <model name="pool">
+      <static>true</static>
+
+      <!-- Lantai: permukaan atas di z = -0.9. -->
+      <link name="floor">
+        <pose>0 0 -0.95 0 0 0</pose>
+        <collision name="floor_collision">
+          <geometry><box><size>5.2 5.2 0.1</size></box></geometry>
+        </collision>
+        <visual name="floor_visual">
+          <geometry><box><size>5.2 5.2 0.1</size></box></geometry>
+          <material>
+            <ambient>0.20 0.20 0.22 1</ambient>
+            <diffuse>0.30 0.30 0.32 1</diffuse>
+          </material>
+        </visual>
+      </link>
+
+      <!-- Dinding +X (muka dalam di x = 2.5). -->
+      <link name="wall_px">
+        <pose>2.55 0 -0.375 0 0 0</pose>
+        <collision name="wall_px_collision">
+          <geometry><box><size>0.1 5.2 1.05</size></box></geometry>
+        </collision>
+        <visual name="wall_px_visual">
+          <geometry><box><size>0.1 5.2 1.05</size></box></geometry>
+          <material>
+            <ambient>0.55 0.55 0.57 1</ambient>
+            <diffuse>0.70 0.70 0.72 1</diffuse>
+          </material>
+        </visual>
+      </link>
+
+      <!-- Dinding -X. -->
+      <link name="wall_nx">
+        <pose>-2.55 0 -0.375 0 0 0</pose>
+        <collision name="wall_nx_collision">
+          <geometry><box><size>0.1 5.2 1.05</size></box></geometry>
+        </collision>
+        <visual name="wall_nx_visual">
+          <geometry><box><size>0.1 5.2 1.05</size></box></geometry>
+          <material>
+            <ambient>0.55 0.55 0.57 1</ambient>
+            <diffuse>0.70 0.70 0.72 1</diffuse>
+          </material>
+        </visual>
+      </link>
+
+      <!-- Dinding +Y (muka dalam di y = 2.5). -->
+      <link name="wall_py">
+        <pose>0 2.55 -0.375 0 0 0</pose>
+        <collision name="wall_py_collision">
+          <geometry><box><size>5.2 0.1 1.05</size></box></geometry>
+        </collision>
+        <visual name="wall_py_visual">
+          <geometry><box><size>5.2 0.1 1.05</size></box></geometry>
+          <material>
+            <ambient>0.55 0.55 0.57 1</ambient>
+            <diffuse>0.70 0.70 0.72 1</diffuse>
+          </material>
+        </visual>
+      </link>
+
+      <!-- Dinding -Y. -->
+      <link name="wall_ny">
+        <pose>0 -2.55 -0.375 0 0 0</pose>
+        <collision name="wall_ny_collision">
+          <geometry><box><size>5.2 0.1 1.05</size></box></geometry>
+        </collision>
+        <visual name="wall_ny_visual">
+          <geometry><box><size>5.2 0.1 1.05</size></box></geometry>
+          <material>
+            <ambient>0.55 0.55 0.57 1</ambient>
+            <diffuse>0.70 0.70 0.72 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Volume air visual (semi-transparan), tanpa collision. Permukaan di z = 0,
+         dasar di z = -0.9. -->
+    <model name="water_volume">
+      <static>true</static>
+      <pose>0 0 -0.45 0 0 0</pose>
+      <link name="water_link">
+        <visual name="water_visual">
+          <geometry><box><size>5 5 0.9</size></box></geometry>
+          <material>
+            <ambient>0.0 0.25 0.4 0.25</ambient>
+            <diffuse>0.0 0.35 0.5 0.25</diffuse>
+          </material>
+          <transparency>0.75</transparency>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ============================ Hook / gantungan ============================ -->
+    <!--
+      Tiap hook = 1 link "gantungan" berisi 4 silinder (radius 0.0125 m = OD 25 mm)
+      membentuk huruf J. Frame lokal: origin di muka dinding, +x masuk kolam, +z atas.
+        mount  : bracket horizontal (z=+0.10)  menempel ke dinding.
+        riser  : pipa vertikal turun ke z=-0.45.
+        bottom : lekukan bawah horizontal.
+        tip    : ujung J menghadap atas.
+      Titik terendah hook = z = -0.45 (0.45 m dari dasar).
+      Semua silinder default sumbunya +z; yang horizontal diputar rpy 0 1.5708 0
+      supaya sumbunya jadi +x (masuk kolam).
+    -->
+    <model name="hook_d">
+      <static>true</static>
+      <pose>-2.5 0 0 0 0 0</pose>
+      <link name="gantungan">
+        <collision name="mount_collision">
+          <pose>0.03 0 0.10 0 1.5708 0</pose>
+          <geometry><cylinder><radius>0.0125</radius><length>0.06</length></cylinder></geometry>
+        </collision>
+        <visual name="mount_visual">
+          <pose>0.03 0 0.10 0 1.5708 0</pose>
+          <geometry><cylinder><radius>0.0125</radius><length>0.06</length></cylinder></geometry>
+          <material><ambient>0.7 0.7 0.72 1</ambient><diffuse>0.8 0.8 0.82 1</diffuse></material>
+        </visual>
+        <collision name="riser_collision">
+          <pose>0.06 0 -0.175 0 0 0</pose>
+          <geometry><cylinder><radius>0.0125</radius><length>0.55</length></cylinder></geometry>
+        </collision>
+        <visual name="riser_visual">
+          <pose>0.06 0 -0.175 0 0 0</pose>
+          <geometry><cylinder><radius>0.0125</radius><length>0.55</length></cylinder></geometry>
+          <material><ambient>0.7 0.7 0.72 1</ambient><diffuse>0.8 0.8 0.82 1</diffuse></material>
+        </visual>
+        <collision name="bottom_collision">
+          <pose>0.10 0 -0.45 0 1.5708 0</pose>
+          <geometry><cylinder><radius>0.0125</radius><length>0.08</length></cylinder></geometry>
+        </collision>
+        <visual name="bottom_visual">
+          <pose>0.10 0 -0.45 0 1.5708 0</pose>
+          <geometry><cylinder><radius>0.0125</radius><length>0.08</length></cylinder></geometry>
+          <material><ambient>0.7 0.7 0.72 1</ambient><diffuse>0.8 0.8 0.82 1</diffuse></material>
+        </visual>
+        <collision name="tip_collision">
+          <pose>0.14 0 -0.39 0 0 0</pose>
+          <geometry><cylinder><radius>0.0125</radius><length>0.12</length></cylinder></geometry>
+        </collision>
+        <visual name="tip_visual">
+          <pose>0.14 0 -0.39 0 0 0</pose>
+          <geometry><cylinder><radius>0.0125</radius><length>0.12</length></cylinder></geometry>
+          <material><ambient>0.7 0.7 0.72 1</ambient><diffuse>0.8 0.8 0.82 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="hook_c">
+      <static>true</static>
+      <pose>2.5 0 0 0 0 3.14159</pose>
+      <link name="gantungan">
+        <collision name="mount_collision">
+          <pose>0.03 0 0.10 0 1.5708 0</pose>
+          <geometry><cylinder><radius>0.0125</radius><length>0.06</length></cylinder></geometry>
+        </collision>
+        <visual name="mount_visual">
+          <pose>0.03 0 0.10 0 1.5708 0</pose>
+          <geometry><cylinder><radius>0.0125</radius><length>0.06</length></cylinder></geometry>
+          <material><ambient>0.7 0.7 0.72 1</ambient><diffuse>0.8 0.8 0.82 1</diffuse></material>
+        </visual>
+        <collision name="riser_collision">
+          <pose>0.06 0 -0.175 0 0 0</pose>
+          <geometry><cylinder><radius>0.0125</radius><length>0.55</length></cylinder></geometry>
+        </collision>
+        <visual name="riser_visual">
+          <pose>0.06 0 -0.175 0 0 0</pose>
+          <geometry><cylinder><radius>0.0125</radius><length>0.55</length></cylinder></geometry>
+          <material><ambient>0.7 0.7 0.72 1</ambient><diffuse>0.8 0.8 0.82 1</diffuse></material>
+        </visual>
+        <collision name="bottom_collision">
+          <pose>0.10 0 -0.45 0 1.5708 0</pose>
+          <geometry><cylinder><radius>0.0125</radius><length>0.08</length></cylinder></geometry>
+        </collision>
+        <visual name="bottom_visual">
+          <pose>0.10 0 -0.45 0 1.5708 0</pose>
+          <geometry><cylinder><radius>0.0125</radius><length>0.08</length></cylinder></geometry>
+          <material><ambient>0.7 0.7 0.72 1</ambient><diffuse>0.8 0.8 0.82 1</diffuse></material>
+        </visual>
+        <collision name="tip_collision">
+          <pose>0.14 0 -0.39 0 0 0</pose>
+          <geometry><cylinder><radius>0.0125</radius><length>0.12</length></cylinder></geometry>
+        </collision>
+        <visual name="tip_visual">
+          <pose>0.14 0 -0.39 0 0 0</pose>
+          <geometry><cylinder><radius>0.0125</radius><length>0.12</length></cylinder></geometry>
+          <material><ambient>0.7 0.7 0.72 1</ambient><diffuse>0.8 0.8 0.82 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="hook_a">
+      <static>true</static>
+      <pose>0 -2.5 0 0 0 1.5708</pose>
+      <link name="gantungan">
+        <collision name="mount_collision">
+          <pose>0.03 0 0.10 0 1.5708 0</pose>
+          <geometry><cylinder><radius>0.0125</radius><length>0.06</length></cylinder></geometry>
+        </collision>
+        <visual name="mount_visual">
+          <pose>0.03 0 0.10 0 1.5708 0</pose>
+          <geometry><cylinder><radius>0.0125</radius><length>0.06</length></cylinder></geometry>
+          <material><ambient>0.7 0.7 0.72 1</ambient><diffuse>0.8 0.8 0.82 1</diffuse></material>
+        </visual>
+        <collision name="riser_collision">
+          <pose>0.06 0 -0.175 0 0 0</pose>
+          <geometry><cylinder><radius>0.0125</radius><length>0.55</length></cylinder></geometry>
+        </collision>
+        <visual name="riser_visual">
+          <pose>0.06 0 -0.175 0 0 0</pose>
+          <geometry><cylinder><radius>0.0125</radius><length>0.55</length></cylinder></geometry>
+          <material><ambient>0.7 0.7 0.72 1</ambient><diffuse>0.8 0.8 0.82 1</diffuse></material>
+        </visual>
+        <collision name="bottom_collision">
+          <pose>0.10 0 -0.45 0 1.5708 0</pose>
+          <geometry><cylinder><radius>0.0125</radius><length>0.08</length></cylinder></geometry>
+        </collision>
+        <visual name="bottom_visual">
+          <pose>0.10 0 -0.45 0 1.5708 0</pose>
+          <geometry><cylinder><radius>0.0125</radius><length>0.08</length></cylinder></geometry>
+          <material><ambient>0.7 0.7 0.72 1</ambient><diffuse>0.8 0.8 0.82 1</diffuse></material>
+        </visual>
+        <collision name="tip_collision">
+          <pose>0.14 0 -0.39 0 0 0</pose>
+          <geometry><cylinder><radius>0.0125</radius><length>0.12</length></cylinder></geometry>
+        </collision>
+        <visual name="tip_visual">
+          <pose>0.14 0 -0.39 0 0 0</pose>
+          <geometry><cylinder><radius>0.0125</radius><length>0.12</length></cylinder></geometry>
+          <material><ambient>0.7 0.7 0.72 1</ambient><diffuse>0.8 0.8 0.82 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="hook_b">
+      <static>true</static>
+      <pose>0 2.5 0 0 0 -1.5708</pose>
+      <link name="gantungan">
+        <collision name="mount_collision">
+          <pose>0.03 0 0.10 0 1.5708 0</pose>
+          <geometry><cylinder><radius>0.0125</radius><length>0.06</length></cylinder></geometry>
+        </collision>
+        <visual name="mount_visual">
+          <pose>0.03 0 0.10 0 1.5708 0</pose>
+          <geometry><cylinder><radius>0.0125</radius><length>0.06</length></cylinder></geometry>
+          <material><ambient>0.7 0.7 0.72 1</ambient><diffuse>0.8 0.8 0.82 1</diffuse></material>
+        </visual>
+        <collision name="riser_collision">
+          <pose>0.06 0 -0.175 0 0 0</pose>
+          <geometry><cylinder><radius>0.0125</radius><length>0.55</length></cylinder></geometry>
+        </collision>
+        <visual name="riser_visual">
+          <pose>0.06 0 -0.175 0 0 0</pose>
+          <geometry><cylinder><radius>0.0125</radius><length>0.55</length></cylinder></geometry>
+          <material><ambient>0.7 0.7 0.72 1</ambient><diffuse>0.8 0.8 0.82 1</diffuse></material>
+        </visual>
+        <collision name="bottom_collision">
+          <pose>0.10 0 -0.45 0 1.5708 0</pose>
+          <geometry><cylinder><radius>0.0125</radius><length>0.08</length></cylinder></geometry>
+        </collision>
+        <visual name="bottom_visual">
+          <pose>0.10 0 -0.45 0 1.5708 0</pose>
+          <geometry><cylinder><radius>0.0125</radius><length>0.08</length></cylinder></geometry>
+          <material><ambient>0.7 0.7 0.72 1</ambient><diffuse>0.8 0.8 0.82 1</diffuse></material>
+        </visual>
+        <collision name="tip_collision">
+          <pose>0.14 0 -0.39 0 0 0</pose>
+          <geometry><cylinder><radius>0.0125</radius><length>0.12</length></cylinder></geometry>
+        </collision>
+        <visual name="tip_visual">
+          <pose>0.14 0 -0.39 0 0 0</pose>
+          <geometry><cylinder><radius>0.0125</radius><length>0.12</length></cylinder></geometry>
+          <material><ambient>0.7 0.7 0.72 1</ambient><diffuse>0.8 0.8 0.82 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+  </world>
+</sdf>

@@ -1,0 +1,30 @@
+# Gain PID stabilizer HYDROships (Milestone 2).
+# Titik awal yang wajar untuk model M1 (near-neutral, massa ~33.9 kg).
+# Setel ulang setelah massa/koefisien hidrodinamika di-tune ke ROV asli.
+stabilizer:
+  ros__parameters:
+    use_sim_time: true
+    rate: 20.0
+
+    depth:
+      kp: 60.0
+      ki: 8.0
+      kd: 40.0
+      integral_limit: 30.0
+      out_limit: 60.0      # batas |Fz| (N)
+
+    heading:
+      kp: 8.0
+      ki: 0.5
+      kd: 4.0
+      integral_limit: 5.0
+      out_limit: 15.0      # batas |Mz| (N*m)
+
+    # Gaya apung bersih ~ +1.45 N (ke atas); feedforward mendorong turun.
+    buoyancy_ff: -1.45
+
+    target_depth: -1.0     # meter, negatif = di bawah permukaan
+    target_heading: 0.0    # radian
+
+    enable_depth_hold: true
+    enable_heading_hold: true
