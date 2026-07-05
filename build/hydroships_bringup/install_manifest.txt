@@ -1,4 +1,5 @@
 /home/rasya/ros2_ws/install/hydroships_bringup/share/hydroships_bringup//launch/hydroships_stabilized.launch.py
+/home/rasya/ros2_ws/install/hydroships_bringup/share/hydroships_bringup//launch/hydroships_mission.launch.py
 /home/rasya/ros2_ws/install/hydroships_bringup/share/hydroships_bringup//launch/hydroships_sim.launch.py
 /home/rasya/ros2_ws/install/hydroships_bringup/share/ament_index/resource_index/package_run_dependencies/hydroships_bringup
 /home/rasya/ros2_ws/install/hydroships_bringup/share/ament_index/resource_index/parent_prefix_path/hydroships_bringup

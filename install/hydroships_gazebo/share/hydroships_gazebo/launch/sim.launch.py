@@ -81,7 +81,15 @@ def _launch_setup(context, *args, **kwargs):
         parameters=[{'use_sim_time': True}],
     )
 
-    return [gz_sim, bridge, rsp, spawn, depth_pub]
+    # Gripper (M5): perintah open/close -> setpoint 2 jari.
+    gripper = Node(
+        package='hydroships_control',
+        executable='gripper_controller',
+        output='screen',
+        parameters=[{'use_sim_time': True}],
+    )
+
+    return [gz_sim, bridge, rsp, spawn, depth_pub, gripper]
 
 
 def generate_launch_description():
