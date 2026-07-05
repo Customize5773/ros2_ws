@@ -32,6 +32,7 @@ setup(
             'stabilizer = hydroships_control.stabilizer:main',
             'teleop_stabilized = hydroships_control.teleop_stabilized:main',
             'depth_publisher = hydroships_control.depth_publisher:main',
+            'gripper_controller = hydroships_control.gripper_controller:main',
         ],
     },
 )

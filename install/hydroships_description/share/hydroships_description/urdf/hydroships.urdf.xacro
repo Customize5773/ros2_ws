@@ -183,6 +183,77 @@
     </sensor>
   </gazebo>
 
+  <!-- ==================== Gripper 2-DOF (Milestone 5) ==================== -->
+  <!-- Dua jari (kiri/kanan) berputar di sumbu z untuk membuka/menutup di bidang xy.
+       Dikontrol per-jari oleh gz JointPositionController (topic gz.msgs.Double, rad).
+       Node gripper_controller memetakan perintah "open"/"close" -> setpoint 2 jari. -->
+  <xacro:property name="grip_mass" value="0.03"/>
+
+  <link name="gripper_base_link">
+    <inertial>
+      <mass value="${grip_mass}"/>
+      <inertia ixx="1e-5" ixy="0" ixz="0" iyy="1e-5" iyz="0" izz="1e-5"/>
+    </inertial>
+    <visual>
+      <geometry><box size="0.05 0.10 0.04"/></geometry>
+      <material name="grip_dark"><color rgba="0.12 0.12 0.14 1.0"/></material>
+    </visual>
+    <collision><geometry><box size="0.05 0.10 0.04"/></geometry></collision>
+  </link>
+  <joint name="gripper_base_joint" type="fixed">
+    <origin xyz="0.20 0 -0.10" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="gripper_base_link"/>
+  </joint>
+
+  <!-- Macro satu jari: reflect = +1 (kiri, +y) / -1 (kanan, -y). -->
+  <xacro:macro name="finger" params="name reflect">
+    <link name="${name}_link">
+      <inertial>
+        <origin xyz="0.045 0 0" rpy="0 0 0"/>
+        <mass value="0.01"/>
+        <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+      </inertial>
+      <visual>
+        <origin xyz="0.045 0 0" rpy="0 0 0"/>
+        <geometry><box size="0.09 0.018 0.03"/></geometry>
+        <material name="grip_yellow"><color rgba="0.9 0.75 0.1 1.0"/></material>
+      </visual>
+      <collision>
+        <origin xyz="0.045 0 0" rpy="0 0 0"/>
+        <geometry><box size="0.09 0.018 0.03"/></geometry>
+      </collision>
+    </link>
+    <joint name="${name}_joint" type="revolute">
+      <origin xyz="0.025 ${reflect * 0.04} 0" rpy="0 0 0"/>
+      <parent link="gripper_base_link"/>
+      <child link="${name}_link"/>
+      <axis xyz="0 0 1"/>
+      <limit lower="-0.6" upper="0.6" effort="10" velocity="2.0"/>
+      <dynamics damping="0.05" friction="0.0"/>
+    </joint>
+  </xacro:macro>
+  <xacro:finger name="gripper_left"  reflect="1"/>
+  <xacro:finger name="gripper_right" reflect="-1"/>
+
+  <!-- Kontroler posisi per-jari (gz.msgs.Double, setpoint rad). -->
+  <gazebo>
+    <plugin filename="gz-sim-joint-position-controller-system"
+            name="gz::sim::systems::JointPositionController">
+      <joint_name>gripper_left_joint</joint_name>
+      <topic>hydroships/gripper_left/cmd</topic>
+      <p_gain>3.0</p_gain><i_gain>0.05</i_gain><d_gain>0.1</d_gain>
+    </plugin>
+  </gazebo>
+  <gazebo>
+    <plugin filename="gz-sim-joint-position-controller-system"
+            name="gz::sim::systems::JointPositionController">
+      <joint_name>gripper_right_joint</joint_name>
+      <topic>hydroships/gripper_right/cmd</topic>
+      <p_gain>3.0</p_gain><i_gain>0.05</i_gain><d_gain>0.1</d_gain>
+    </plugin>
+  </gazebo>
+
   <!-- ============================================================ -->
   <!-- ===================  Plugin Gazebo Fortress  =============== -->
   <!-- ============================================================ -->
