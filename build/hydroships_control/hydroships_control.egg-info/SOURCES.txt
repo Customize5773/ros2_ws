@@ -13,6 +13,7 @@ hydroships_control/__init__.py
 hydroships_control/allocation.py
 hydroships_control/depth_publisher.py
 hydroships_control/gripper_controller.py
+hydroships_control/mission_fsm.py
 hydroships_control/pid.py
 hydroships_control/stabilizer.py
 hydroships_control/teleop_keyboard.py

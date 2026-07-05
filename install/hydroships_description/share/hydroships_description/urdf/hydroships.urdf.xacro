@@ -254,6 +254,16 @@
     </plugin>
   </gazebo>
 
+  <!-- State posisi jari gripper -> /hydroships/joint_state (umpan balik ke GUI/autonomy). -->
+  <gazebo>
+    <plugin filename="gz-sim-joint-state-publisher-system"
+            name="gz::sim::systems::JointStatePublisher">
+      <topic>hydroships/joint_state</topic>
+      <joint_name>gripper_left_joint</joint_name>
+      <joint_name>gripper_right_joint</joint_name>
+    </plugin>
+  </gazebo>
+
   <!-- ============================================================ -->
   <!-- ===================  Plugin Gazebo Fortress  =============== -->
   <!-- ============================================================ -->

@@ -31,22 +31,27 @@ class GripperController(Node):
         self.sub = self.create_subscription(
             String, '/hydroships/gripper/command', self._on_cmd, 10)
         # default: mulai dalam keadaan terbuka
-        self._apply(self.get_parameter('open_angle').value)
+        self._left_target = float(self.get_parameter('open_angle').value)
+        # Terbitkan setpoint berkala (2 Hz) agar tidak hilang bila bridge/gz
+        # belum siap saat publish awal, dan controller selalu punya target terbaru.
+        self._timer = self.create_timer(0.5, self._apply)
         self.get_logger().info('gripper_controller siap (perintah: open/close)')
 
-    def _apply(self, left_angle: float):
-        l = Float64(); l.data = float(left_angle)
-        r = Float64(); r.data = float(-left_angle)
+    def _apply(self):
+        l = Float64(); l.data = self._left_target
+        r = Float64(); r.data = -self._left_target
         self.pub_l.publish(l)
         self.pub_r.publish(r)
 
     def _on_cmd(self, msg: String):
         cmd = (msg.data or '').strip().lower()
         if cmd in ('open', 'buka', '0', 'false'):
-            self._apply(self.get_parameter('open_angle').value)
+            self._left_target = float(self.get_parameter('open_angle').value)
+            self._apply()
             self.get_logger().info('gripper: OPEN')
         elif cmd in ('close', 'tutup', '1', 'true'):
-            self._apply(self.get_parameter('close_angle').value)
+            self._left_target = float(self.get_parameter('close_angle').value)
+            self._apply()
             self.get_logger().info('gripper: CLOSE')
         else:
             self.get_logger().warn(f'perintah gripper tak dikenal: {msg.data!r}')

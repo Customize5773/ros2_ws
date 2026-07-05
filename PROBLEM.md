@@ -27,8 +27,22 @@ selesai. Format: `[status]` OPEN / VERIFY / RESOLVED.
 - `[OPEN]` Node deteksi QR (`camera_bottom/image_raw` → `/hydroships/qr_result` A/B/C/D)
   belum dibuat. Butuh `cv_bridge` + OpenCV di ROS 2.
 
-## Manipulator (M5) — SEDANG dikerjakan
-- (diisi saat implementasi gripper)
+## Manipulator (M5) — sudah dibangun
+- Gripper 2 jari (revolute sumbu z) di depan ROV, dikontrol gz JointPositionController.
+  Perintah semantik `/hydroships/gripper/command` ("open"/"close") → node
+  `gripper_controller` → setpoint 2 jari (bridge → gz). State jari di
+  `/hydroships/joint_states`. **Terverifikasi**: open ≈ +0.50/−0.50, close ≈ −0.14/+0.15 rad.
+- `[VERIFY]` Sudut `open_angle=0.5` / `close_angle=-0.15` (param node) & arah buka/tutup
+  masih perlu dicek visual di GUI/kolam agar celah jepit pas ukuran payload.
+- `[OPEN]` **Grasp fisik belum diuji**: jari punya collision tapi belum ada model payload
+  (bagian M4). Menjepit andal kemungkinan butuh penyetelan friction atau plugin
+  attach/detach (mis. gz-sim DetachableJoint) — belum diimplementasi.
+- `[OPEN]` `/hydroships/joint_states` (dari gz) hanya berisi 2 joint gripper, bukan
+  thruster. TF jari via robot_state_publisher belum tersambung (rsp mendengar
+  `/joint_states`, sedangkan bridge ke `/hydroships/joint_states`). Remap bila butuh TF.
+- `[note]` `ros2 topic pub --once` ke command bisa meleset karena race discovery;
+  node menerbitkan ulang setpoint 2 Hz sehingga joint tetap menahan posisi. Konsumen
+  nyata (GUI/autonomy) mengirim berulang, jadi aman.
 
 ## Umum / lintas-milestone
 - `[VERIFY]` Massa & koefisien hidrodinamika ROV masih **placeholder** near-neutral
