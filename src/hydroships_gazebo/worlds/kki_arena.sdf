@@ -37,6 +37,14 @@
     <plugin filename="gz-sim-contact-system"
             name="gz::sim::systems::Contact"/>
 
+    <!-- Sensor Milestone 3: IMU + kamera (render). -->
+    <plugin filename="gz-sim-imu-system"
+            name="gz::sim::systems::Imu"/>
+    <plugin filename="gz-sim-sensors-system"
+            name="gz::sim::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+
     <!-- Gaya apung uniform: volume air terisi hingga z = 0. -->
     <plugin filename="gz-sim-buoyancy-system"
             name="gz::sim::systems::Buoyancy">

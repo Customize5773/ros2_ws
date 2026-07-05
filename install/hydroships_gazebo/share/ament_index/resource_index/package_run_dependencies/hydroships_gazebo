@@ -1,1 +1,1 @@
-hydroships_description;ros_gz_sim;ros_gz_bridge;xacro;launch;launch_ros
+hydroships_description;hydroships_control;ros_gz_sim;ros_gz_bridge;xacro;launch;launch_ros

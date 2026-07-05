@@ -139,6 +139,50 @@
     <child link="camera_bottom_link"/>
   </joint>
 
+  <!-- ==================== Sensor Gazebo (Milestone 3) ==================== -->
+  <!-- Butuh sistem gz-sim-imu-system & gz-sim-sensors-system di world (lihat
+       hydroships_gazebo/worlds/*.sdf). Depth TIDAK dari sensor di sini melainkan
+       diturunkan dari /hydroships/odom oleh node depth_publisher (z -> kedalaman). -->
+
+  <!-- IMU pada imu_link -> gz topic /hydroships/imu (gz.msgs.IMU). -->
+  <gazebo reference="imu_link">
+    <sensor name="imu" type="imu">
+      <always_on>1</always_on>
+      <update_rate>50</update_rate>
+      <topic>hydroships/imu</topic>
+    </sensor>
+  </gazebo>
+
+  <!-- Kamera depan (haluan, menghadap +x) -> /hydroships/camera_front/image. -->
+  <gazebo reference="camera_front_link">
+    <sensor name="camera_front" type="camera">
+      <always_on>1</always_on>
+      <update_rate>15</update_rate>
+      <visualize>false</visualize>
+      <topic>hydroships/camera_front/image</topic>
+      <camera>
+        <horizontal_fov>1.3962634</horizontal_fov>
+        <image><width>640</width><height>480</height><format>R8G8B8</format></image>
+        <clip><near>0.05</near><far>20.0</far></clip>
+      </camera>
+    </sensor>
+  </gazebo>
+
+  <!-- Kamera bawah (menghadap dasar kolam / QR) -> /hydroships/camera_bottom/image. -->
+  <gazebo reference="camera_bottom_link">
+    <sensor name="camera_bottom" type="camera">
+      <always_on>1</always_on>
+      <update_rate>15</update_rate>
+      <visualize>false</visualize>
+      <topic>hydroships/camera_bottom/image</topic>
+      <camera>
+        <horizontal_fov>1.3962634</horizontal_fov>
+        <image><width>640</width><height>480</height><format>R8G8B8</format></image>
+        <clip><near>0.05</near><far>20.0</far></clip>
+      </camera>
+    </sensor>
+  </gazebo>
+
   <!-- ============================================================ -->
   <!-- ===================  Plugin Gazebo Fortress  =============== -->
   <!-- ============================================================ -->

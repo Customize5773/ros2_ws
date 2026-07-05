@@ -11,6 +11,7 @@ setup.py
 config/gains.yaml
 hydroships_control/__init__.py
 hydroships_control/allocation.py
+hydroships_control/depth_publisher.py
 hydroships_control/pid.py
 hydroships_control/stabilizer.py
 hydroships_control/teleop_keyboard.py

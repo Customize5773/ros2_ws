@@ -3,6 +3,7 @@
 /home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages/hydroships_control/pid.py
 /home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages/hydroships_control/stabilizer.py
 /home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages/hydroships_control/__init__.py
+/home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages/hydroships_control/depth_publisher.py
 /home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages/hydroships_control/teleop_stabilized.py
 /home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages/hydroships_control/allocation.py
 /home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages/hydroships_control/__pycache__/teleop_keyboard.cpython-310.pyc
@@ -10,6 +11,7 @@
 /home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages/hydroships_control/__pycache__/pid.cpython-310.pyc
 /home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages/hydroships_control/__pycache__/stabilizer.cpython-310.pyc
 /home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages/hydroships_control/__pycache__/__init__.cpython-310.pyc
+/home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages/hydroships_control/__pycache__/depth_publisher.cpython-310.pyc
 /home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages/hydroships_control/__pycache__/teleop_stabilized.cpython-310.pyc
 /home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages/hydroships_control/__pycache__/allocation.cpython-310.pyc
 /home/rasya/ros2_ws/install/hydroships_control/share/ament_index/resource_index/packages/hydroships_control
@@ -23,6 +25,7 @@
 /home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages/hydroships_control-0.1.0-py3.10.egg-info/dependency_links.txt
 /home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages/hydroships_control-0.1.0-py3.10.egg-info/entry_points.txt
 /home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages/hydroships_control-0.1.0-py3.10.egg-info/top_level.txt
+/home/rasya/ros2_ws/install/hydroships_control/lib/hydroships_control/depth_publisher
 /home/rasya/ros2_ws/install/hydroships_control/lib/hydroships_control/stabilizer
 /home/rasya/ros2_ws/install/hydroships_control/lib/hydroships_control/teleop_keyboard
 /home/rasya/ros2_ws/install/hydroships_control/lib/hydroships_control/teleop_stabilized

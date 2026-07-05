@@ -31,6 +31,7 @@ setup(
             'teleop_keyboard = hydroships_control.teleop_keyboard:main',
             'stabilizer = hydroships_control.stabilizer:main',
             'teleop_stabilized = hydroships_control.teleop_stabilized:main',
+            'depth_publisher = hydroships_control.depth_publisher:main',
         ],
     },
 )

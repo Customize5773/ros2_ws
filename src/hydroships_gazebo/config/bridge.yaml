@@ -21,6 +21,28 @@
   gz_type_name: "gz.msgs.Odometry"
   direction: GZ_TO_ROS
 
+# ---- Sensor Milestone 3 (Gazebo -> ROS) ----
+# IMU (imu_link)
+- ros_topic_name: "/hydroships/imu"
+  gz_topic_name: "/hydroships/imu"
+  ros_type_name: "sensor_msgs/msg/Imu"
+  gz_type_name: "gz.msgs.IMU"
+  direction: GZ_TO_ROS
+
+# Kamera depan (haluan)
+- ros_topic_name: "/hydroships/camera_front/image_raw"
+  gz_topic_name: "/hydroships/camera_front/image"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+
+# Kamera bawah (dasar kolam / QR)
+- ros_topic_name: "/hydroships/camera_bottom/image_raw"
+  gz_topic_name: "/hydroships/camera_bottom/image"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+
 # ---- Perintah gaya per thruster (N) : ROS -> Gazebo ----
 - ros_topic_name: "/hydroships/thruster_1/thrust"
   gz_topic_name: "/hydroships/thruster_1/thrust"

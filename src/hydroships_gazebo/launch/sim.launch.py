@@ -73,7 +73,15 @@ def _launch_setup(context, *args, **kwargs):
         }],
     )
 
-    return [gz_sim, bridge, rsp, spawn]
+    # Kedalaman (M3) diturunkan dari odom -> /hydroships/depth (Float64).
+    depth_pub = Node(
+        package='hydroships_control',
+        executable='depth_publisher',
+        output='screen',
+        parameters=[{'use_sim_time': True}],
+    )
+
+    return [gz_sim, bridge, rsp, spawn, depth_pub]
 
 
 def generate_launch_description():
