@@ -1,0 +1,27 @@
+[0.340s] Invoking command in '/home/rasya/ros2_ws/src/hydroships_control': PYTHONPATH=/home/rasya/ros2_ws/build/hydroships_control/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/hydroships_control build --build-base /home/rasya/ros2_ws/build/hydroships_control/build install --record /home/rasya/ros2_ws/build/hydroships_control/install.log --install-scripts $base/lib/hydroships_control --single-version-externally-managed install_data
+[0.473s] running egg_info
+[0.474s] writing ../../build/hydroships_control/hydroships_control.egg-info/PKG-INFO
+[0.474s] writing dependency_links to ../../build/hydroships_control/hydroships_control.egg-info/dependency_links.txt
+[0.474s] writing entry points to ../../build/hydroships_control/hydroships_control.egg-info/entry_points.txt
+[0.474s] writing requirements to ../../build/hydroships_control/hydroships_control.egg-info/requires.txt
+[0.474s] writing top-level names to ../../build/hydroships_control/hydroships_control.egg-info/top_level.txt
+[0.475s] reading manifest file '../../build/hydroships_control/hydroships_control.egg-info/SOURCES.txt'
+[0.475s] writing manifest file '../../build/hydroships_control/hydroships_control.egg-info/SOURCES.txt'
+[0.476s] running build
+[0.476s] running build_py
+[0.476s] running install
+[0.476s] running install_lib
+[0.477s] running install_data
+[0.477s] running install_egg_info
+[0.478s] removing '/home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages/hydroships_control-0.1.0-py3.10.egg-info' (and everything under it)
+[0.478s] Copying ../../build/hydroships_control/hydroships_control.egg-info to /home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages/hydroships_control-0.1.0-py3.10.egg-info
+[0.478s] running install_scripts
+[0.491s] Installing depth_publisher script to /home/rasya/ros2_ws/install/hydroships_control/lib/hydroships_control
+[0.492s] Installing gripper_controller script to /home/rasya/ros2_ws/install/hydroships_control/lib/hydroships_control
+[0.492s] Installing mission_fsm script to /home/rasya/ros2_ws/install/hydroships_control/lib/hydroships_control
+[0.492s] Installing stabilizer script to /home/rasya/ros2_ws/install/hydroships_control/lib/hydroships_control
+[0.492s] Installing teleop_keyboard script to /home/rasya/ros2_ws/install/hydroships_control/lib/hydroships_control
+[0.492s] Installing teleop_stabilized script to /home/rasya/ros2_ws/install/hydroships_control/lib/hydroships_control
+[0.492s] Installing thruster_allocator script to /home/rasya/ros2_ws/install/hydroships_control/lib/hydroships_control
+[0.492s] writing list of installed files to '/home/rasya/ros2_ws/build/hydroships_control/install.log'
+[0.507s] Invoked command in '/home/rasya/ros2_ws/src/hydroships_control' returned '0': PYTHONPATH=/home/rasya/ros2_ws/build/hydroships_control/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/hydroships_control build --build-base /home/rasya/ros2_ws/build/hydroships_control/build install --record /home/rasya/ros2_ws/build/hydroships_control/install.log --install-scripts $base/lib/hydroships_control --single-version-externally-managed install_data

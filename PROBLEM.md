@@ -44,6 +44,34 @@ selesai. Format: `[status]` OPEN / VERIFY / RESOLVED.
   node menerbitkan ulang setpoint 2 Hz sehingga joint tetap menahan posisi. Konsumen
   nyata (GUI/autonomy) mengirim berulang, jadi aman.
 
+## Autonomy (M6) — kode dibangun, INTEGRASI TERBLOKIR
+Node `mission_fsm` (ROS 2) + launch `hydroships_bringup/launch/hydroships_mission.launch.py`
+(sim + allocator + stabilizer + FSM). FSM mengendalikan lewat setpoint stabilizer
+(`setpoint/depth`, `setpoint/heading`, `manual/cmd`) + `/hydroships/gripper/command`.
+
+- `[OK]` Wiring benar & terverifikasi: node jalan (`mission_fsm`, `stabilizer`,
+  `thruster_allocator`), FSM transisi `IDLE→DIVE`, publish `setpoint/depth=-0.7`,
+  stabilizer keluar `cmd_vel.z=-61` (max menyelam), `thruster_4=-27 N`.
+- `[OPEN] BLOKIR` **Depth-control DIVERGEN — ROV terbang ke atas keluar kolam.**
+  Saat DIVE, `odom z` justru NAIK tak terbatas: terukur ~20 → 23 m dalam 8 s (naik
+  ~konstan). `depth` tetap 0 → DIVE timeout → ABORT, seluruh misi gagal.
+  Perintah menyelam (`cmd_vel.z<0`, thrust vertikal negatif) TIDAK menurunkan ROV —
+  malah lari ke atas (umpan balik positif / kemungkinan tanda terbalik).
+  **Tersangka (selesaikan belakangan):**
+    1. Arah/alokasi thrust vertikal: perintah "turun" mungkin jadi gaya ke ATAS
+       (cek axis 3 thruster vertikal di URDF vs TAM di `thruster_allocator.py`).
+    2. Interpenetrasi saat spawn dgn arena/gripper/sensor → impuls awal (cek collision).
+    3. Depth-hold M2 kemungkinan **belum pernah** diuji menyelam sungguhan (M3/M5 di sesi
+       ini pakai `sim.launch.py` tanpa stabilizer → ROV cuma mengapung pasif).
+    4. Setpoint −0.7 m dekat dasar −0.9 m; PID `out_limit` 60 N saturasi.
+  **Debug nanti:** uji stabilizer terisolasi (`hydroships_stabilized.launch.py`, tanpa FSM),
+  set `setpoint/depth`, amati apakah menyelam; jika lari ke atas juga → bug M2/arah thrust,
+  bukan FSM. Cek tanda thruster vertikal & TAM; coba spawn lebih dalam & gain lebih lembut.
+- `[OPEN]` `SCAN_QR` menunggu `/hydroships/qr_result` (node QR belum ada) → tanpa QR akan
+  timeout; sementara uji dgn `ros2 topic pub /hydroships/qr_result` manual atau `start_state:=`.
+- `[TODO]` `APPROACH_HOOK` masih *timed* (visual servo ArUco ROS 2 belum ada) — referensi
+  port ada di `GUI-ROV/autonomy/`.
+
 ## Umum / lintas-milestone
 - `[VERIFY]` Massa & koefisien hidrodinamika ROV masih **placeholder** near-neutral
   (dari `hydroships.urdf.xacro`), belum data ROV asli. Setel di M2+ dgn data nyata.
