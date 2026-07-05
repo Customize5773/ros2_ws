@@ -42,10 +42,16 @@
                iyy="${iyy}" iyz="0.0"
                izz="${izz}"/>
     </inertial>
+    <!-- Visual: mesh ROV asli (meshes/rov.stl, hasil konversi model/rov.fbx →
+         di-decimate 1.26M → 40k tri, 2 MB; Fortress tak bisa FBX). Collision TETAP
+         kotak agar buoyancy graded & fisika tetap murah/stabil.
+         Skala 0.0048 menyamakan footprint mesh (~71 unit) ke ~0.345 m; origin
+         meng-offset agar mesh terpusat di base_link. Orientasi bow (yaw) & skala
+         mungkin perlu di-tune visual — lihat PROBLEM.md. -->
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="-0.016 -0.068 0.002" rpy="0 0 0"/>
       <geometry>
-        <box size="${body_x} ${body_y} ${body_z}"/>
+        <mesh filename="package://hydroships_description/meshes/rov.stl" scale="0.0048 0.0048 0.0048"/>
       </geometry>
       <material name="hydro_yellow">
         <color rgba="0.9 0.75 0.1 1.0"/>
@@ -318,7 +324,10 @@
               name="gz::sim::systems::Thruster">
         <namespace>hydroships</namespace>
         <joint_name>${name}_joint</joint_name>
-        <topic>hydroships/${name}/thrust</topic>
+        <!-- namespace 'hydroships' di-prepend oleh plugin, jadi topic TANPA prefix
+             'hydroships/' -> subscribe ke /hydroships/${name}/thrust (cocok bridge).
+             Sebelumnya /hydroships/hydroships/... sehingga thrust TAK PERNAH masuk. -->
+        <topic>${name}/thrust</topic>
         <use_angvel_cmd>false</use_angvel_cmd>
         <fluid_density>${fluid_density}</fluid_density>
         <propeller_diameter>${diameter}</propeller_diameter>

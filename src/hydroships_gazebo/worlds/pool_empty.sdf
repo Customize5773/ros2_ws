@@ -36,10 +36,17 @@
       <render_engine>ogre2</render_engine>
     </plugin>
 
-    <!-- Gaya apung uniform: volume air terisi hingga z = 0. -->
+    <!-- Buoyancy BERGRADASI dengan PERMUKAAN BEBAS di z = 0 (air <0, udara >0).
+         Mengganti mode uniform yang tak punya permukaan (ROV melayang naik terus). -->
     <plugin filename="gz-sim-buoyancy-system"
             name="gz::sim::systems::Buoyancy">
-      <uniform_fluid_density>1000.0</uniform_fluid_density>
+      <graded_buoyancy>
+        <default_density>1000.0</default_density>
+        <density_change>
+          <above_depth>0.0</above_depth>
+          <density>1.0</density>
+        </density_change>
+      </graded_buoyancy>
     </plugin>
 
     <scene>

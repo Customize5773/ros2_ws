@@ -31,6 +31,15 @@ def _launch_setup(context, *args, **kwargs):
 
     world_path = os.path.join(pkg_gazebo, 'worlds', world)
 
+    # Agar mesh 'package://hydroships_description/...' (di-resolve gz jadi
+    # 'model://hydroships_description/...') ketemu: tambah folder share ke
+    # resource path Gazebo (Fortress: IGN_GAZEBO_RESOURCE_PATH).
+    share_dir = os.path.dirname(pkg_description)  # .../install/.../share
+    for var in ('IGN_GAZEBO_RESOURCE_PATH', 'GZ_SIM_RESOURCE_PATH'):
+        cur = os.environ.get(var, '')
+        if share_dir not in cur.split(os.pathsep):
+            os.environ[var] = share_dir + (os.pathsep + cur if cur else '')
+
     # -r: mulai berjalan; -s: server saja (tanpa GUI) untuk mode headless.
     gz_args = '-r -s ' + world_path if headless else '-r ' + world_path
     gz_sim = IncludeLaunchDescription(

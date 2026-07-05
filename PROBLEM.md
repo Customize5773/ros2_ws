@@ -44,29 +44,50 @@ selesai. Format: `[status]` OPEN / VERIFY / RESOLVED.
   node menerbitkan ulang setpoint 2 Hz sehingga joint tetap menahan posisi. Konsumen
   nyata (GUI/autonomy) mengirim berulang, jadi aman.
 
-## Autonomy (M6) — kode dibangun, INTEGRASI TERBLOKIR
+## FISIKA ROV — DUA BUG BESAR DITEMUKAN & DIPERBAIKI (RESOLVED)
+Menjawab "kenapa ROV makin dibiarkan makin melayang, tidak menggenang di air":
+1. `[RESOLVED]` **Buoyancy tanpa permukaan.** World pakai `<uniform_fluid_density>` yang
+   memberi gaya apung **di MANA SAJA** (tak ada permukaan bebas). ROV sedikit-positif →
+   net gaya ke atas selalu → melayang naik tanpa henti. **Fix:** ganti ke `<graded_buoyancy>`
+   (air 1000 di bawah z=0, udara 1 di atas) di `worlds/kki_arena.sdf` & `pool_empty.sdf`.
+   Hasil: ROV **menetap di permukaan** (odom z ≈ −0.14, stabil), tidak melayang lagi.
+2. `[RESOLVED]` **Thrust tak pernah masuk.** Plugin Thruster `<namespace>hydroships</namespace>`
+   MEN-prepend namespace ke `<topic>hydroships/…</topic>` → subscribe ke
+   `/hydroships/hydroships/thruster_N/thrust`, sedangkan bridge publish ke
+   `/hydroships/thruster_N/thrust` → **tak nyambung, gaya thruster nol**. (Gerakan naik
+   sebelumnya murni buoyancy, bukan thrust.) **Fix:** ubah `<topic>` jadi `${name}/thrust`
+   (tanpa prefix) di `hydroships.urdf.xacro`. Hasil: wrench −40 N → ROV **menyelam** dari
+   −0.14 ke −0.75 m dan terkendali.
+
+> Catatan: M1/M2 sebelumnya ditandai ✅ tapi ternyata **thrust tak pernah benar-benar
+> menggerakkan ROV** (topik tak nyambung) — verifikasi lama kurang teliti. Kini teruji nyata.
+
+## Model Visual ROV (mesh dari model/rov.fbx)
+- `[RESOLVED]` Body kotak base_link diganti mesh ROV asli. Fortress (ign-common4)
+  **tidak bisa memuat FBX** (tak ada loader assimp) & FBX asli 48 MB / 1.26 M tri
+  (DAE hasil konversi 378 MB — terlalu berat). **Solusi:** konversi `model/rov.fbx`
+  → decimate 1.26 M → **40 k tri** → `meshes/rov.stl` (2 MB) via pyassimp +
+  fast-simplification. Collision TETAP kotak (buoyancy/fisika). Mesh ter-load tanpa error.
+- `[RESOLVED]` `package://` di-resolve gz jadi `model://` → tak ketemu. Ditambah
+  `IGN_GAZEBO_RESOURCE_PATH`/`GZ_SIM_RESOURCE_PATH` ke folder share di `sim.launch.py`.
+- `[VERIFY]` **Skala (0.0048) & orientasi (rpy 0) & offset origin** mesh masih TEBAKAN
+  (footprint disamakan ~0.345 m). Belum bisa dicek visual headless — buka GUI
+  (`ros2 launch hydroships_gazebo sim.launch.py`) untuk pastikan ukuran/arah bow benar,
+  lalu sesuaikan `scale`/`rpy`/`origin` di `hydroships.urdf.xacro` (base_link visual).
+- `[VERIFY]` STL monokrom (tanpa warna/material asli). Bila perlu warna, ekspor DAE
+  ter-decimate (butuh tool decimate + jaga ukuran) atau set material di URDF.
+- `[note]` Sumber `model/rov.fbx` (48 MB) dibiarkan di repo; yang dipakai sim = `meshes/rov.stl`.
+
+## Autonomy (M6) — kode dibangun, INTEGRASI JALAN (setelah fix fisika)
 Node `mission_fsm` (ROS 2) + launch `hydroships_bringup/launch/hydroships_mission.launch.py`
 (sim + allocator + stabilizer + FSM). FSM mengendalikan lewat setpoint stabilizer
 (`setpoint/depth`, `setpoint/heading`, `manual/cmd`) + `/hydroships/gripper/command`.
 
-- `[OK]` Wiring benar & terverifikasi: node jalan (`mission_fsm`, `stabilizer`,
-  `thruster_allocator`), FSM transisi `IDLE→DIVE`, publish `setpoint/depth=-0.7`,
-  stabilizer keluar `cmd_vel.z=-61` (max menyelam), `thruster_4=-27 N`.
-- `[OPEN] BLOKIR` **Depth-control DIVERGEN — ROV terbang ke atas keluar kolam.**
-  Saat DIVE, `odom z` justru NAIK tak terbatas: terukur ~20 → 23 m dalam 8 s (naik
-  ~konstan). `depth` tetap 0 → DIVE timeout → ABORT, seluruh misi gagal.
-  Perintah menyelam (`cmd_vel.z<0`, thrust vertikal negatif) TIDAK menurunkan ROV —
-  malah lari ke atas (umpan balik positif / kemungkinan tanda terbalik).
-  **Tersangka (selesaikan belakangan):**
-    1. Arah/alokasi thrust vertikal: perintah "turun" mungkin jadi gaya ke ATAS
-       (cek axis 3 thruster vertikal di URDF vs TAM di `thruster_allocator.py`).
-    2. Interpenetrasi saat spawn dgn arena/gripper/sensor → impuls awal (cek collision).
-    3. Depth-hold M2 kemungkinan **belum pernah** diuji menyelam sungguhan (M3/M5 di sesi
-       ini pakai `sim.launch.py` tanpa stabilizer → ROV cuma mengapung pasif).
-    4. Setpoint −0.7 m dekat dasar −0.9 m; PID `out_limit` 60 N saturasi.
-  **Debug nanti:** uji stabilizer terisolasi (`hydroships_stabilized.launch.py`, tanpa FSM),
-  set `setpoint/depth`, amati apakah menyelam; jika lari ke atas juga → bug M2/arah thrust,
-  bukan FSM. Cek tanda thruster vertikal & TAM; coba spawn lebih dalam & gain lebih lembut.
+- `[RESOLVED]` Setelah dua fix fisika di atas, misi **berjalan**: FSM `IDLE→DIVE` →
+  "Dasar tercapai (0.76 m)" → `DIVE→SCAN_QR` → (inject QR "A") "QR → wall A (+15)" →
+  `SCAN_QR→GRAB`. Depth-hold & heading-hold bekerja.
+- `[VERIFY]` Timeout tiap state, gaya (`surge_force` dll), & sudut belum di-tune untuk
+  gerak nyata di arena; baru diuji transisi awal.
 - `[OPEN]` `SCAN_QR` menunggu `/hydroships/qr_result` (node QR belum ada) → tanpa QR akan
   timeout; sementara uji dgn `ros2 topic pub /hydroships/qr_result` manual atau `start_state:=`.
 - `[TODO]` `APPROACH_HOOK` masih *timed* (visual servo ArUco ROS 2 belum ada) — referensi
