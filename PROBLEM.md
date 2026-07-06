@@ -28,9 +28,21 @@ selesai. Format: `[status]` OPEN / VERIFY / RESOLVED.
   `camera_bottom/image_raw`, decode `cv2.QRCodeDetector`, publish `/hydroships/qr_result`
   A/B/C/D). Tanpa `cv_bridge` (decode Image manual via numpy). **Terverifikasi** dgn QR
   sintetik "A" → qr_result "A". Otomatis mengumpani FSM SCAN_QR.
-- `[OPEN]` **Belum ada marker QR di dasar arena** → uji autonomous penuh di sim masih
-  perlu inject `/hydroships/qr_result` manual. Tambah plane bertekstur QR di
-  `worlds/kki_arena.sdf` (dasar kolam) agar kamera bawah benar-benar melihat QR.
+- `[RESOLVED]` **Model payload dibangun** sesuai gambar KKI: braket-L (pelat 5×0.6×10 cm,
+  lubang dia 3 cm 0.6 cm dari atas, kaki 3 cm) = mesh `media/payload_body.obj` (dibuat
+  programatis, lubang bulat asli), + **QR 4×4 cm** di muka depan. Berdiri di dasar arena
+  (pose `0.4 0 -0.9 ... yaw 90°`), QR menghadap −X. Model ada di scene, OBJ ter-load tanpa error.
+- `[RESOLVED]` **Rendering tekstur QR** di kamera sensor Fortress headless: PBR `albedo_map`
+  saja RENDER HITAM (butuh environment/IBL). **Fix:** pakai `<emissive_map>` (self-lit) →
+  QR tampil & **terbaca** (`cv2` decode "A" dari kamera). Tekstur RGB (bukan grayscale) di
+  plane (bukan box — box tak punya UV).
+- `[OPEN]` **Scan QR autonomous di sim belum andal.** QR asli 4 cm terlalu kecil untuk
+  di-decode dari jarak misi (butuh ~3 px/modul; 4 cm @ 0.2 m hanya ~60 px). Plus ROV
+  positif-buoyant (naik ke permukaan), tak ada position-hold XY (drift), dan SCAN_QR
+  menyapu heading → kamera sulit tetap mengarah ke QR kecil. **Untuk uji misi penuh sekarang:
+  inject `/hydroships/qr_result` manual** (logika FSM sudah terverifikasi). **Opsi perbaikan
+  (belakangan):** perbesar QR di sim, tambah perilaku APPROACH ke payload sebelum scan,
+  tambah depth+XY hold, atau baringkan payload (QR ke atas) tepat di bawah jalur menyelam.
 
 ## Manipulator (M5) — sudah dibangun
 - Gripper 2 jari (revolute sumbu z) di depan ROV, dikontrol gz JointPositionController.

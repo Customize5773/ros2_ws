@@ -181,11 +181,10 @@
          kamera depan ROV membacanya saat SCAN_QR. Isi QR = sisi target (A/B/C/D). -->
     <model name="payload">
       <static>true</static>
-      <!-- Berbaring di dasar dgn QR MENGHADAP ATAS (roll +90°) supaya kamera bawah
-           ROV membacanya saat menyelam (sesuai kontrak: camera bottom = lantai/QR).
-           QR di-offset agar tepat di bawah pusat ROV. Untuk versi berdiri (spt gambar
-           saat digantung), ubah pose ke '0.4 0 -0.9 0 0 1.5708'. -->
-      <pose>0 0.04 -0.894 1.5708 0 0</pose>
+      <!-- BERDIRI di dasar seperti gambar (kaki di lantai, QR di muka vertikal
+           menghadap -X ke arah ROV). Untuk discan kamera bawah, ganti pose ke
+           '0 0.04 -0.894 1.5708 0 0' (berbaring, QR menghadap atas). Lihat PROBLEM.md. -->
+      <pose>0.4 0 -0.9 0 0 1.5708</pose>
       <link name="payload_link">
         <visual name="body">
           <geometry>
