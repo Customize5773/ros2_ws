@@ -25,16 +25,20 @@ _WALL_RE = re.compile(r'(?:^|[^A-Z])([ABCD])(?![A-Z])')
 class QRDetector(Node):
     def __init__(self):
         super().__init__('qr_detector')
-        self.declare_parameter('image_topic', '/hydroships/camera_bottom/image_raw')
+        # QR payload bisa terlihat kamera bawah (bila datar) atau kamera depan
+        # (bila payload berdiri, QR di muka vertikal) → dengarkan keduanya.
+        self.declare_parameter('image_topics',
+                               ['/hydroships/camera_bottom/image_raw',
+                                '/hydroships/camera_front/image_raw'])
         self.declare_parameter('max_rate', 5.0)   # batas deteksi/detik (hemat CPU)
-        topic = self.get_parameter('image_topic').value
+        topics = list(self.get_parameter('image_topics').value)
 
         self.pub = self.create_publisher(String, '/hydroships/qr_result', 10)
-        self.sub = self.create_subscription(Image, topic, self._on_image, 5)
+        self._subs = [self.create_subscription(Image, t, self._on_image, 5) for t in topics]
         self.det = cv2.QRCodeDetector()
         self._last_t = 0.0
         self._last_data = None
-        self.get_logger().info(f'qr_detector siap (subscribe {topic})')
+        self.get_logger().info('qr_detector siap (subscribe %s)' % ', '.join(topics))
 
     def _to_cv(self, msg: Image):
         try:

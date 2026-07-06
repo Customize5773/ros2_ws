@@ -174,16 +174,31 @@
       </link>
     </model>
 
-    <!-- ================= Marker QR di dasar kolam (mewakili QR payload) =================
-         Pelat tipis bertekstur QR "A" menghadap atas di tengah dasar (z=-0.9), agar
-         kamera bawah ROV membacanya saat menyelam -> qr_detector -> FSM SCAN_QR.
-         Isi QR (A/B/C/D) = sisi target; ganti tekstur untuk sisi lain. -->
-    <model name="qr_marker">
+    <!-- ================= Payload dgn QR (sesuai gambar KKI) =================
+         Braket L: pelat 5cm x 0.6cm x 10cm dgn lubang dia 3cm (0.6cm dari atas),
+         kaki 3cm, + QR 4x4cm di muka depan pelat. Berdiri di dasar kolam.
+         Ditempatkan 0.4 m di +X dari tengah & QR menghadap -X (ke arah ROV) agar
+         kamera depan ROV membacanya saat SCAN_QR. Isi QR = sisi target (A/B/C/D). -->
+    <model name="payload">
       <static>true</static>
-      <pose>0 0 -0.895 0 0 0</pose>
-      <link name="qr_link">
-        <visual name="qr_visual">
-          <geometry><plane><normal>0 0 1</normal><size>0.30 0.30</size></plane></geometry>
+      <!-- Berbaring di dasar dgn QR MENGHADAP ATAS (roll +90°) supaya kamera bawah
+           ROV membacanya saat menyelam (sesuai kontrak: camera bottom = lantai/QR).
+           QR di-offset agar tepat di bawah pusat ROV. Untuk versi berdiri (spt gambar
+           saat digantung), ubah pose ke '0.4 0 -0.9 0 0 1.5708'. -->
+      <pose>0 0.04 -0.894 1.5708 0 0</pose>
+      <link name="payload_link">
+        <visual name="body">
+          <geometry>
+            <mesh><uri>model://hydroships_gazebo/media/payload_body.obj</uri></mesh>
+          </geometry>
+          <material>
+            <ambient>0.75 0.76 0.80 1</ambient>
+            <diffuse>0.82 0.83 0.86 1</diffuse>
+          </material>
+        </visual>
+        <visual name="qr">
+          <pose>0 0.0012 0.04 0 0 0</pose>
+          <geometry><plane><normal>0 1 0</normal><size>0.04 0.04</size></plane></geometry>
           <material>
             <diffuse>1 1 1 1</diffuse>
             <specular>0 0 0 1</specular>

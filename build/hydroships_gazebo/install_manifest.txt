@@ -3,6 +3,7 @@
 /home/rasya/ros2_ws/install/hydroships_gazebo/share/hydroships_gazebo/launch/sim.launch.py
 /home/rasya/ros2_ws/install/hydroships_gazebo/share/hydroships_gazebo/config/bridge.yaml
 /home/rasya/ros2_ws/install/hydroships_gazebo/share/hydroships_gazebo/media/qr_quad.obj
+/home/rasya/ros2_ws/install/hydroships_gazebo/share/hydroships_gazebo/media/payload_body.obj
 /home/rasya/ros2_ws/install/hydroships_gazebo/share/hydroships_gazebo/media/qr_A.png
 /home/rasya/ros2_ws/install/hydroships_gazebo/share/hydroships_gazebo/media/qr_quad.mtl
 /home/rasya/ros2_ws/install/hydroships_gazebo/share/ament_index/resource_index/package_run_dependencies/hydroships_gazebo
