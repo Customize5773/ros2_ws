@@ -63,20 +63,26 @@ Menjawab "kenapa ROV makin dibiarkan makin melayang, tidak menggenang di air":
 > menggerakkan ROV** (topik tak nyambung) — verifikasi lama kurang teliti. Kini teruji nyata.
 
 ## Model Visual ROV (mesh dari model/rov.fbx)
-- `[RESOLVED]` Body kotak base_link diganti mesh ROV asli. Fortress (ign-common4)
-  **tidak bisa memuat FBX** (tak ada loader assimp) & FBX asli 48 MB / 1.26 M tri
-  (DAE hasil konversi 378 MB — terlalu berat). **Solusi:** konversi `model/rov.fbx`
-  → decimate 1.26 M → **40 k tri** → `meshes/rov.stl` (2 MB) via pyassimp +
-  fast-simplification. Collision TETAP kotak (buoyancy/fisika). Mesh ter-load tanpa error.
-- `[RESOLVED]` `package://` di-resolve gz jadi `model://` → tak ketemu. Ditambah
-  `IGN_GAZEBO_RESOURCE_PATH`/`GZ_SIM_RESOURCE_PATH` ke folder share di `sim.launch.py`.
-- `[VERIFY]` **Skala (0.0048) & orientasi (rpy 0) & offset origin** mesh masih TEBAKAN
-  (footprint disamakan ~0.345 m). Belum bisa dicek visual headless — buka GUI
-  (`ros2 launch hydroships_gazebo sim.launch.py`) untuk pastikan ukuran/arah bow benar,
-  lalu sesuaikan `scale`/`rpy`/`origin` di `hydroships.urdf.xacro` (base_link visual).
+- `[RESOLVED]` **Struktur mesh "acak-acak" diperbaiki.** Sebelumnya 279 sub-mesh FBX
+  digabung pakai vertex LOKAL tanpa menerapkan transform node → semua bagian
+  terkumpul salah posisi. **Fix:** load dgn assimp `aiProcess_PreTransformVertices`
+  (bake transform hierarki ke world-space) sebelum merge.
+- `[RESOLVED]` **Skala terpecahkan.** Setelah transform benar, bbox mesh =
+  **350.7 × 344.5 × 286.0 mm** — persis ukuran kotak desain (0.345×0.345×0.286 m) →
+  **FBX satuan MILIMETER → scale = 0.001**. Mesh di-recenter ke origin di file, jadi
+  URDF origin xyz=0. (Fortress tak bisa FBX → dipakai STL hasil konversi.)
+- `[RESOLVED]` `package://`→`model://` tak ketemu → tambah `IGN_GAZEBO_RESOURCE_PATH`
+  di `sim.launch.py`. Mesh ter-load tanpa error (0 geometry-load-failures).
+- `[OPEN]` **Poly-count berat.** Model punya 279 komponen terpisah; fast-simplification
+  mentok di ~237 k segitiga (STL 12 MB) — tak bisa turun ke ~40 k. Akibat: **rate kamera
+  turun ~22 → ~10 Hz** (render lebih berat). Untuk lebih ringan: pakai decimator quadric
+  (open3d/pymeshlab) atau buang komponen kecil (baut/pipa) sebelum merge.
+- `[VERIFY]` **Arah bow (haluan) belum dipastikan.** Footprint mesh ~persegi (X≈Y) jadi
+  tak bisa ditebak dari bbox. Diatur via properti `bow_yaw` (rad) di `hydroships.urdf.xacro`
+  (default 0 = bow menghadap +X). Cek di GUI & set 1.5708/−1.5708/3.14159 bila perlu.
 - `[VERIFY]` STL monokrom (tanpa warna/material asli). Bila perlu warna, ekspor DAE
-  ter-decimate (butuh tool decimate + jaga ukuran) atau set material di URDF.
-- `[note]` Sumber `model/rov.fbx` (48 MB) dibiarkan di repo; yang dipakai sim = `meshes/rov.stl`.
+  ter-decimate (jaga ukuran) atau set material per-bagian di URDF.
+- `[note]` Sumber `model/rov.fbx` (48 MB) dibiarkan di repo; yang dipakai sim = `meshes/rov.stl` (12 MB).
 
 ## Autonomy (M6) — kode dibangun, INTEGRASI JALAN (setelah fix fisika)
 Node `mission_fsm` (ROS 2) + launch `hydroships_bringup/launch/hydroships_mission.launch.py`

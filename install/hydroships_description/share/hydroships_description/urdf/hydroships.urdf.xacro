@@ -22,6 +22,10 @@
   <xacro:property name="body_y" value="0.345"/>
   <xacro:property name="body_z" value="0.286"/>
 
+  <!-- Rotasi yaw mesh visual (rad) agar haluan/bow menghadap +X (arah surge).
+       Sesuaikan bila bow mesh menghadap arah lain: 1.5708=+90°, -1.5708=-90°, 3.14159=180°. -->
+  <xacro:property name="bow_yaw" value="0"/>
+
   <!-- Massa base dipilih agar total near-neutral, sedikit positif buoyant. -->
   <xacro:property name="base_mass" value="33.6"/>
   <xacro:property name="thruster_mass" value="0.05"/>
@@ -42,16 +46,15 @@
                iyy="${iyy}" iyz="0.0"
                izz="${izz}"/>
     </inertial>
-    <!-- Visual: mesh ROV asli (meshes/rov.stl, hasil konversi model/rov.fbx →
-         di-decimate 1.26M → 40k tri, 2 MB; Fortress tak bisa FBX). Collision TETAP
-         kotak agar buoyancy graded & fisika tetap murah/stabil.
-         Skala 0.0048 menyamakan footprint mesh (~71 unit) ke ~0.345 m; origin
-         meng-offset agar mesh terpusat di base_link. Orientasi bow (yaw) & skala
-         mungkin perlu di-tune visual — lihat PROBLEM.md. -->
+    <!-- Visual: mesh ROV asli (meshes/rov.stl, dari model/rov.fbx: node-transform
+         di-bake via PreTransformVertices lalu di-decimate; Fortress tak bisa FBX).
+         Mesh dalam MILIMETER (bbox 350.7 x 344.5 x 286 mm ≈ kotak desain) → scale 0.001.
+         Mesh sudah di-center di file, jadi origin xyz=0. rpy=0 0 ${bow_yaw}: arah bow
+         (+X) mungkin perlu diputar — lihat PROBLEM.md. Collision TETAP kotak (fisika). -->
     <visual>
-      <origin xyz="-0.016 -0.068 0.002" rpy="0 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 ${bow_yaw}"/>
       <geometry>
-        <mesh filename="package://hydroships_description/meshes/rov.stl" scale="0.0048 0.0048 0.0048"/>
+        <mesh filename="package://hydroships_description/meshes/rov.stl" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="hydro_yellow">
         <color rgba="0.9 0.75 0.1 1.0"/>
