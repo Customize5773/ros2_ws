@@ -181,10 +181,11 @@
          kamera depan ROV membacanya saat SCAN_QR. Isi QR = sisi target (A/B/C/D). -->
     <model name="payload">
       <static>true</static>
-      <!-- BERDIRI di dasar seperti gambar (kaki di lantai, QR di muka vertikal
-           menghadap -X ke arah ROV). Untuk discan kamera bawah, ganti pose ke
-           '0 0.04 -0.894 1.5708 0 0' (berbaring, QR menghadap atas). Lihat PROBLEM.md. -->
-      <pose>0.4 0 -0.9 0 0 1.5708</pose>
+      <!-- BERBARING di dasar dgn QR MENGHADAP ATAS (sesuai gambar referensi: QR/payload
+           datar di lantai, dibaca kamera BAWAH). QR berada di world (0.4, 0) — target
+           APPROACH FSM (payload_x/payload_y). Untuk versi berdiri saat digantung di wall,
+           pakai '0.4 0 -0.9 0 0 1.5708'. -->
+      <pose>0.4 0.04 -0.894 1.5708 0 0</pose>
       <link name="payload_link">
         <visual name="body">
           <geometry>

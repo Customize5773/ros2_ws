@@ -116,6 +116,12 @@ Node `mission_fsm` (ROS 2) + launch `hydroships_bringup/launch/hydroships_missio
 - `[TODO]` `APPROACH_HOOK` masih *timed* (visual servo ArUco ROS 2 belum ada) — referensi
   port ada di `GUI-ROV/autonomy/`.
 
+## Opsi ditunda
+- `[OPEN]` **Perbesar QR khusus sim.** Alternatif membuat scan andal tanpa approach presisi:
+  pakai QR jauh lebih besar dari 4 cm (mis. 15–25 cm) HANYA untuk sim, agar mudah di-decode
+  dari jarak. Trade-off: tak sesuai ukuran asli KKI (4 cm). Dipilih belakangan bila perilaku
+  APPROACH + hold belum cukup.
+
 ## Umum / lintas-milestone
 - `[VERIFY]` Massa & koefisien hidrodinamika ROV masih **placeholder** near-neutral
   (dari `hydroships.urdf.xacro`), belum data ROV asli. Setel di M2+ dgn data nyata.

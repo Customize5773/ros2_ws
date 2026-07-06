@@ -44,7 +44,7 @@ WALL_HEADING_DEG = {'A': 270.0, 'B': 90.0, 'C': 0.0, 'D': 180.0}
 
 
 class St(Enum):
-    IDLE = auto(); DIVE = auto(); SCAN_QR = auto(); GRAB = auto()
+    IDLE = auto(); DIVE = auto(); APPROACH_QR = auto(); SCAN_QR = auto(); GRAB = auto()
     NAV_WALL = auto(); HANG = auto(); SURFACE = auto(); DOCK = auto()
     APPROACH_HOOK = auto(); AUTO_RELEASE = auto(); DONE = auto(); ABORT = auto()
 
@@ -63,8 +63,16 @@ class MissionFSM(Node):
         p('scan_rate', 0.4)          # rad/s laju sapuan heading saat scan
         p('yaw_tol_deg', 10.0)       # derajat toleransi alignment heading
         p('qr_max_age', 1.5)         # s umur maks deteksi QR agar dianggap segar
+        # APPROACH payload (M1): posisikan ROV DI ATAS QR datar di dasar lalu hold
+        p('payload_x', 0.4)          # m posisi payload/QR di dunia (x)
+        p('payload_y', 0.0)          # m posisi payload/QR di dunia (y)
+        p('scan_depth', 0.68)        # m kedalaman scan (kamera bawah ~8cm di atas QR)
+        p('approach_kp', 90.0)       # N/m gain posisi XY -> gaya horizontal
+        p('approach_kd', 70.0)       # N/(m/s) redaman kecepatan (cegah overshoot)
+        p('approach_fmax', 16.0)     # N batas gaya approach
+        p('approach_tol', 0.06)      # m radius "sudah di atas payload"
         # timeout per state (s)
-        p('t_dive', 20.0); p('t_scan', 25.0); p('t_grab', 10.0); p('t_nav', 30.0)
+        p('t_dive', 20.0); p('t_scan', 45.0); p('t_grab', 10.0); p('t_nav', 30.0)
         p('t_hang', 15.0); p('t_surface', 20.0); p('t_dock', 12.0)
         p('t_approach', 20.0); p('t_release', 30.0)
 
@@ -77,6 +85,13 @@ class MissionFSM(Node):
         self.scan_rate = float(g('scan_rate'))
         self.yaw_tol = math.radians(float(g('yaw_tol_deg')))
         self.qr_max_age = float(g('qr_max_age'))
+        self.payload_x = float(g('payload_x'))
+        self.payload_y = float(g('payload_y'))
+        self.scan_depth = float(g('scan_depth'))
+        self.approach_kp = float(g('approach_kp'))
+        self.approach_kd = float(g('approach_kd'))
+        self.approach_fmax = float(g('approach_fmax'))
+        self.approach_tol = float(g('approach_tol'))
         self.T = {k: float(g('t_' + k)) for k in
                   ('dive', 'scan', 'grab', 'nav', 'hang', 'surface', 'dock',
                    'approach', 'release')}
@@ -93,6 +108,10 @@ class MissionFSM(Node):
         # State
         self.depth = None
         self.yaw = None
+        self.x = None
+        self.y = None
+        self.vx = 0.0
+        self.vy = 0.0
         self.qr_wall = None
         self.qr_time = 0.0
         self.wall = None
@@ -137,9 +156,31 @@ class MissionFSM(Node):
     def _grip(self, close):
         m = String(); m.data = 'close' if close else 'open'; self.pub_grip.publish(m)
 
+    def _goto_xy(self, tx, ty):
+        """PD posisi: dorong ROV ke (tx,ty) dunia via gaya horizontal body-frame,
+        dgn redaman kecepatan agar tak overshoot. Kembalikan jarak sisa (m)."""
+        if self.x is None or self.yaw is None:
+            return 999.0
+        ex, ey = tx - self.x, ty - self.y
+        c, s = math.cos(self.yaw), math.sin(self.yaw)
+        bx = ex * c + ey * s      # error posisi di body +x (surge)
+        by = -ex * s + ey * c     # error posisi di body +y (sway)
+        cl = lambda v: max(-self.approach_fmax, min(self.approach_fmax, v))
+        # vx,vy sudah body-frame dari odom twist -> pakai untuk redaman
+        surge = self.approach_kp * bx - self.approach_kd * self.vx
+        sway = self.approach_kp * by - self.approach_kd * self.vy
+        self._set_surge(cl(surge), cl(sway))
+        return math.hypot(ex, ey)
+
     # ---- callbacks ----
     def _on_depth(self, msg): self.depth = msg.data
-    def _on_odom(self, msg): self.yaw = yaw_from_quaternion(msg.pose.pose.orientation)
+
+    def _on_odom(self, msg):
+        self.yaw = yaw_from_quaternion(msg.pose.pose.orientation)
+        self.x = msg.pose.pose.position.x
+        self.y = msg.pose.pose.position.y
+        self.vx = msg.twist.twist.linear.x   # kecepatan body-frame (odom gz)
+        self.vy = msg.twist.twist.linear.y
 
     def _on_qr(self, msg):
         w = (msg.data or '').strip().upper()
@@ -164,12 +205,30 @@ class MissionFSM(Node):
 
     # ---- state handlers ----
     def _st_dive(self):
-        self._set_depth(self.depth_bottom)
-        if self.depth is not None and self.depth >= self.depth_bottom - self.depth_tol:
-            self._set_surge(0.0); self.get_logger().info('Dasar tercapai (%.2fm)' % self.depth)
-            self._to(St.SCAN_QR); self._scan_head0 = self.yaw or 0.0
+        # menyelam ke KEDALAMAN SCAN (kamera bawah cukup tinggi utk lihat QR utuh)
+        self._set_depth(self.scan_depth)
+        if self.depth is not None and self.depth >= self.scan_depth - self.depth_tol:
+            self._set_surge(0.0)
+            self.get_logger().info('Kedalaman scan tercapai (%.2fm)' % self.depth)
+            self._to(St.APPROACH_QR)
         elif self._elapsed() > self.T['dive']:
             self.get_logger().error('DIVE timeout'); self._to(St.ABORT)
+
+    def _st_approach_qr(self):
+        """Misi 1a: posisikan ROV DI ATAS payload/QR datar & tahan (depth+XY hold)
+        agar kamera bawah membaca QR. QR terbaca -> tetapkan wall -> GRAB."""
+        self._set_depth(self.scan_depth)
+        self._set_heading(0.0)                       # heading tetap (QR di bawah, rotasi tak perlu)
+        dist = self._goto_xy(self.payload_x, self.payload_y)
+        # QR terbaca (dari qr_detector via kamera bawah) & segar?
+        if self.qr_wall and (self._now() - self.qr_time) <= self.qr_max_age:
+            self.wall = self.qr_wall; self.score['m1'] = 15
+            self.get_logger().info('QR -> wall %s (+15) [dist %.2fm]' % (self.wall, dist))
+            self._set_surge(0.0); self._to(St.GRAB); return
+        if int(self._elapsed() * 2) % 4 == 0:
+            self.get_logger().debug('APPROACH_QR dist=%.2fm' % dist)
+        if self._elapsed() > self.T['scan']:
+            self.get_logger().error('APPROACH_QR timeout — QR tak terbaca'); self._to(St.ABORT)
 
     def _st_scan_qr(self):
         # QR segar?
