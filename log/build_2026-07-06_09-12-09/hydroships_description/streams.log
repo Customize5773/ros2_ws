@@ -1,0 +1,25 @@
+[0.026s] Invoking command in '/home/rasya/ros2_ws/build/hydroships_description': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake --build /home/rasya/ros2_ws/build/hydroships_description -- -j12 -l12
+[0.121s] Invoked command in '/home/rasya/ros2_ws/build/hydroships_description' returned '0': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake --build /home/rasya/ros2_ws/build/hydroships_description -- -j12 -l12
+[0.140s] Invoking command in '/home/rasya/ros2_ws/build/hydroships_description': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake --install /home/rasya/ros2_ws/build/hydroships_description
+[0.161s] -- Install configuration: ""
+[0.161s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/urdf
+[0.161s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/urdf/hydroships.urdf.xacro
+[0.162s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/meshes
+[0.162s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/meshes/rov.stl
+[0.162s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/meshes/README.md
+[0.162s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_description/share/ament_index/resource_index/package_run_dependencies/hydroships_description
+[0.162s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_description/share/ament_index/resource_index/parent_prefix_path/hydroships_description
+[0.162s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/environment/ament_prefix_path.sh
+[0.162s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/environment/ament_prefix_path.dsv
+[0.162s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/environment/path.sh
+[0.162s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/environment/path.dsv
+[0.162s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/local_setup.bash
+[0.162s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/local_setup.sh
+[0.162s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/local_setup.zsh
+[0.163s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/local_setup.dsv
+[0.163s] -- Installing: /home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/package.dsv
+[0.163s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_description/share/ament_index/resource_index/packages/hydroships_description
+[0.163s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/cmake/hydroships_descriptionConfig.cmake
+[0.163s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/cmake/hydroships_descriptionConfig-version.cmake
+[0.163s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/package.xml
+[0.165s] Invoked command in '/home/rasya/ros2_ws/build/hydroships_description' returned '0': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake --install /home/rasya/ros2_ws/build/hydroships_description
