@@ -1,0 +1,31 @@
+[0.072s] Invoking command in '/home/rasya/ros2_ws/build/hydroships_gazebo': AMENT_PREFIX_PATH=/home/rasya/ros2_ws/install/hydroships_description:/home/rasya/ros2_ws/install/hydroships_control:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/rasya/ros2_ws/install/hydroships_description:/opt/ros/humble PYTHONPATH=/home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/cmake --build /home/rasya/ros2_ws/build/hydroships_gazebo -- -j12 -l12
+[0.282s] Invoked command in '/home/rasya/ros2_ws/build/hydroships_gazebo' returned '0': AMENT_PREFIX_PATH=/home/rasya/ros2_ws/install/hydroships_description:/home/rasya/ros2_ws/install/hydroships_control:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/rasya/ros2_ws/install/hydroships_description:/opt/ros/humble PYTHONPATH=/home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/cmake --build /home/rasya/ros2_ws/build/hydroships_gazebo -- -j12 -l12
+[0.311s] Invoking command in '/home/rasya/ros2_ws/build/hydroships_gazebo': AMENT_PREFIX_PATH=/home/rasya/ros2_ws/install/hydroships_description:/home/rasya/ros2_ws/install/hydroships_control:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/rasya/ros2_ws/install/hydroships_description:/opt/ros/humble PYTHONPATH=/home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/cmake --install /home/rasya/ros2_ws/build/hydroships_gazebo
+[0.342s] -- Install configuration: ""
+[0.343s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_gazebo/share/hydroships_gazebo/worlds
+[0.343s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_gazebo/share/hydroships_gazebo/worlds/pool_empty.sdf
+[0.343s] -- Installing: /home/rasya/ros2_ws/install/hydroships_gazebo/share/hydroships_gazebo/worlds/kki_arena.sdf
+[0.350s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_gazebo/share/hydroships_gazebo/launch
+[0.351s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_gazebo/share/hydroships_gazebo/launch/sim.launch.py
+[0.351s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_gazebo/share/hydroships_gazebo/config
+[0.351s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_gazebo/share/hydroships_gazebo/config/bridge.yaml
+[0.351s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_gazebo/share/hydroships_gazebo/media
+[0.351s] -- Installing: /home/rasya/ros2_ws/install/hydroships_gazebo/share/hydroships_gazebo/media/qr_quad.obj
+[0.352s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_gazebo/share/hydroships_gazebo/media/qr_A.png
+[0.352s] -- Installing: /home/rasya/ros2_ws/install/hydroships_gazebo/share/hydroships_gazebo/media/qr_quad.mtl
+[0.357s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_gazebo/share/ament_index/resource_index/package_run_dependencies/hydroships_gazebo
+[0.358s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_gazebo/share/ament_index/resource_index/parent_prefix_path/hydroships_gazebo
+[0.359s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_gazebo/share/hydroships_gazebo/environment/ament_prefix_path.sh
+[0.359s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_gazebo/share/hydroships_gazebo/environment/ament_prefix_path.dsv
+[0.359s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_gazebo/share/hydroships_gazebo/environment/path.sh
+[0.359s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_gazebo/share/hydroships_gazebo/environment/path.dsv
+[0.359s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_gazebo/share/hydroships_gazebo/local_setup.bash
+[0.359s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_gazebo/share/hydroships_gazebo/local_setup.sh
+[0.360s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_gazebo/share/hydroships_gazebo/local_setup.zsh
+[0.360s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_gazebo/share/hydroships_gazebo/local_setup.dsv
+[0.360s] -- Installing: /home/rasya/ros2_ws/install/hydroships_gazebo/share/hydroships_gazebo/package.dsv
+[0.360s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_gazebo/share/ament_index/resource_index/packages/hydroships_gazebo
+[0.360s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_gazebo/share/hydroships_gazebo/cmake/hydroships_gazeboConfig.cmake
+[0.361s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_gazebo/share/hydroships_gazebo/cmake/hydroships_gazeboConfig-version.cmake
+[0.361s] -- Up-to-date: /home/rasya/ros2_ws/install/hydroships_gazebo/share/hydroships_gazebo/package.xml
+[0.372s] Invoked command in '/home/rasya/ros2_ws/build/hydroships_gazebo' returned '0': AMENT_PREFIX_PATH=/home/rasya/ros2_ws/install/hydroships_description:/home/rasya/ros2_ws/install/hydroships_control:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/rasya/ros2_ws/install/hydroships_description:/opt/ros/humble PYTHONPATH=/home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/cmake --install /home/rasya/ros2_ws/build/hydroships_gazebo

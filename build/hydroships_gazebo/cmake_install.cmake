@@ -47,6 +47,7 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
     "/home/rasya/ros2_ws/src/hydroships_gazebo/worlds"
     "/home/rasya/ros2_ws/src/hydroships_gazebo/launch"
     "/home/rasya/ros2_ws/src/hydroships_gazebo/config"
+    "/home/rasya/ros2_ws/src/hydroships_gazebo/media"
     )
 endif()
 

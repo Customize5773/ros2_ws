@@ -231,7 +231,8 @@
 			[
 				"worlds",
 				"launch",
-				"config"
+				"config",
+				"media"
 			],
 			"type" : "directory"
 		},
