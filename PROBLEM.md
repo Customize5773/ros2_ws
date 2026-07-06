@@ -24,8 +24,13 @@ selesai. Format: `[status]` OPEN / VERIFY / RESOLVED.
 - `[VERIFY]` `depth_publisher` menurunkan kedalaman = max(0,−z) dari odom. Benar di sim
   (permukaan z=0). ROV near-neutral **sedikit positif** → mengapung ke permukaan saat
   thruster mati (depth→0). Ini sesuai desain M1, bukan bug.
-- `[OPEN]` Node deteksi QR (`camera_bottom/image_raw` → `/hydroships/qr_result` A/B/C/D)
-  belum dibuat. Butuh `cv_bridge` + OpenCV di ROS 2.
+- `[RESOLVED]` Node deteksi QR **sudah dibuat**: `qr_detector` (baca
+  `camera_bottom/image_raw`, decode `cv2.QRCodeDetector`, publish `/hydroships/qr_result`
+  A/B/C/D). Tanpa `cv_bridge` (decode Image manual via numpy). **Terverifikasi** dgn QR
+  sintetik "A" → qr_result "A". Otomatis mengumpani FSM SCAN_QR.
+- `[OPEN]` **Belum ada marker QR di dasar arena** → uji autonomous penuh di sim masih
+  perlu inject `/hydroships/qr_result` manual. Tambah plane bertekstur QR di
+  `worlds/kki_arena.sdf` (dasar kolam) agar kamera bawah benar-benar melihat QR.
 
 ## Manipulator (M5) — sudah dibangun
 - Gripper 2 jari (revolute sumbu z) di depan ROV, dikontrol gz JointPositionController.

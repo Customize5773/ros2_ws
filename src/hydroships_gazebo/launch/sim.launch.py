@@ -98,7 +98,15 @@ def _launch_setup(context, *args, **kwargs):
         parameters=[{'use_sim_time': True}],
     )
 
-    return [gz_sim, bridge, rsp, spawn, depth_pub, gripper]
+    # Deteksi QR dari kamera bawah -> /hydroships/qr_result (A/B/C/D) (M3 persepsi).
+    qr = Node(
+        package='hydroships_control',
+        executable='qr_detector',
+        output='screen',
+        parameters=[{'use_sim_time': True}],
+    )
+
+    return [gz_sim, bridge, rsp, spawn, depth_pub, gripper, qr]
 
 
 def generate_launch_description():

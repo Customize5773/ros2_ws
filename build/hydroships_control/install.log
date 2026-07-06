@@ -6,6 +6,7 @@
 /home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages/hydroships_control/__init__.py
 /home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages/hydroships_control/depth_publisher.py
 /home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages/hydroships_control/gripper_controller.py
+/home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages/hydroships_control/qr_detector.py
 /home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages/hydroships_control/teleop_stabilized.py
 /home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages/hydroships_control/allocation.py
 /home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages/hydroships_control/__pycache__/mission_fsm.cpython-310.pyc
@@ -16,6 +17,7 @@
 /home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages/hydroships_control/__pycache__/__init__.cpython-310.pyc
 /home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages/hydroships_control/__pycache__/depth_publisher.cpython-310.pyc
 /home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages/hydroships_control/__pycache__/gripper_controller.cpython-310.pyc
+/home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages/hydroships_control/__pycache__/qr_detector.cpython-310.pyc
 /home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages/hydroships_control/__pycache__/teleop_stabilized.cpython-310.pyc
 /home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages/hydroships_control/__pycache__/allocation.cpython-310.pyc
 /home/rasya/ros2_ws/install/hydroships_control/share/ament_index/resource_index/packages/hydroships_control
@@ -32,6 +34,7 @@
 /home/rasya/ros2_ws/install/hydroships_control/lib/hydroships_control/depth_publisher
 /home/rasya/ros2_ws/install/hydroships_control/lib/hydroships_control/gripper_controller
 /home/rasya/ros2_ws/install/hydroships_control/lib/hydroships_control/mission_fsm
+/home/rasya/ros2_ws/install/hydroships_control/lib/hydroships_control/qr_detector
 /home/rasya/ros2_ws/install/hydroships_control/lib/hydroships_control/stabilizer
 /home/rasya/ros2_ws/install/hydroships_control/lib/hydroships_control/teleop_keyboard
 /home/rasya/ros2_ws/install/hydroships_control/lib/hydroships_control/teleop_stabilized

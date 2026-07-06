@@ -15,6 +15,7 @@ hydroships_control/depth_publisher.py
 hydroships_control/gripper_controller.py
 hydroships_control/mission_fsm.py
 hydroships_control/pid.py
+hydroships_control/qr_detector.py
 hydroships_control/stabilizer.py
 hydroships_control/teleop_keyboard.py
 hydroships_control/teleop_stabilized.py
