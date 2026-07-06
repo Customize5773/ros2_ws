@@ -36,13 +36,20 @@ selesai. Format: `[status]` OPEN / VERIFY / RESOLVED.
   saja RENDER HITAM (butuh environment/IBL). **Fix:** pakai `<emissive_map>` (self-lit) →
   QR tampil & **terbaca** (`cv2` decode "A" dari kamera). Tekstur RGB (bukan grayscale) di
   plane (bukan box — box tak punya UV).
-- `[OPEN]` **Scan QR autonomous di sim belum andal.** QR asli 4 cm terlalu kecil untuk
-  di-decode dari jarak misi (butuh ~3 px/modul; 4 cm @ 0.2 m hanya ~60 px). Plus ROV
-  positif-buoyant (naik ke permukaan), tak ada position-hold XY (drift), dan SCAN_QR
-  menyapu heading → kamera sulit tetap mengarah ke QR kecil. **Untuk uji misi penuh sekarang:
-  inject `/hydroships/qr_result` manual** (logika FSM sudah terverifikasi). **Opsi perbaikan
-  (belakangan):** perbesar QR di sim, tambah perilaku APPROACH ke payload sebelum scan,
-  tambah depth+XY hold, atau baringkan payload (QR ke atas) tepat di bawah jalur menyelam.
+- `[RESOLVED]` **Perilaku APPROACH + depth/XY hold** (state `APPROACH_QR` di mission_fsm):
+  ROV menyelam ke `scan_depth`, lalu **PD posisi** (kp/kd, redaman dari odom twist body-frame)
+  mendorong ROV **DI ATAS** payload/QR datar & **menahannya**. Terverifikasi bersih: ROV
+  menetap di **(0.41, 0.00, ~0.63)** tepat di target `payload_x/y` (0.4, 0) dan stabil.
+  Kamera bawah digeser sedikit ke bawah badan (z=-0.18) agar tak terhalang mesh sendiri.
+- `[OPEN]` **QR belum terbaca meski posisi sudah tepat.** Di kedalaman scan, kamera bawah
+  menampilkan lantai berfaset + bayangan; **payload/QR tak tampil jelas** (QR emissif 4 cm
+  terlalu kecil pada render ini, atau isu render payload jarak dekat). Loop kontrol (approach)
+  sudah beres — sisanya murni keterbacaan visual. **Uji misi penuh sekarang: inject
+  `/hydroships/qr_result` manual.** Fix: **perbesar QR khusus sim** (lihat "Opsi ditunda"),
+  atau debug pencahayaan/scene agar QR emissif kontras & cukup besar di frame.
+- `[note-uji]` Run sim yang tumpang-tindih meninggalkan proses `mission_fsm`/`parameter_bridge`
+  lama yang **saling adu perintah** → ROV berperilaku erratic. Selalu pastikan proses lama
+  mati (`ps | grep`) sebelum run baru. Bukan bug kode.
 
 ## Manipulator (M5) — sudah dibangun
 - Gripper 2 jari (revolute sumbu z) di depan ROV, dikontrol gz JointPositionController.
@@ -79,7 +86,7 @@ Menjawab "kenapa ROV makin dibiarkan makin melayang, tidak menggenang di air":
 > Catatan: M1/M2 sebelumnya ditandai ✅ tapi ternyata **thrust tak pernah benar-benar
 > menggerakkan ROV** (topik tak nyambung) — verifikasi lama kurang teliti. Kini teruji nyata.
 
-## Model Visual ROV (mesh dari model/rov.fbx)
+## Model Visual ROV (mesh dari model/rov.fbx) (PRIORITASKAN)
 - `[RESOLVED]` **Struktur mesh "acak-acak" diperbaiki.** Sebelumnya 279 sub-mesh FBX
   digabung pakai vertex LOKAL tanpa menerapkan transform node → semua bagian
   terkumpul salah posisi. **Fix:** load dgn assimp `aiProcess_PreTransformVertices`

@@ -1,0 +1,31 @@
+[0.975s] Invoking command in '/home/rasya/ros2_ws/src/hydroships_control': PYTHONPATH=/home/rasya/ros2_ws/build/hydroships_control/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/hydroships_control build --build-base /home/rasya/ros2_ws/build/hydroships_control/build install --record /home/rasya/ros2_ws/build/hydroships_control/install.log --install-scripts $base/lib/hydroships_control --single-version-externally-managed install_data
+[1.424s] running egg_info
+[1.425s] writing ../../build/hydroships_control/hydroships_control.egg-info/PKG-INFO
+[1.427s] writing dependency_links to ../../build/hydroships_control/hydroships_control.egg-info/dependency_links.txt
+[1.427s] writing entry points to ../../build/hydroships_control/hydroships_control.egg-info/entry_points.txt
+[1.427s] writing requirements to ../../build/hydroships_control/hydroships_control.egg-info/requires.txt
+[1.427s] writing top-level names to ../../build/hydroships_control/hydroships_control.egg-info/top_level.txt
+[1.430s] reading manifest file '../../build/hydroships_control/hydroships_control.egg-info/SOURCES.txt'
+[1.432s] writing manifest file '../../build/hydroships_control/hydroships_control.egg-info/SOURCES.txt'
+[1.432s] running build
+[1.432s] running build_py
+[1.433s] copying hydroships_control/mission_fsm.py -> /home/rasya/ros2_ws/build/hydroships_control/build/lib/hydroships_control
+[1.434s] running install
+[1.435s] running install_lib
+[1.436s] copying /home/rasya/ros2_ws/build/hydroships_control/build/lib/hydroships_control/mission_fsm.py -> /home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages/hydroships_control
+[1.438s] byte-compiling /home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages/hydroships_control/mission_fsm.py to mission_fsm.cpython-310.pyc
+[1.444s] running install_data
+[1.444s] running install_egg_info
+[1.447s] removing '/home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages/hydroships_control-0.1.0-py3.10.egg-info' (and everything under it)
+[1.448s] Copying ../../build/hydroships_control/hydroships_control.egg-info to /home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages/hydroships_control-0.1.0-py3.10.egg-info
+[1.450s] running install_scripts
+[1.488s] Installing depth_publisher script to /home/rasya/ros2_ws/install/hydroships_control/lib/hydroships_control
+[1.489s] Installing gripper_controller script to /home/rasya/ros2_ws/install/hydroships_control/lib/hydroships_control
+[1.489s] Installing mission_fsm script to /home/rasya/ros2_ws/install/hydroships_control/lib/hydroships_control
+[1.490s] Installing qr_detector script to /home/rasya/ros2_ws/install/hydroships_control/lib/hydroships_control
+[1.490s] Installing stabilizer script to /home/rasya/ros2_ws/install/hydroships_control/lib/hydroships_control
+[1.490s] Installing teleop_keyboard script to /home/rasya/ros2_ws/install/hydroships_control/lib/hydroships_control
+[1.490s] Installing teleop_stabilized script to /home/rasya/ros2_ws/install/hydroships_control/lib/hydroships_control
+[1.490s] Installing thruster_allocator script to /home/rasya/ros2_ws/install/hydroships_control/lib/hydroships_control
+[1.491s] writing list of installed files to '/home/rasya/ros2_ws/build/hydroships_control/install.log'
+[1.539s] Invoked command in '/home/rasya/ros2_ws/src/hydroships_control' returned '0': PYTHONPATH=/home/rasya/ros2_ws/build/hydroships_control/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/hydroships_control build --build-base /home/rasya/ros2_ws/build/hydroships_control/build install --record /home/rasya/ros2_ws/build/hydroships_control/install.log --install-scripts $base/lib/hydroships_control --single-version-externally-managed install_data

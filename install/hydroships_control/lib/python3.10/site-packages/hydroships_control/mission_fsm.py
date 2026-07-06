@@ -66,13 +66,13 @@ class MissionFSM(Node):
         # APPROACH payload (M1): posisikan ROV DI ATAS QR datar di dasar lalu hold
         p('payload_x', 0.4)          # m posisi payload/QR di dunia (x)
         p('payload_y', 0.0)          # m posisi payload/QR di dunia (y)
-        p('scan_depth', 0.68)        # m kedalaman scan (kamera bawah ~8cm di atas QR)
+        p('scan_depth', 0.62)        # m kedalaman scan (kamera bawah ~9cm di atas QR)
         p('approach_kp', 90.0)       # N/m gain posisi XY -> gaya horizontal
         p('approach_kd', 70.0)       # N/(m/s) redaman kecepatan (cegah overshoot)
         p('approach_fmax', 16.0)     # N batas gaya approach
         p('approach_tol', 0.06)      # m radius "sudah di atas payload"
         # timeout per state (s)
-        p('t_dive', 20.0); p('t_scan', 25.0); p('t_grab', 10.0); p('t_nav', 30.0)
+        p('t_dive', 20.0); p('t_scan', 45.0); p('t_grab', 10.0); p('t_nav', 30.0)
         p('t_hang', 15.0); p('t_surface', 20.0); p('t_dock', 12.0)
         p('t_approach', 20.0); p('t_release', 30.0)
 

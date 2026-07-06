@@ -1,0 +1,225 @@
+[0.138s] DEBUG:colcon:Command line arguments: ['/usr/bin/colcon', 'build', '--packages-select', 'hydroships_control', 'hydroships_description']
+[0.139s] DEBUG:colcon:Parsed command line arguments: Namespace(log_base=None, log_level=None, verb_name='build', build_base='build', install_base='install', merge_install=False, symlink_install=False, test_result_base=None, continue_on_error=False, executor='parallel', parallel_workers=12, event_handlers=None, ignore_user_meta=False, metas=['./colcon.meta'], base_paths=['.'], packages_ignore=None, packages_ignore_regex=None, paths=None, packages_up_to=None, packages_up_to_regex=None, packages_above=None, packages_above_and_dependencies=None, packages_above_depth=None, packages_select_by_dep=None, packages_skip_by_dep=None, packages_skip_up_to=None, packages_select_build_failed=False, packages_skip_build_finished=False, packages_select_test_failures=False, packages_skip_test_passed=False, packages_select=['hydroships_control', 'hydroships_description'], packages_skip=None, packages_select_regex=None, packages_skip_regex=None, packages_start=None, packages_end=None, allow_overriding=[], cmake_args=None, cmake_target=None, cmake_target_skip_unavailable=False, cmake_clean_cache=False, cmake_clean_first=False, cmake_force_configure=False, ament_cmake_args=None, catkin_cmake_args=None, catkin_skip_building_tests=False, verb_parser=<colcon_defaults.argument_parser.defaults.DefaultArgumentsDecorator object at 0x7c032afdbe50>, verb_extension=<colcon_core.verb.build.BuildVerb object at 0x7c032b1714b0>, main=<bound method BuildVerb.main of <colcon_core.verb.build.BuildVerb object at 0x7c032b1714b0>>)
+[0.398s] Level 1:colcon.colcon_core.package_discovery:discover_packages(colcon_meta) check parameters
+[0.398s] Level 1:colcon.colcon_core.package_discovery:discover_packages(recursive) check parameters
+[0.398s] Level 1:colcon.colcon_core.package_discovery:discover_packages(ignore) check parameters
+[0.398s] Level 1:colcon.colcon_core.package_discovery:discover_packages(path) check parameters
+[0.398s] Level 1:colcon.colcon_core.package_discovery:discover_packages(colcon_meta) discover
+[0.398s] Level 1:colcon.colcon_core.package_discovery:discover_packages(recursive) discover
+[0.398s] INFO:colcon.colcon_core.package_discovery:Crawling recursively for packages in '/home/rasya/ros2_ws'
+[0.398s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['ignore', 'ignore_ament_install']
+[0.399s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'ignore'
+[0.399s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'ignore_ament_install'
+[0.399s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['colcon_pkg']
+[0.399s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'colcon_pkg'
+[0.399s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['colcon_meta']
+[0.399s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'colcon_meta'
+[0.399s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['ros']
+[0.399s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'ros'
+[0.416s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['cmake', 'python']
+[0.416s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'cmake'
+[0.416s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'python'
+[0.416s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['python_setup_py']
+[0.416s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'python_setup_py'
+[0.417s] Level 1:colcon.colcon_core.package_identification:_identify(build) by extensions ['ignore', 'ignore_ament_install']
+[0.417s] Level 1:colcon.colcon_core.package_identification:_identify(build) by extension 'ignore'
+[0.417s] Level 1:colcon.colcon_core.package_identification:_identify(build) ignored
+[0.417s] Level 1:colcon.colcon_core.package_identification:_identify(install) by extensions ['ignore', 'ignore_ament_install']
+[0.417s] Level 1:colcon.colcon_core.package_identification:_identify(install) by extension 'ignore'
+[0.417s] Level 1:colcon.colcon_core.package_identification:_identify(install) ignored
+[0.418s] Level 1:colcon.colcon_core.package_identification:_identify(log) by extensions ['ignore', 'ignore_ament_install']
+[0.418s] Level 1:colcon.colcon_core.package_identification:_identify(log) by extension 'ignore'
+[0.418s] Level 1:colcon.colcon_core.package_identification:_identify(log) ignored
+[0.418s] Level 1:colcon.colcon_core.package_identification:_identify(model) by extensions ['ignore', 'ignore_ament_install']
+[0.418s] Level 1:colcon.colcon_core.package_identification:_identify(model) by extension 'ignore'
+[0.418s] Level 1:colcon.colcon_core.package_identification:_identify(model) by extension 'ignore_ament_install'
+[0.418s] Level 1:colcon.colcon_core.package_identification:_identify(model) by extensions ['colcon_pkg']
+[0.418s] Level 1:colcon.colcon_core.package_identification:_identify(model) by extension 'colcon_pkg'
+[0.418s] Level 1:colcon.colcon_core.package_identification:_identify(model) by extensions ['colcon_meta']
+[0.419s] Level 1:colcon.colcon_core.package_identification:_identify(model) by extension 'colcon_meta'
+[0.419s] Level 1:colcon.colcon_core.package_identification:_identify(model) by extensions ['ros']
+[0.419s] Level 1:colcon.colcon_core.package_identification:_identify(model) by extension 'ros'
+[0.419s] Level 1:colcon.colcon_core.package_identification:_identify(model) by extensions ['cmake', 'python']
+[0.419s] Level 1:colcon.colcon_core.package_identification:_identify(model) by extension 'cmake'
+[0.419s] Level 1:colcon.colcon_core.package_identification:_identify(model) by extension 'python'
+[0.419s] Level 1:colcon.colcon_core.package_identification:_identify(model) by extensions ['python_setup_py']
+[0.419s] Level 1:colcon.colcon_core.package_identification:_identify(model) by extension 'python_setup_py'
+[0.419s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extensions ['ignore', 'ignore_ament_install']
+[0.419s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'ignore'
+[0.420s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'ignore_ament_install'
+[0.420s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extensions ['colcon_pkg']
+[0.420s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'colcon_pkg'
+[0.420s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extensions ['colcon_meta']
+[0.420s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'colcon_meta'
+[0.420s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extensions ['ros']
+[0.420s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'ros'
+[0.420s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extensions ['cmake', 'python']
+[0.420s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'cmake'
+[0.420s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'python'
+[0.420s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extensions ['python_setup_py']
+[0.420s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'python_setup_py'
+[0.421s] Level 1:colcon.colcon_core.package_identification:_identify(src/hydroships_bringup) by extensions ['ignore', 'ignore_ament_install']
+[0.421s] Level 1:colcon.colcon_core.package_identification:_identify(src/hydroships_bringup) by extension 'ignore'
+[0.421s] Level 1:colcon.colcon_core.package_identification:_identify(src/hydroships_bringup) by extension 'ignore_ament_install'
+[0.421s] Level 1:colcon.colcon_core.package_identification:_identify(src/hydroships_bringup) by extensions ['colcon_pkg']
+[0.421s] Level 1:colcon.colcon_core.package_identification:_identify(src/hydroships_bringup) by extension 'colcon_pkg'
+[0.421s] Level 1:colcon.colcon_core.package_identification:_identify(src/hydroships_bringup) by extensions ['colcon_meta']
+[0.421s] Level 1:colcon.colcon_core.package_identification:_identify(src/hydroships_bringup) by extension 'colcon_meta'
+[0.421s] Level 1:colcon.colcon_core.package_identification:_identify(src/hydroships_bringup) by extensions ['ros']
+[0.421s] Level 1:colcon.colcon_core.package_identification:_identify(src/hydroships_bringup) by extension 'ros'
+[0.426s] DEBUG:colcon.colcon_core.package_identification:Package 'src/hydroships_bringup' with type 'ros.ament_cmake' and name 'hydroships_bringup'
+[0.427s] Level 1:colcon.colcon_core.package_identification:_identify(src/hydroships_control) by extensions ['ignore', 'ignore_ament_install']
+[0.427s] Level 1:colcon.colcon_core.package_identification:_identify(src/hydroships_control) by extension 'ignore'
+[0.427s] Level 1:colcon.colcon_core.package_identification:_identify(src/hydroships_control) by extension 'ignore_ament_install'
+[0.427s] Level 1:colcon.colcon_core.package_identification:_identify(src/hydroships_control) by extensions ['colcon_pkg']
+[0.427s] Level 1:colcon.colcon_core.package_identification:_identify(src/hydroships_control) by extension 'colcon_pkg'
+[0.427s] Level 1:colcon.colcon_core.package_identification:_identify(src/hydroships_control) by extensions ['colcon_meta']
+[0.427s] Level 1:colcon.colcon_core.package_identification:_identify(src/hydroships_control) by extension 'colcon_meta'
+[0.428s] Level 1:colcon.colcon_core.package_identification:_identify(src/hydroships_control) by extensions ['ros']
+[0.428s] Level 1:colcon.colcon_core.package_identification:_identify(src/hydroships_control) by extension 'ros'
+[0.429s] DEBUG:colcon.colcon_core.package_identification:Package 'src/hydroships_control' with type 'ros.ament_python' and name 'hydroships_control'
+[0.429s] Level 1:colcon.colcon_core.package_identification:_identify(src/hydroships_description) by extensions ['ignore', 'ignore_ament_install']
+[0.429s] Level 1:colcon.colcon_core.package_identification:_identify(src/hydroships_description) by extension 'ignore'
+[0.429s] Level 1:colcon.colcon_core.package_identification:_identify(src/hydroships_description) by extension 'ignore_ament_install'
+[0.430s] Level 1:colcon.colcon_core.package_identification:_identify(src/hydroships_description) by extensions ['colcon_pkg']
+[0.430s] Level 1:colcon.colcon_core.package_identification:_identify(src/hydroships_description) by extension 'colcon_pkg'
+[0.430s] Level 1:colcon.colcon_core.package_identification:_identify(src/hydroships_description) by extensions ['colcon_meta']
+[0.430s] Level 1:colcon.colcon_core.package_identification:_identify(src/hydroships_description) by extension 'colcon_meta'
+[0.430s] Level 1:colcon.colcon_core.package_identification:_identify(src/hydroships_description) by extensions ['ros']
+[0.430s] Level 1:colcon.colcon_core.package_identification:_identify(src/hydroships_description) by extension 'ros'
+[0.431s] DEBUG:colcon.colcon_core.package_identification:Package 'src/hydroships_description' with type 'ros.ament_cmake' and name 'hydroships_description'
+[0.431s] Level 1:colcon.colcon_core.package_identification:_identify(src/hydroships_gazebo) by extensions ['ignore', 'ignore_ament_install']
+[0.431s] Level 1:colcon.colcon_core.package_identification:_identify(src/hydroships_gazebo) by extension 'ignore'
+[0.432s] Level 1:colcon.colcon_core.package_identification:_identify(src/hydroships_gazebo) by extension 'ignore_ament_install'
+[0.432s] Level 1:colcon.colcon_core.package_identification:_identify(src/hydroships_gazebo) by extensions ['colcon_pkg']
+[0.432s] Level 1:colcon.colcon_core.package_identification:_identify(src/hydroships_gazebo) by extension 'colcon_pkg'
+[0.432s] Level 1:colcon.colcon_core.package_identification:_identify(src/hydroships_gazebo) by extensions ['colcon_meta']
+[0.432s] Level 1:colcon.colcon_core.package_identification:_identify(src/hydroships_gazebo) by extension 'colcon_meta'
+[0.432s] Level 1:colcon.colcon_core.package_identification:_identify(src/hydroships_gazebo) by extensions ['ros']
+[0.432s] Level 1:colcon.colcon_core.package_identification:_identify(src/hydroships_gazebo) by extension 'ros'
+[0.433s] DEBUG:colcon.colcon_core.package_identification:Package 'src/hydroships_gazebo' with type 'ros.ament_cmake' and name 'hydroships_gazebo'
+[0.434s] Level 1:colcon.colcon_core.package_discovery:discover_packages(recursive) using defaults
+[0.434s] Level 1:colcon.colcon_core.package_discovery:discover_packages(ignore) discover
+[0.434s] Level 1:colcon.colcon_core.package_discovery:discover_packages(ignore) using defaults
+[0.434s] Level 1:colcon.colcon_core.package_discovery:discover_packages(path) discover
+[0.434s] Level 1:colcon.colcon_core.package_discovery:discover_packages(path) using defaults
+[0.474s] INFO:colcon.colcon_core.package_selection:Skipping not selected package 'hydroships_gazebo' in 'src/hydroships_gazebo'
+[0.474s] INFO:colcon.colcon_core.package_selection:Skipping not selected package 'hydroships_bringup' in 'src/hydroships_bringup'
+[0.475s] Level 1:colcon.colcon_core.package_discovery:discover_packages(prefix_path) check parameters
+[0.475s] Level 1:colcon.colcon_core.package_discovery:discover_packages(prefix_path) discover
+[0.480s] DEBUG:colcon.colcon_installed_package_information.package_discovery:Found 300 installed packages in /opt/ros/humble
+[0.498s] Level 1:colcon.colcon_core.package_discovery:discover_packages(prefix_path) using defaults
+[0.564s] Level 5:colcon.colcon_core.verb:set package 'hydroships_control' build argument 'cmake_args' from command line to 'None'
+[0.564s] Level 5:colcon.colcon_core.verb:set package 'hydroships_control' build argument 'cmake_target' from command line to 'None'
+[0.564s] Level 5:colcon.colcon_core.verb:set package 'hydroships_control' build argument 'cmake_target_skip_unavailable' from command line to 'False'
+[0.564s] Level 5:colcon.colcon_core.verb:set package 'hydroships_control' build argument 'cmake_clean_cache' from command line to 'False'
+[0.564s] Level 5:colcon.colcon_core.verb:set package 'hydroships_control' build argument 'cmake_clean_first' from command line to 'False'
+[0.564s] Level 5:colcon.colcon_core.verb:set package 'hydroships_control' build argument 'cmake_force_configure' from command line to 'False'
+[0.564s] Level 5:colcon.colcon_core.verb:set package 'hydroships_control' build argument 'ament_cmake_args' from command line to 'None'
+[0.564s] Level 5:colcon.colcon_core.verb:set package 'hydroships_control' build argument 'catkin_cmake_args' from command line to 'None'
+[0.564s] Level 5:colcon.colcon_core.verb:set package 'hydroships_control' build argument 'catkin_skip_building_tests' from command line to 'False'
+[0.564s] DEBUG:colcon.colcon_core.verb:Building package 'hydroships_control' with the following arguments: {'ament_cmake_args': None, 'build_base': '/home/rasya/ros2_ws/build/hydroships_control', 'catkin_cmake_args': None, 'catkin_skip_building_tests': False, 'cmake_args': None, 'cmake_clean_cache': False, 'cmake_clean_first': False, 'cmake_force_configure': False, 'cmake_target': None, 'cmake_target_skip_unavailable': False, 'install_base': '/home/rasya/ros2_ws/install/hydroships_control', 'merge_install': False, 'path': '/home/rasya/ros2_ws/src/hydroships_control', 'symlink_install': False, 'test_result_base': None}
+[0.565s] Level 5:colcon.colcon_core.verb:set package 'hydroships_description' build argument 'cmake_args' from command line to 'None'
+[0.565s] Level 5:colcon.colcon_core.verb:set package 'hydroships_description' build argument 'cmake_target' from command line to 'None'
+[0.565s] Level 5:colcon.colcon_core.verb:set package 'hydroships_description' build argument 'cmake_target_skip_unavailable' from command line to 'False'
+[0.565s] Level 5:colcon.colcon_core.verb:set package 'hydroships_description' build argument 'cmake_clean_cache' from command line to 'False'
+[0.565s] Level 5:colcon.colcon_core.verb:set package 'hydroships_description' build argument 'cmake_clean_first' from command line to 'False'
+[0.566s] Level 5:colcon.colcon_core.verb:set package 'hydroships_description' build argument 'cmake_force_configure' from command line to 'False'
+[0.566s] Level 5:colcon.colcon_core.verb:set package 'hydroships_description' build argument 'ament_cmake_args' from command line to 'None'
+[0.566s] Level 5:colcon.colcon_core.verb:set package 'hydroships_description' build argument 'catkin_cmake_args' from command line to 'None'
+[0.566s] Level 5:colcon.colcon_core.verb:set package 'hydroships_description' build argument 'catkin_skip_building_tests' from command line to 'False'
+[0.566s] DEBUG:colcon.colcon_core.verb:Building package 'hydroships_description' with the following arguments: {'ament_cmake_args': None, 'build_base': '/home/rasya/ros2_ws/build/hydroships_description', 'catkin_cmake_args': None, 'catkin_skip_building_tests': False, 'cmake_args': None, 'cmake_clean_cache': False, 'cmake_clean_first': False, 'cmake_force_configure': False, 'cmake_target': None, 'cmake_target_skip_unavailable': False, 'install_base': '/home/rasya/ros2_ws/install/hydroships_description', 'merge_install': False, 'path': '/home/rasya/ros2_ws/src/hydroships_description', 'symlink_install': False, 'test_result_base': None}
+[0.566s] INFO:colcon.colcon_core.executor:Executing jobs using 'parallel' executor
+[0.568s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:run_until_complete
+[0.568s] INFO:colcon.colcon_ros.task.ament_python.build:Building ROS package in '/home/rasya/ros2_ws/src/hydroships_control' with build type 'ament_python'
+[0.569s] Level 1:colcon.colcon_core.shell:create_environment_hook('hydroships_control', 'ament_prefix_path')
+[0.572s] INFO:colcon.colcon_core.plugin_system:Skipping extension 'colcon_core.shell.bat': Not used on non-Windows systems
+[0.572s] INFO:colcon.colcon_core.shell:Creating environment hook '/home/rasya/ros2_ws/install/hydroships_control/share/hydroships_control/hook/ament_prefix_path.ps1'
+[0.574s] INFO:colcon.colcon_core.shell:Creating environment descriptor '/home/rasya/ros2_ws/install/hydroships_control/share/hydroships_control/hook/ament_prefix_path.dsv'
+[0.575s] INFO:colcon.colcon_core.shell:Creating environment hook '/home/rasya/ros2_ws/install/hydroships_control/share/hydroships_control/hook/ament_prefix_path.sh'
+[0.576s] INFO:colcon.colcon_core.shell:Skip shell extension 'powershell' for command environment: Not usable outside of PowerShell
+[0.576s] DEBUG:colcon.colcon_core.shell:Skip shell extension 'dsv' for command environment
+[0.581s] INFO:colcon.colcon_ros.task.ament_cmake.build:Building ROS package in '/home/rasya/ros2_ws/src/hydroships_description' with build type 'ament_cmake'
+[0.582s] INFO:colcon.colcon_cmake.task.cmake.build:Building CMake package in '/home/rasya/ros2_ws/src/hydroships_description'
+[0.582s] INFO:colcon.colcon_core.shell:Skip shell extension 'powershell' for command environment: Not usable outside of PowerShell
+[0.583s] DEBUG:colcon.colcon_core.shell:Skip shell extension 'dsv' for command environment
+[0.950s] INFO:colcon.colcon_core.task.python.build:Building Python package in '/home/rasya/ros2_ws/src/hydroships_control'
+[0.950s] INFO:colcon.colcon_core.shell:Skip shell extension 'powershell' for command environment: Not usable outside of PowerShell
+[0.951s] DEBUG:colcon.colcon_core.shell:Skip shell extension 'dsv' for command environment
+[0.964s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoking command in '/home/rasya/ros2_ws/build/hydroships_description': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake --build /home/rasya/ros2_ws/build/hydroships_description -- -j12 -l12
+[1.044s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoked command in '/home/rasya/ros2_ws/build/hydroships_description' returned '0': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake --build /home/rasya/ros2_ws/build/hydroships_description -- -j12 -l12
+[1.061s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoking command in '/home/rasya/ros2_ws/build/hydroships_description': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake --install /home/rasya/ros2_ws/build/hydroships_description
+[1.079s] Level 1:colcon.colcon_core.environment:create_environment_scripts_only(hydroships_description)
+[1.080s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoked command in '/home/rasya/ros2_ws/build/hydroships_description' returned '0': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake --install /home/rasya/ros2_ws/build/hydroships_description
+[1.084s] Level 1:colcon.colcon_core.environment:checking '/home/rasya/ros2_ws/install/hydroships_description' for CMake module files
+[1.085s] Level 1:colcon.colcon_core.environment:checking '/home/rasya/ros2_ws/install/hydroships_description' for CMake config files
+[1.085s] Level 1:colcon.colcon_core.shell:create_environment_hook('hydroships_description', 'cmake_prefix_path')
+[1.086s] INFO:colcon.colcon_core.shell:Creating environment hook '/home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/hook/cmake_prefix_path.ps1'
+[1.086s] INFO:colcon.colcon_core.shell:Creating environment descriptor '/home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/hook/cmake_prefix_path.dsv'
+[1.087s] INFO:colcon.colcon_core.shell:Creating environment hook '/home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/hook/cmake_prefix_path.sh'
+[1.087s] Level 1:colcon.colcon_core.environment:checking '/home/rasya/ros2_ws/install/hydroships_description/bin'
+[1.088s] Level 1:colcon.colcon_core.environment:checking '/home/rasya/ros2_ws/install/hydroships_description/lib/pkgconfig/hydroships_description.pc'
+[1.088s] Level 1:colcon.colcon_core.environment:checking '/home/rasya/ros2_ws/install/hydroships_description/lib/python3.10/site-packages'
+[1.088s] Level 1:colcon.colcon_core.environment:checking '/home/rasya/ros2_ws/install/hydroships_description/bin'
+[1.089s] INFO:colcon.colcon_core.shell:Creating package script '/home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/package.ps1'
+[1.090s] INFO:colcon.colcon_core.shell:Creating package descriptor '/home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/package.dsv'
+[1.091s] INFO:colcon.colcon_core.shell:Creating package script '/home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/package.sh'
+[1.092s] INFO:colcon.colcon_core.shell:Creating package script '/home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/package.bash'
+[1.093s] INFO:colcon.colcon_core.shell:Creating package script '/home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/package.zsh'
+[1.094s] Level 1:colcon.colcon_core.environment:create_file_with_runtime_dependencies(/home/rasya/ros2_ws/install/hydroships_description/share/colcon-core/packages/hydroships_description)
+[1.094s] Level 1:colcon.colcon_core.environment:create_environment_scripts_only(hydroships_description)
+[1.095s] Level 1:colcon.colcon_core.environment:checking '/home/rasya/ros2_ws/install/hydroships_description' for CMake module files
+[1.095s] Level 1:colcon.colcon_core.environment:checking '/home/rasya/ros2_ws/install/hydroships_description' for CMake config files
+[1.095s] Level 1:colcon.colcon_core.shell:create_environment_hook('hydroships_description', 'cmake_prefix_path')
+[1.096s] INFO:colcon.colcon_core.shell:Creating environment hook '/home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/hook/cmake_prefix_path.ps1'
+[1.096s] INFO:colcon.colcon_core.shell:Creating environment descriptor '/home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/hook/cmake_prefix_path.dsv'
+[1.097s] INFO:colcon.colcon_core.shell:Creating environment hook '/home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/hook/cmake_prefix_path.sh'
+[1.097s] Level 1:colcon.colcon_core.environment:checking '/home/rasya/ros2_ws/install/hydroships_description/bin'
+[1.098s] Level 1:colcon.colcon_core.environment:checking '/home/rasya/ros2_ws/install/hydroships_description/lib/pkgconfig/hydroships_description.pc'
+[1.098s] Level 1:colcon.colcon_core.environment:checking '/home/rasya/ros2_ws/install/hydroships_description/lib/python3.10/site-packages'
+[1.099s] Level 1:colcon.colcon_core.environment:checking '/home/rasya/ros2_ws/install/hydroships_description/bin'
+[1.099s] INFO:colcon.colcon_core.shell:Creating package script '/home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/package.ps1'
+[1.100s] INFO:colcon.colcon_core.shell:Creating package descriptor '/home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/package.dsv'
+[1.101s] INFO:colcon.colcon_core.shell:Creating package script '/home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/package.sh'
+[1.101s] INFO:colcon.colcon_core.shell:Creating package script '/home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/package.bash'
+[1.102s] INFO:colcon.colcon_core.shell:Creating package script '/home/rasya/ros2_ws/install/hydroships_description/share/hydroships_description/package.zsh'
+[1.102s] Level 1:colcon.colcon_core.environment:create_file_with_runtime_dependencies(/home/rasya/ros2_ws/install/hydroships_description/share/colcon-core/packages/hydroships_description)
+[1.540s] DEBUG:colcon.colcon_core.task.python.build:Available setuptools commands: alias, install_data, clean, install_scripts, install_egg_info, easy_install, test, egg_info, build, saveopts, install_lib, install_headers, bdist_wheel, build_py, setopt, symlink_data, register, build_scripts, sdist, dist_info, upload, bdist_rpm, upload_docs, build_clib, bdist, develop, install, bdist_egg, check, build_ext, rotate, bdist_dumb
+[1.544s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoking command in '/home/rasya/ros2_ws/src/hydroships_control': PYTHONPATH=/home/rasya/ros2_ws/build/hydroships_control/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/hydroships_control build --build-base /home/rasya/ros2_ws/build/hydroships_control/build install --record /home/rasya/ros2_ws/build/hydroships_control/install.log --install-scripts $base/lib/hydroships_control --single-version-externally-managed install_data
+[2.106s] Level 1:colcon.colcon_core.environment:checking '/home/rasya/ros2_ws/install/hydroships_control' for CMake module files
+[2.108s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoked command in '/home/rasya/ros2_ws/src/hydroships_control' returned '0': PYTHONPATH=/home/rasya/ros2_ws/build/hydroships_control/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/hydroships_control build --build-base /home/rasya/ros2_ws/build/hydroships_control/build install --record /home/rasya/ros2_ws/build/hydroships_control/install.log --install-scripts $base/lib/hydroships_control --single-version-externally-managed install_data
+[2.108s] Level 1:colcon.colcon_core.environment:checking '/home/rasya/ros2_ws/install/hydroships_control' for CMake config files
+[2.109s] Level 1:colcon.colcon_core.environment:checking '/home/rasya/ros2_ws/install/hydroships_control/lib'
+[2.110s] Level 1:colcon.colcon_core.environment:checking '/home/rasya/ros2_ws/install/hydroships_control/bin'
+[2.110s] Level 1:colcon.colcon_core.environment:checking '/home/rasya/ros2_ws/install/hydroships_control/lib/pkgconfig/hydroships_control.pc'
+[2.111s] Level 1:colcon.colcon_core.environment:checking '/home/rasya/ros2_ws/install/hydroships_control/lib/python3.10/site-packages'
+[2.111s] Level 1:colcon.colcon_core.shell:create_environment_hook('hydroships_control', 'pythonpath')
+[2.111s] INFO:colcon.colcon_core.shell:Creating environment hook '/home/rasya/ros2_ws/install/hydroships_control/share/hydroships_control/hook/pythonpath.ps1'
+[2.112s] INFO:colcon.colcon_core.shell:Creating environment descriptor '/home/rasya/ros2_ws/install/hydroships_control/share/hydroships_control/hook/pythonpath.dsv'
+[2.113s] INFO:colcon.colcon_core.shell:Creating environment hook '/home/rasya/ros2_ws/install/hydroships_control/share/hydroships_control/hook/pythonpath.sh'
+[2.115s] Level 1:colcon.colcon_core.environment:checking '/home/rasya/ros2_ws/install/hydroships_control/bin'
+[2.115s] Level 1:colcon.colcon_core.environment:create_environment_scripts_only(hydroships_control)
+[2.115s] INFO:colcon.colcon_core.shell:Creating package script '/home/rasya/ros2_ws/install/hydroships_control/share/hydroships_control/package.ps1'
+[2.117s] INFO:colcon.colcon_core.shell:Creating package descriptor '/home/rasya/ros2_ws/install/hydroships_control/share/hydroships_control/package.dsv'
+[2.118s] INFO:colcon.colcon_core.shell:Creating package script '/home/rasya/ros2_ws/install/hydroships_control/share/hydroships_control/package.sh'
+[2.119s] INFO:colcon.colcon_core.shell:Creating package script '/home/rasya/ros2_ws/install/hydroships_control/share/hydroships_control/package.bash'
+[2.120s] INFO:colcon.colcon_core.shell:Creating package script '/home/rasya/ros2_ws/install/hydroships_control/share/hydroships_control/package.zsh'
+[2.120s] Level 1:colcon.colcon_core.environment:create_file_with_runtime_dependencies(/home/rasya/ros2_ws/install/hydroships_control/share/colcon-core/packages/hydroships_control)
+[2.121s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:closing loop
+[2.123s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:loop closed
+[2.123s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:run_until_complete finished with '0'
+[2.123s] DEBUG:colcon.colcon_core.event_reactor:joining thread
+[2.130s] INFO:colcon.colcon_core.plugin_system:Skipping extension 'colcon_notification.desktop_notification.terminal_notifier': Not used on non-Darwin systems
+[2.130s] INFO:colcon.colcon_core.plugin_system:Skipping extension 'colcon_notification.desktop_notification.win32': Not used on non-Windows systems
+[2.130s] INFO:colcon.colcon_notification.desktop_notification:Sending desktop notification using 'notify2'
+[2.149s] DEBUG:colcon.colcon_core.event_reactor:joined thread
+[2.149s] INFO:colcon.colcon_core.shell:Creating prefix script '/home/rasya/ros2_ws/install/local_setup.ps1'
+[2.151s] INFO:colcon.colcon_core.shell:Creating prefix util module '/home/rasya/ros2_ws/install/_local_setup_util_ps1.py'
+[2.154s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/home/rasya/ros2_ws/install/setup.ps1'
+[2.156s] INFO:colcon.colcon_core.shell:Creating prefix script '/home/rasya/ros2_ws/install/local_setup.sh'
+[2.157s] INFO:colcon.colcon_core.shell:Creating prefix util module '/home/rasya/ros2_ws/install/_local_setup_util_sh.py'
+[2.159s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/home/rasya/ros2_ws/install/setup.sh'
+[2.161s] INFO:colcon.colcon_core.shell:Creating prefix script '/home/rasya/ros2_ws/install/local_setup.bash'
+[2.162s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/home/rasya/ros2_ws/install/setup.bash'
+[2.163s] INFO:colcon.colcon_core.shell:Creating prefix script '/home/rasya/ros2_ws/install/local_setup.zsh'
+[2.164s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/home/rasya/ros2_ws/install/setup.zsh'

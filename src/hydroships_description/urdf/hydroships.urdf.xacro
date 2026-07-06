@@ -143,7 +143,9 @@
 
   <link name="camera_bottom_link"/>
   <joint name="camera_bottom_joint" type="fixed">
-    <origin xyz="0 0 ${-body_z/2}" rpy="0 1.5708 0"/>
+    <!-- Sedikit DI BAWAH sisi bawah mesh (z=-0.143) agar pandangan ke bawah tidak
+         terhalang badan ROV sendiri; port kamera bawah menghadap dasar kolam. -->
+    <origin xyz="0.02 0 -0.18" rpy="0 1.5708 0"/>
     <parent link="base_link"/>
     <child link="camera_bottom_link"/>
   </joint>
