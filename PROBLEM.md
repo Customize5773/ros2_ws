@@ -86,7 +86,18 @@ Menjawab "kenapa ROV makin dibiarkan makin melayang, tidak menggenang di air":
 > Catatan: M1/M2 sebelumnya ditandai ✅ tapi ternyata **thrust tak pernah benar-benar
 > menggerakkan ROV** (topik tak nyambung) — verifikasi lama kurang teliti. Kini teruji nyata.
 
-## Model Visual ROV (mesh dari model/rov.fbx) (PRIORITASKAN-Belum sesuai dengan model ROV, BUAT ULANG)
+## Model Visual ROV — DIBUAT ULANG jadi PRIMITIF SEDERHANA (RESOLVED tahap-1)
+- `[RESOLVED]` **Model visual dibuat ULANG dari primitif ringan** (ganti mesh STL 12 MB
+  yang acak-acak & berat). Visual `base_link` kini = rangka kotak HITAM (bawah) + busa
+  apung ORANYE (atas) + tabung elektronik abu-abu + dome kamera depan (penanda haluan +X),
+  bergaya BlueROV Heavy sesuai foto `Gambar ROV/`. Tetap mengisi bbox desain
+  0.345×0.345×0.286 m; collision box (fisika/buoyancy) TIDAK diubah. Tak ada lagi mesh
+  berat → render kamera tak terbebani mesh 237k segitiga. Detail per-komponen (thruster
+  ducted, gripper mesh, dsb.) menyusul sebagai penyempurnaan berikutnya.
+- `[note]` `meshes/rov.stl` (12 MB) & `model/rov.fbx` (48 MB) masih di repo tapi TAK
+  lagi dirujuk URDF; bisa dihapus untuk merampingkan repo bila tak dipakai lagi.
+
+### (Catatan lama — mesh FBX, sudah tidak dipakai)
 - `[RESOLVED]` **Struktur mesh "acak-acak" diperbaiki.** Sebelumnya 279 sub-mesh FBX
   digabung pakai vertex LOKAL tanpa menerapkan transform node → semua bagian
   terkumpul salah posisi. **Fix:** load dgn assimp `aiProcess_PreTransformVertices`
