@@ -106,18 +106,16 @@
     </joint>
   </xacro:macro>
 
-  <!-- ==================== 3 thruster horizontal ==================== -->
-  <!-- Susunan tangensial 120 deg (rh = 0.16 m). Mengontrol surge/sway/yaw.
-       phi = 90, 210, 330 deg; arah dorong d = (-sin phi, cos phi, 0). -->
-  <xacro:thruster name="thruster_1" xyz="0.0     0.16   0.0"  axis="-1.0  0.0   0.0"/>
-  <xacro:thruster name="thruster_2" xyz="-0.1386 -0.08  0.0"  axis="0.5  -0.866 0.0"/>
-  <xacro:thruster name="thruster_3" xyz="0.1386  -0.08  0.0"  axis="0.5   0.866 0.0"/>
+    <!-- ==================== Thruster positions (diperbarui dari thruster_positions.csv) -->
+    <!-- Mapping: thruster_1..4 = T100 (vertikal), thruster_5..6 = T200 (in-plane radial) -->
+    <xacro:thruster name="thruster_1" xyz="-0.1371 -0.1296 0.0374" axis="0.0 0.0 1.0"/>
+    <xacro:thruster name="thruster_2" xyz="0.0003 0.0455 -0.0994" axis="0.0 0.0 1.0"/>
+    <xacro:thruster name="thruster_3" xyz="0.1371 -0.1298 0.0336" axis="0.0 0.0 1.0"/>
+    <xacro:thruster name="thruster_4" xyz="-0.0003 0.1364 0.0403" axis="0.0 0.0 1.0"/>
 
-  <!-- ==================== 3 thruster vertikal ==================== -->
-  <!-- Arah dorong +z. Mengontrol heave/roll/pitch. -->
-  <xacro:thruster name="thruster_4" xyz="0.12   0.0    0.0"  axis="0.0  0.0  1.0"/>
-  <xacro:thruster name="thruster_5" xyz="-0.10  0.12   0.0"  axis="0.0  0.0  1.0"/>
-  <xacro:thruster name="thruster_6" xyz="-0.10 -0.12   0.0"  axis="0.0  0.0  1.0"/>
+    <!-- T200: propeller dorong di bidang XY (radial dari pusat) -->
+    <xacro:thruster name="thruster_5" xyz="0.1234 0.0275 0.0142" axis="0.9759 0.2176 0.0"/>
+    <xacro:thruster name="thruster_6" xyz="-0.1228 0.0290 0.0148" axis="-0.9729 0.2298 0.0"/>
 
   <!-- ==================== Frame sensor (placeholder M3) ==================== -->
   <link name="imu_link"/>
