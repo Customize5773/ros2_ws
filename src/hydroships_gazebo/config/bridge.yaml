@@ -80,22 +80,5 @@
   gz_type_name: "gz.msgs.Double"
   direction: ROS_TO_GZ
 
-# ---- Gripper: state posisi jari (rad) : Gazebo -> ROS ----
-- ros_topic_name: "/hydroships/joint_states"
-  gz_topic_name: "/hydroships/joint_state"
-  ros_type_name: "sensor_msgs/msg/JointState"
-  gz_type_name: "gz.msgs.Model"
-  direction: GZ_TO_ROS
-
-# ---- Gripper 2-DOF (M5): setpoint posisi jari (rad) : ROS -> Gazebo ----
-- ros_topic_name: "/hydroships/gripper_left/cmd"
-  gz_topic_name: "/hydroships/gripper_left/cmd"
-  ros_type_name: "std_msgs/msg/Float64"
-  gz_type_name: "gz.msgs.Double"
-  direction: ROS_TO_GZ
-
-- ros_topic_name: "/hydroships/gripper_right/cmd"
-  gz_topic_name: "/hydroships/gripper_right/cmd"
-  ros_type_name: "std_msgs/msg/Float64"
-  gz_type_name: "gz.msgs.Double"
-  direction: ROS_TO_GZ
+# ---- Gripper DIHILANGKAN: entri joint_states & gripper_left/right/cmd dihapus
+#      seiring model gripper dilepas dari ROV. ----
