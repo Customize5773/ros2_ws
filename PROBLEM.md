@@ -51,22 +51,18 @@ selesai. Format: `[status]` OPEN / VERIFY / RESOLVED.
   lama yang **saling adu perintah** → ROV berperilaku erratic. Selalu pastikan proses lama
   mati (`ps | grep`) sebelum run baru. Bukan bug kode.
 
-## Manipulator (M5) — sudah dibangun
-- Gripper 2 jari (revolute sumbu z) di depan ROV, dikontrol gz JointPositionController.
-  Perintah semantik `/hydroships/gripper/command` ("open"/"close") → node
-  `gripper_controller` → setpoint 2 jari (bridge → gz). State jari di
-  `/hydroships/joint_states`. **Terverifikasi**: open ≈ +0.50/−0.50, close ≈ −0.14/+0.15 rad.
-- `[VERIFY]` Sudut `open_angle=0.5` / `close_angle=-0.15` (param node) & arah buka/tutup
-  masih perlu dicek visual di GUI/kolam agar celah jepit pas ukuran payload.
-- `[OPEN]` **Grasp fisik belum diuji**: jari punya collision tapi belum ada model payload
-  (bagian M4). Menjepit andal kemungkinan butuh penyetelan friction atau plugin
-  attach/detach (mis. gz-sim DetachableJoint) — belum diimplementasi.
-- `[OPEN]` `/hydroships/joint_states` (dari gz) hanya berisi 2 joint gripper, bukan
-  thruster. TF jari via robot_state_publisher belum tersambung (rsp mendengar
-  `/joint_states`, sedangkan bridge ke `/hydroships/joint_states`). Remap bila butuh TF.
-- `[note]` `ros2 topic pub --once` ke command bisa meleset karena race discovery;
-  node menerbitkan ulang setpoint 2 Hz sehingga joint tetap menahan posisi. Konsumen
-  nyata (GUI/autonomy) mengirim berulang, jadi aman.
+## Manipulator (M5) — DIHAPUS (akan dirancang ulang)
+- `[REMOVED]` Seluruh subsistem gripper **dihapus** atas permintaan (rencana dibuat ulang).
+  Yang dibuang: link `gripper_base` + 2 jari & plugin `JointPositionController`/
+  `JointStatePublisher` di `hydroships.urdf.xacro`; node `gripper_controller`
+  (+ entry-point `setup.py` & Node di `sim.launch.py`); topik `gripper_left/right/cmd`
+  & `joint_states` di `bridge.yaml`; publisher `/hydroships/gripper/command`, method
+  `_grip`, & semua panggilannya di `mission_fsm.py`.
+- `[note]` State `GRAB`/`HANG`/`AUTO_RELEASE` di `mission_fsm` **dipertahankan sebagai
+  kerangka gerakan** (depth/surge saja, tanpa jepit) agar misi tetap jalan; logika
+  manipulasi menyusul saat rancangan gripper baru siap.
+- `[TODO]` Rancang ulang manipulator (mekanik + kontrol + integrasi misi + grasp fisik,
+  mis. gz-sim DetachableJoint).
 
 ## FISIKA ROV — DUA BUG BESAR DITEMUKAN & DIPERBAIKI (RESOLVED)
 Menjawab "kenapa ROV makin dibiarkan makin melayang, tidak menggenang di air":
@@ -157,7 +153,7 @@ Menjawab "kenapa ROV makin dibiarkan makin melayang, tidak menggenang di air":
 ## Autonomy (M6) — kode dibangun, INTEGRASI JALAN (setelah fix fisika)
 Node `mission_fsm` (ROS 2) + launch `hydroships_bringup/launch/hydroships_mission.launch.py`
 (sim + allocator + stabilizer + FSM). FSM mengendalikan lewat setpoint stabilizer
-(`setpoint/depth`, `setpoint/heading`, `manual/cmd`) + `/hydroships/gripper/command`.
+(`setpoint/depth`, `setpoint/heading`, `manual/cmd`). (Perintah gripper dihapus — lihat M5.)
 
 - `[RESOLVED]` Setelah dua fix fisika di atas, misi **berjalan**: FSM `IDLE→DIVE` →
   "Dasar tercapai (0.76 m)" → `DIVE→SCAN_QR` → (inject QR "A") "QR → wall A (+15)" →

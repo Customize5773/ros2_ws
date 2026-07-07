@@ -11,7 +11,9 @@ Aliran (lihat docs/ARCHITECTURE.md):
     keluar: /hydroships/setpoint/depth   (Float64, negatif = dalam)
             /hydroships/setpoint/heading (Float64, rad)
             /hydroships/manual/cmd       (Twist, Fx/Fy gaya horizontal N)
-            /hydroships/gripper/command  (String open/close)
+
+Catatan: subsistem GRIPPER/manipulasi DIHAPUS (akan dirancang ulang). State
+GRAB/HANG/AUTO_RELEASE kini hanya gerakan (depth/surge), tanpa perintah jepit.
 
 State: IDLE -> DIVE -> SCAN_QR -> GRAB -> NAV_WALL -> HANG -> SURFACE -> DOCK
        -> APPROACH_HOOK -> AUTO_RELEASE -> DONE (atau ABORT).
@@ -100,7 +102,6 @@ class MissionFSM(Node):
         self.pub_depth = self.create_publisher(Float64, '/hydroships/setpoint/depth', 10)
         self.pub_head = self.create_publisher(Float64, '/hydroships/setpoint/heading', 10)
         self.pub_manual = self.create_publisher(Twist, '/hydroships/manual/cmd', 10)
-        self.pub_grip = self.create_publisher(String, '/hydroships/gripper/command', 10)
         self.create_subscription(Float64, '/hydroships/depth', self._on_depth, 10)
         self.create_subscription(Odometry, '/hydroships/odom', self._on_odom, 10)
         self.create_subscription(String, '/hydroships/qr_result', self._on_qr, 10)
@@ -152,9 +153,6 @@ class MissionFSM(Node):
     def _set_surge(self, fx=0.0, fy=0.0):
         t = Twist(); t.linear.x = float(fx); t.linear.y = float(fy)
         self.pub_manual.publish(t)
-
-    def _grip(self, close):
-        m = String(); m.data = 'close' if close else 'open'; self.pub_grip.publish(m)
 
     def _goto_xy(self, tx, ty):
         """PD posisi: dorong ROV ke (tx,ty) dunia via gaya horizontal body-frame,
@@ -242,12 +240,12 @@ class MissionFSM(Node):
             self.get_logger().error('SCAN_QR timeout — tak ada QR'); self._to(St.ABORT)
 
     def _st_grab(self):
+        # Manipulasi (jepit) DIHAPUS — placeholder gerakan sampai dirancang ulang.
         e = self._elapsed()
-        if e < 1.0: self._grip(False)
-        elif e < 4.0: self._set_surge(self.surge); self._grip(False)
-        elif e < 7.0: self._set_surge(0.0); self._grip(True)
+        if e < 4.0: self._set_surge(self.surge)
+        elif e < 7.0: self._set_surge(0.0)
         else:
-            self.score['m2'] = 15; self.get_logger().info('Payload diambil (+15)')
+            self.score['m2'] = 15; self.get_logger().info('GRAB selesai (placeholder)')
             self._to(St.NAV_WALL)
         if e > self.T['grab']: self.get_logger().error('GRAB timeout'); self._to(St.ABORT)
 
@@ -257,7 +255,6 @@ class MissionFSM(Node):
         self._set_heading(tgt)
         aligned = self.yaw is not None and abs(wrap_to_pi(tgt - self.yaw)) < self.yaw_tol
         self._set_surge(self.surge if (aligned and self._elapsed() > 4.0) else 0.0)
-        self._grip(True)
         if self._elapsed() > 18.0:
             self.score['m3'] = 0  # skor diberi di HANG
             self._set_surge(0.0); self._to(St.HANG)
@@ -267,10 +264,11 @@ class MissionFSM(Node):
     def _st_hang(self):
         e = self._elapsed()
         self._set_depth(self.hook_depth)   # naik/turun ke level hook
-        if e < 5.0: self._grip(True)
-        elif e < 8.0: self._set_surge(15.0); self._grip(True)
-        elif e < 11.0: self._set_surge(0.0); self._grip(False)
-        elif e < 13.0: self._set_surge(-15.0); self._grip(False)
+        # Manipulasi (jepit/lepas) DIHAPUS — placeholder gerakan sampai dirancang ulang.
+        if e < 5.0: self._set_surge(0.0)
+        elif e < 8.0: self._set_surge(15.0)
+        elif e < 11.0: self._set_surge(0.0)
+        elif e < 13.0: self._set_surge(-15.0)
         else:
             self._set_surge(0.0); self.score['m3'] = 15
             self.get_logger().info('Payload tergantung di wall %s (+15)' % self.wall)
@@ -305,13 +303,13 @@ class MissionFSM(Node):
     def _st_auto_release(self):
         e = self._elapsed()
         self._set_depth(self.hook_depth if e < 15.0 else self.depth_surface)
-        if e < 8.0: self._grip(False)
-        elif e < 11.0: self._set_surge(15.0); self._grip(False)
-        elif e < 14.0: self._set_surge(0.0); self._grip(True)
-        elif e < 17.0: self._set_surge(-15.0); self._grip(True)
-        elif e < 26.0: self._set_surge(0.0); self._grip(True)   # naik (depth-hold ke permukaan)
+        # Manipulasi (jepit/lepas) DIHAPUS — placeholder gerakan sampai dirancang ulang.
+        if e < 11.0: self._set_surge(15.0 if e >= 8.0 else 0.0)
+        elif e < 14.0: self._set_surge(0.0)
+        elif e < 17.0: self._set_surge(-15.0)
+        elif e < 26.0: self._set_surge(0.0)   # naik (depth-hold ke permukaan)
         else:
-            self._grip(False); self._set_surge(0.0); self.score['m5'] = 40
+            self._set_surge(0.0); self.score['m5'] = 40
             self.get_logger().info('Misi 5 AUTONOMOUS selesai (+40)!')
             self._print_score(); self._to(St.DONE)
         if e > self.T['release'] + 8.0:

@@ -109,14 +109,6 @@ def _launch_setup(context, *args, **kwargs):
         parameters=[{'use_sim_time': True}],
     )
 
-    # Gripper (M5): perintah open/close -> setpoint 2 jari.
-    gripper = Node(
-        package='hydroships_control',
-        executable='gripper_controller',
-        output='screen',
-        parameters=[{'use_sim_time': True}],
-    )
-
     # Deteksi QR dari kamera bawah -> /hydroships/qr_result (A/B/C/D) (M3 persepsi).
     qr = Node(
         package='hydroships_control',
@@ -125,7 +117,7 @@ def _launch_setup(context, *args, **kwargs):
         parameters=[{'use_sim_time': True}],
     )
 
-    return [gz_sim, bridge, rsp, spawn, depth_pub, gripper, qr]
+    return [gz_sim, bridge, rsp, spawn, depth_pub, qr]
 
 
 def generate_launch_description():
