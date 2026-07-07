@@ -86,7 +86,7 @@ Menjawab "kenapa ROV makin dibiarkan makin melayang, tidak menggenang di air":
 > Catatan: M1/M2 sebelumnya ditandai ✅ tapi ternyata **thrust tak pernah benar-benar
 > menggerakkan ROV** (topik tak nyambung) — verifikasi lama kurang teliti. Kini teruji nyata.
 
-## Model Visual ROV (mesh dari model/rov.fbx) (PRIORITASKAN-Belum sesuai dengan model ROV-BUAT ULANG)
+## Model Visual ROV (mesh dari model/rov.fbx) (PRIORITASKAN-Belum sesuai dengan model ROV, BUAT ULANG)
 - `[RESOLVED]` **Struktur mesh "acak-acak" diperbaiki.** Sebelumnya 279 sub-mesh FBX
   digabung pakai vertex LOKAL tanpa menerapkan transform node → semua bagian
   terkumpul salah posisi. **Fix:** load dgn assimp `aiProcess_PreTransformVertices`
