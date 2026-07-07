@@ -94,8 +94,10 @@ Menjawab "kenapa ROV makin dibiarkan makin melayang, tidak menggenang di air":
   0.345×0.345×0.286 m; collision box (fisika/buoyancy) TIDAK diubah. Tak ada lagi mesh
   berat → render kamera tak terbebani mesh 237k segitiga. Detail per-komponen (thruster
   ducted, gripper mesh, dsb.) menyusul sebagai penyempurnaan berikutnya.
-- `[note]` `meshes/rov.stl` (12 MB) & `model/rov.fbx` (48 MB) masih di repo tapi TAK
-  lagi dirujuk URDF; bisa dihapus untuk merampingkan repo bila tak dipakai lagi.
+- `[RESOLVED]` `meshes/rov.stl` & `model/rov.fbx` **sudah dihapus** dari repo (tak lagi
+  dirujuk URDF). Bersama itu artefak build colcon (`build/`, `install/`, `log/`) & cache
+  `__pycache__/*.pyc` juga dikeluarkan dari git + ditambah `.gitignore` (praktik standar
+  ROS2). Sim perlu `colcon build` ulang di mesin lokal untuk regen `install/`.
 
 ### (Catatan lama — mesh FBX, sudah tidak dipakai)
 - `[RESOLVED]` **Struktur mesh "acak-acak" diperbaiki.** Sebelumnya 279 sub-mesh FBX

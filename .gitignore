@@ -1,0 +1,17 @@
+# === ROS 2 / colcon build artifacts (regenerable via `colcon build`) ===
+build/
+install/
+log/
+
+# === Python cache ===
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# === Editor / OS ===
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
