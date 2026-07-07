@@ -136,6 +136,18 @@ Node `mission_fsm` (ROS 2) + launch `hydroships_bringup/launch/hydroships_missio
 - `[TODO]` `APPROACH_HOOK` masih *timed* (visual servo ArUco ROS 2 belum ada) — referensi
   port ada di `GUI-ROV/autonomy/`.
 
+## Sistem Launch Simulasi Gazebo — DIPERBAIKI (RESOLVED)
+- `[RESOLVED]` **`stabilizer` tak diberi `use_sim_time`.** Di
+  `hydroships_stabilized.launch.py` node stabilizer jalan di wall-clock sementara
+  sim & node lain di sim-time → PID d-term & laju setpoint salah timing. **Fix:**
+  `parameters=[gains, {'use_sim_time': True}]`.
+- `[RESOLVED]` **Race condition spawn ROV.** Node `create` dijalankan bersamaan
+  dgn server gz; bila service `/world/<world>/create` belum siap, model gagal
+  di-spawn. **Fix:** bungkus spawn di `TimerAction` (delay default 3 s, arg
+  `spawn_delay` bisa dinaikkan untuk mesin lambat) di `sim.launch.py`.
+- `[note]` `install/` kini di-gitignore → jalankan `colcon build` lokal dulu
+  sebelum `ros2 launch` agar share (launch/world/config) ter-regen.
+
 ## Opsi ditunda
 - `[OPEN]` **Perbesar QR khusus sim.** Alternatif membuat scan andal tanpa approach presisi:
   pakai QR jauh lebih besar dari 4 cm (mis. 15–25 cm) HANYA untuk sim, agar mudah di-decode

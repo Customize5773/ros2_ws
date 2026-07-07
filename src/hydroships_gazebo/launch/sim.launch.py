@@ -10,7 +10,12 @@ import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
+from launch.actions import (
+    DeclareLaunchArgument,
+    IncludeLaunchDescription,
+    OpaqueFunction,
+    TimerAction,
+)
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
@@ -28,6 +33,10 @@ def _launch_setup(context, *args, **kwargs):
     x = LaunchConfiguration('x').perform(context)
     y = LaunchConfiguration('y').perform(context)
     z = LaunchConfiguration('z').perform(context)
+    try:
+        spawn_delay = float(LaunchConfiguration('spawn_delay').perform(context))
+    except ValueError:
+        spawn_delay = 3.0
 
     world_path = os.path.join(pkg_gazebo, 'worlds', world)
 
@@ -62,14 +71,23 @@ def _launch_setup(context, *args, **kwargs):
         parameters=[{'robot_description': robot_desc, 'use_sim_time': True}],
     )
 
-    spawn = Node(
-        package='ros_gz_sim',
-        executable='create',
-        output='screen',
-        arguments=[
-            '-name', 'hydroships',
-            '-string', robot_desc,
-            '-x', x, '-y', y, '-z', z,
+    # Spawn ROV via ros_gz_sim 'create'. DITUNDA {spawn_delay}s dgn TimerAction
+    # supaya server gz (dari gz_sim di atas) sudah menyediakan service
+    # /world/<world>/create; kalau spawn jalan sebelum server siap, model gagal
+    # muncul (race condition). Atur lewat arg spawn_delay (naikkan bila mesin lambat).
+    spawn = TimerAction(
+        period=spawn_delay,
+        actions=[
+            Node(
+                package='ros_gz_sim',
+                executable='create',
+                output='screen',
+                arguments=[
+                    '-name', 'hydroships',
+                    '-string', robot_desc,
+                    '-x', x, '-y', y, '-z', z,
+                ],
+            ),
         ],
     )
 
@@ -120,5 +138,8 @@ def generate_launch_description():
         DeclareLaunchArgument('x', default_value='0.0'),
         DeclareLaunchArgument('y', default_value='0.0'),
         DeclareLaunchArgument('z', default_value='-0.5'),
+        DeclareLaunchArgument('spawn_delay', default_value='3.0',
+                              description='Detik menunda spawn ROV agar server gz '
+                                          'siap dulu (naikkan bila mesin lambat).'),
         OpaqueFunction(function=_launch_setup),
     ])
