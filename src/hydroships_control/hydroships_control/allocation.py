@@ -39,6 +39,27 @@ def build_allocation_matrix(thrusters=THRUSTERS):
     return tam
 
 
+def build_damped_pinv(tam, damping=0.1):
+    """Pseudo-inverse teredam (damped least-squares / Tikhonov).
+
+        pinv_damped = TAM^T (TAM TAM^T + damping^2 I)^-1
+
+    Geometri thruster HYDROships saat ini near-singular pada sumbu YAW
+    (cond(TAM) ~ 1.2e4, singular value terkecil ~1e-4; lihat PROBLEM.md).
+    Dengan pseudo-inverse polos (`np.linalg.pinv`), perintah pada arah lemah
+    itu menuntut gaya thruster raksasa (ribuan N) yang menjenuhkan batas lalu
+    MERUSAK DOF lain setelah di-clip. Redaman membatasi penguatan gaya pada
+    arah kurang-terkendali: perintah yang tak tercapai "menyerah anggun"
+    (mendekati nol) alih-alih meledak, sementara arah yang sehat (heave, sway,
+    surge) tetap terlayani hampir penuh. damping -> 0 kembali ke pinv biasa.
+    """
+    tam = np.asarray(tam, dtype=float)
+    m = tam.shape[0]
+    if damping <= 0.0:
+        return np.linalg.pinv(tam)
+    return tam.T @ np.linalg.inv(tam @ tam.T + (damping ** 2) * np.eye(m))
+
+
 def allocate(wrench, tam_pinv, lo=MIN_THRUST, hi=MAX_THRUST):
     """Peta wrench body 6-DOF -> gaya per thruster (N), sudah di-clip."""
     forces = tam_pinv @ np.asarray(wrench, dtype=float)
