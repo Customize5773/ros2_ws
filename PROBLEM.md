@@ -86,6 +86,38 @@ Menjawab "kenapa ROV makin dibiarkan makin melayang, tidak menggenang di air":
 > Catatan: M1/M2 sebelumnya ditandai ✅ tapi ternyata **thrust tak pernah benar-benar
 > menggerakkan ROV** (topik tak nyambung) — verifikasi lama kurang teliti. Kini teruji nyata.
 
+## FISIKA ROV — TEMUAN KETIGA: geometri thruster near-singular (YAW ~tak terkendali)
+- `[OPEN]` **Bidang horizontal (surge/sway/yaw) badly-conditioned; YAW praktis mati.**
+  Analisis numerik Thrust Allocation Matrix (dari `hydroships_control/allocation.py`):
+  `cond(TAM) ≈ 12.377`, singular value terkecil ≈ `1e-4` (arah yaw). Dengan
+  pseudo-inverse polos (invers eksak utk TAM 6×6 full-rank), perintah:
+  - **yaw 1 N·m** menuntut T3/T4 = **±5000 N** (batas ±50 N),
+  - **surge 1 N** menuntut T3/T4 = **±648 N**
+  → semua ter-clip lalu **merusak DOF lain**. Heading-hold & NAV_WALL karena itu
+  tak bisa bekerja andal (cocok dgn catatan "belum di-tune untuk gerak nyata").
+- **Akar masalah (geometri):** `thruster_positions.csv` hanya berisi POSISI dgn
+  konvensi **X=kiri/kanan (lateral), Y=depan/belakang** (lihat `thruster_topview.png`),
+  sedangkan frame body ROS/URDF **x=maju, y=kiri** (gambar body-frame `Gambar ROV/`).
+  Posisi thruster disalin **mentah** `(X,Y,Z)→(x,y,z)` tanpa rotasi frame, sementara
+  arah dorong (`axis`) di-set by-intent (T3/T4=+x). Akibatnya dua thruster horizontal
+  yang secara FISIK terpisah kiri-kanan (mestinya beri yaw dari differensial) di model
+  jadi terpisah depan-belakang → **lengan momen yaw ≈ 0**. Gejala serupa berpotensi
+  menukar roll↔pitch pada pasangan vertikal.
+- **Belum bisa diperbaiki tuntas:** orientasi/vectoring asli T100-A & T100-C **belum
+  pasti** (investigasi FBX ambigu karena konvensi sumbu instance ber-"Mirror"; CSV tak
+  punya kolom orientasi). Membetulkan geometri = menebak sudut → ditunda sampai data
+  orientasi asli tersedia (dari pipeline pembuat CSV / CAD).
+- `[RESOLVED-mitigasi]` **Allocator damped least-squares.** `allocation.build_damped_pinv`
+  (dipakai `thruster_allocator`, param `alloc_damping=0.1`) menggantikan `np.linalg.pinv`
+  polos. Efek (terverifikasi numerik): surge 25 N tetap **tersalur bersih ~24.5 N**
+  (sebelumnya ±16.200 N lalu jenuh/rusak); perintah yaw **"menyerah anggun" ~0** alih-alih
+  meledak & merusak heave/sway. Heave/sway/surge terjaga ≥98%. Ini **mitigasi numerik**,
+  bukan penyembuh: yaw tetap lemah sampai geometri dibetulkan. Node kini juga
+  **log cond(TAM)** & memperingatkan bila > 100.
+- `[TODO]` Saat orientasi thruster asli diketahui: betulkan posisi/axis di URDF +
+  `allocation.py` (idealnya satu sumber-kebenaran parametrik utk hindari drift), lalu
+  turunkan `alloc_damping` bila TAM sudah well-conditioned.
+
 ## Model Visual ROV — DIBUAT ULANG jadi PRIMITIF SEDERHANA (RESOLVED tahap-1)
 - `[RESOLVED]` **Model visual dibuat ULANG dari primitif ringan** (ganti mesh STL 12 MB
   yang acak-acak & berat). Visual `base_link` kini = rangka kotak HITAM (bawah) + busa
@@ -110,10 +142,11 @@ Menjawab "kenapa ROV makin dibiarkan makin melayang, tidak menggenang di air":
   URDF origin xyz=0. (Fortress tak bisa FBX → dipakai STL hasil konversi.)
 - `[RESOLVED]` `package://`→`model://` tak ketemu → tambah `IGN_GAZEBO_RESOURCE_PATH`
   di `sim.launch.py`. Mesh ter-load tanpa error (0 geometry-load-failures).
-- `[OPEN]` **Poly-count berat.** Model punya 279 komponen terpisah; fast-simplification
-  mentok di ~237 k segitiga (STL 12 MB) — tak bisa turun ke ~40 k. Akibat: **rate kamera
-  turun ~22 → ~10 Hz** (render lebih berat). Untuk lebih ringan: pakai decimator quadric
-  (open3d/pymeshlab) atau buang komponen kecil (baut/pipa) sebelum merge.
+- `[MOOT]` **Poly-count berat.** (Historis — mesh STL 12 MB sudah dihapus & diganti
+  primitif ringan; lihat "Model Visual ROV — DIBUAT ULANG". Tak lagi relevan kecuali
+  mesh detail dihidupkan lagi.) Dulu: 279 komponen, fast-simplification mentok ~237 k
+  segitiga → rate kamera ~22→10 Hz. Bila kelak pakai mesh: decimator quadric
+  (open3d/pymeshlab) atau buang komponen kecil sebelum merge.
 - `[VERIFY]` **Arah bow (haluan) belum dipastikan.** Footprint mesh ~persegi (X≈Y) jadi
   tak bisa ditebak dari bbox. Diatur via properti `bow_yaw` (rad) di `hydroships.urdf.xacro`
   (default 0 = bow menghadap +X). Cek di GUI & set 1.5708/−1.5708/3.14159 bila perlu.
@@ -131,8 +164,10 @@ Node `mission_fsm` (ROS 2) + launch `hydroships_bringup/launch/hydroships_missio
   `SCAN_QR→GRAB`. Depth-hold & heading-hold bekerja.
 - `[VERIFY]` Timeout tiap state, gaya (`surge_force` dll), & sudut belum di-tune untuk
   gerak nyata di arena; baru diuji transisi awal.
-- `[OPEN]` `SCAN_QR` menunggu `/hydroships/qr_result` (node QR belum ada) → tanpa QR akan
-  timeout; sementara uji dgn `ros2 topic pub /hydroships/qr_result` manual atau `start_state:=`.
+- `[VERIFY]` `SCAN_QR`/`APPROACH_QR` mengonsumsi `/hydroships/qr_result` — node
+  `qr_detector` **sudah ada** (lihat M3, RESOLVED). Yang tersisa murni keterbacaan
+  visual QR di render (lihat item "QR belum terbaca"); sampai itu beres, uji misi penuh
+  dgn inject `ros2 topic pub /hydroships/qr_result` manual atau `start_state:=`.
 - `[TODO]` `APPROACH_HOOK` masih *timed* (visual servo ArUco ROS 2 belum ada) — referensi
   port ada di `GUI-ROV/autonomy/`.
 
