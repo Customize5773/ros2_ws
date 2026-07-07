@@ -9,14 +9,18 @@ import numpy as np
 
 # (posisi [m], arah dorong unit) tiap thruster di frame body. Urutan = thruster_1..6.
 THRUSTERS = [
-    # 3 horizontal (tangensial 120 deg, rh = 0.16 m) -> surge/sway/yaw
-    (np.array([0.0,     0.16,  0.0]), np.array([-1.0,  0.0,   0.0])),
-    (np.array([-0.1386, -0.08, 0.0]), np.array([0.5,  -0.866, 0.0])),
-    (np.array([0.1386,  -0.08, 0.0]), np.array([0.5,   0.866, 0.0])),
-    # 3 vertikal -> heave/roll/pitch
-    (np.array([0.12,  0.0,  0.0]),    np.array([0.0,  0.0,  1.0])),
-    (np.array([-0.10, 0.12, 0.0]),    np.array([0.0,  0.0,  1.0])),
-    (np.array([-0.10, -0.12, 0.0]),   np.array([0.0,  0.0,  1.0])),
+    # thruster_1 = T200-E (vertikal)
+    (np.array([0.1234, 0.0275, 0.0142]),    np.array([0.0, 0.0, 1.0])),
+    # thruster_2 = T200-F (vertikal)
+    (np.array([-0.1228, 0.0290, 0.0148]),   np.array([0.0, 0.0, 1.0])),
+    # thruster_3 = T100-C (depan horizontal)
+    (np.array([0.1371, -0.1298, 0.0336]),   np.array([1.0, 0.0, 0.0])),
+    # thruster_4 = T100-A (depan horizontal)
+    (np.array([-0.1371, -0.1296, 0.0374]), np.array([1.0, 0.0, 0.0])),
+    # thruster_5 = T100-B (lateral bawah horizontal)
+    (np.array([0.0003, 0.0455, -0.0994]),   np.array([0.0, 1.0, 0.0])),
+    # thruster_6 = T100-D (belakang sentral vertikal)
+    (np.array([-0.0003, 0.1364, 0.0403]),   np.array([0.0, 0.0, 1.0])),
 ]
 
 # Batas gaya per thruster (N) - konsisten dengan max/min_thrust_cmd di URDF.

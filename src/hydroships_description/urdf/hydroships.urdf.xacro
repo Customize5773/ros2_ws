@@ -107,15 +107,19 @@
   </xacro:macro>
 
     <!-- ==================== Thruster positions (diperbarui dari thruster_positions.csv) -->
-    <!-- Mapping: thruster_1..4 = T100 (vertikal), thruster_5..6 = T200 (in-plane radial) -->
-    <xacro:thruster name="thruster_1" xyz="-0.1371 -0.1296 0.0374" axis="0.0 0.0 1.0"/>
-    <xacro:thruster name="thruster_2" xyz="0.0003 0.0455 -0.0994" axis="0.0 0.0 1.0"/>
-    <xacro:thruster name="thruster_3" xyz="0.1371 -0.1298 0.0336" axis="0.0 0.0 1.0"/>
-    <xacro:thruster name="thruster_4" xyz="-0.0003 0.1364 0.0403" axis="0.0 0.0 1.0"/>
-
-    <!-- T200: propeller dorong di bidang XY (radial dari pusat) -->
-    <xacro:thruster name="thruster_5" xyz="0.1234 0.0275 0.0142" axis="0.9759 0.2176 0.0"/>
-    <xacro:thruster name="thruster_6" xyz="-0.1228 0.0290 0.0148" axis="-0.9729 0.2298 0.0"/>
+    <!-- Mapping sesuai klarifikasi pengguna:
+         thruster_1 = T200-E (vertikal)
+         thruster_2 = T200-F (vertikal)
+         thruster_3 = T100-C (depan horizontal)
+         thruster_4 = T100-A (depan horizontal)
+         thruster_5 = T100-B (lateral bawah horizontal)
+         thruster_6 = T100-D (belakang sentral vertikal) -->
+    <xacro:thruster name="thruster_1" xyz="0.1234 0.0275 0.0142" axis="0.0 0.0 1.0"/>
+    <xacro:thruster name="thruster_2" xyz="-0.1228 0.0290 0.0148" axis="0.0 0.0 1.0"/>
+    <xacro:thruster name="thruster_3" xyz="0.1371 -0.1298 0.0336" axis="1.0 0.0 0.0"/>
+    <xacro:thruster name="thruster_4" xyz="-0.1371 -0.1296 0.0374" axis="1.0 0.0 0.0"/>
+    <xacro:thruster name="thruster_5" xyz="0.0003 0.0455 -0.0994" axis="0.0 1.0 0.0"/>
+    <xacro:thruster name="thruster_6" xyz="-0.0003 0.1364 0.0403" axis="0.0 0.0 1.0"/>
 
   <!-- ==================== Frame sensor (placeholder M3) ==================== -->
   <link name="imu_link"/>
