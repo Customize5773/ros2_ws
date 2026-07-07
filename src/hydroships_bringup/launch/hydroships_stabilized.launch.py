@@ -43,11 +43,14 @@ def generate_launch_description():
         parameters=[{'use_sim_time': True}],
     )
 
+    # use_sim_time WAJIB True: stabilizer memakai turunan waktu (PID d-term &
+    # laju setpoint). Tanpa ini node jalan di wall-clock sementara sim di sim-time
+    # -> timing kacau. Node lain semua sudah sim-time; ini sebelumnya terlewat.
     stabilizer = Node(
         package='hydroships_control',
         executable='stabilizer',
         output='screen',
-        parameters=[gains],
+        parameters=[gains, {'use_sim_time': True}],
     )
 
     return LaunchDescription([

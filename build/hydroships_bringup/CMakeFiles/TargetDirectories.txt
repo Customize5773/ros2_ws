@@ -1,9 +1,0 @@
-/home/rasya/ros2_ws/build/hydroships_bringup/CMakeFiles/uninstall.dir
-/home/rasya/ros2_ws/build/hydroships_bringup/CMakeFiles/hydroships_bringup_uninstall.dir
-/home/rasya/ros2_ws/build/hydroships_bringup/CMakeFiles/test.dir
-/home/rasya/ros2_ws/build/hydroships_bringup/CMakeFiles/edit_cache.dir
-/home/rasya/ros2_ws/build/hydroships_bringup/CMakeFiles/rebuild_cache.dir
-/home/rasya/ros2_ws/build/hydroships_bringup/CMakeFiles/list_install_components.dir
-/home/rasya/ros2_ws/build/hydroships_bringup/CMakeFiles/install.dir
-/home/rasya/ros2_ws/build/hydroships_bringup/CMakeFiles/install/local.dir
-/home/rasya/ros2_ws/build/hydroships_bringup/CMakeFiles/install/strip.dir

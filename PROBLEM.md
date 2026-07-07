@@ -86,7 +86,20 @@ Menjawab "kenapa ROV makin dibiarkan makin melayang, tidak menggenang di air":
 > Catatan: M1/M2 sebelumnya ditandai ✅ tapi ternyata **thrust tak pernah benar-benar
 > menggerakkan ROV** (topik tak nyambung) — verifikasi lama kurang teliti. Kini teruji nyata.
 
-## Model Visual ROV (mesh dari model/rov.fbx) (PRIORITASKAN-Belum sesuai dengan model ROV, BUAT ULANG)
+## Model Visual ROV — DIBUAT ULANG jadi PRIMITIF SEDERHANA (RESOLVED tahap-1)
+- `[RESOLVED]` **Model visual dibuat ULANG dari primitif ringan** (ganti mesh STL 12 MB
+  yang acak-acak & berat). Visual `base_link` kini = rangka kotak HITAM (bawah) + busa
+  apung ORANYE (atas) + tabung elektronik abu-abu + dome kamera depan (penanda haluan +X),
+  bergaya BlueROV Heavy sesuai foto `Gambar ROV/`. Tetap mengisi bbox desain
+  0.345×0.345×0.286 m; collision box (fisika/buoyancy) TIDAK diubah. Tak ada lagi mesh
+  berat → render kamera tak terbebani mesh 237k segitiga. Detail per-komponen (thruster
+  ducted, gripper mesh, dsb.) menyusul sebagai penyempurnaan berikutnya.
+- `[RESOLVED]` `meshes/rov.stl` & `model/rov.fbx` **sudah dihapus** dari repo (tak lagi
+  dirujuk URDF). Bersama itu artefak build colcon (`build/`, `install/`, `log/`) & cache
+  `__pycache__/*.pyc` juga dikeluarkan dari git + ditambah `.gitignore` (praktik standar
+  ROS2). Sim perlu `colcon build` ulang di mesin lokal untuk regen `install/`.
+
+### (Catatan lama — mesh FBX, sudah tidak dipakai)
 - `[RESOLVED]` **Struktur mesh "acak-acak" diperbaiki.** Sebelumnya 279 sub-mesh FBX
   digabung pakai vertex LOKAL tanpa menerapkan transform node → semua bagian
   terkumpul salah posisi. **Fix:** load dgn assimp `aiProcess_PreTransformVertices`
@@ -122,6 +135,18 @@ Node `mission_fsm` (ROS 2) + launch `hydroships_bringup/launch/hydroships_missio
   timeout; sementara uji dgn `ros2 topic pub /hydroships/qr_result` manual atau `start_state:=`.
 - `[TODO]` `APPROACH_HOOK` masih *timed* (visual servo ArUco ROS 2 belum ada) — referensi
   port ada di `GUI-ROV/autonomy/`.
+
+## Sistem Launch Simulasi Gazebo — DIPERBAIKI (RESOLVED)
+- `[RESOLVED]` **`stabilizer` tak diberi `use_sim_time`.** Di
+  `hydroships_stabilized.launch.py` node stabilizer jalan di wall-clock sementara
+  sim & node lain di sim-time → PID d-term & laju setpoint salah timing. **Fix:**
+  `parameters=[gains, {'use_sim_time': True}]`.
+- `[RESOLVED]` **Race condition spawn ROV.** Node `create` dijalankan bersamaan
+  dgn server gz; bila service `/world/<world>/create` belum siap, model gagal
+  di-spawn. **Fix:** bungkus spawn di `TimerAction` (delay default 3 s, arg
+  `spawn_delay` bisa dinaikkan untuk mesin lambat) di `sim.launch.py`.
+- `[note]` `install/` kini di-gitignore → jalankan `colcon build` lokal dulu
+  sebelum `ros2 launch` agar share (launch/world/config) ter-regen.
 
 ## Opsi ditunda
 - `[OPEN]` **Perbesar QR khusus sim.** Alternatif membuat scan andal tanpa approach presisi:
