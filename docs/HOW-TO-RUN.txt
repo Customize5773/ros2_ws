@@ -54,7 +54,7 @@ Folder build/ install/ log/ sengaja di-gitignore; regenerasi dgn colcon build.
       ros2 launch hydroships_gazebo sim.launch.py world:=kki_arena.sdf
   (default world sim.launch.py = pool_empty.sdf; pakai kki_arena.sdf utk arena lomba.)
 
-  ── 3B. SIM + STABILISASI + KENDALI MANUAL (teleop) ───────────────────────────
+  ── 3B. SIM + STABILISASI + KENDALI MANUAL (teleop) (SIMULASI AIR KOLAM TIDAK ADA)───────────────────────────
   Menyalakan: sim + thruster_allocator + stabilizer (depth-hold & heading-hold).
       ros2 launch hydroships_bringup hydroships_stabilized.launch.py
   Lalu DI TERMINAL KEDUA (sudah di-source, lihat langkah 2), kemudikan horizontal:
