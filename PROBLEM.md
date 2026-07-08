@@ -41,12 +41,15 @@ selesai. Format: `[status]` OPEN / VERIFY / RESOLVED.
   mendorong ROV **DI ATAS** payload/QR datar & **menahannya**. Terverifikasi bersih: ROV
   menetap di **(0.41, 0.00, ~0.63)** tepat di target `payload_x/y` (0.4, 0) dan stabil.
   Kamera bawah digeser sedikit ke bawah badan (z=-0.18) agar tak terhalang mesh sendiri.
-- `[OPEN]` **QR belum terbaca meski posisi sudah tepat.** Di kedalaman scan, kamera bawah
-  menampilkan lantai berfaset + bayangan; **payload/QR tak tampil jelas** (QR emissif 4 cm
-  terlalu kecil pada render ini, atau isu render payload jarak dekat). Loop kontrol (approach)
-  sudah beres — sisanya murni keterbacaan visual. **Uji misi penuh sekarang: inject
-  `/hydroships/qr_result` manual.** Fix: **perbesar QR khusus sim** (lihat "Opsi ditunda"),
-  atau debug pencahayaan/scene agar QR emissif kontras & cukup besar di frame.
+- `[VERIFY]` **QR belum terbaca meski posisi sudah tepat.** Di kedalaman scan, kamera bawah
+  menampilkan lantai berfaset + bayangan; QR emissif 4 cm terlalu kecil pada render ini.
+  **Fix diterapkan: perbesar QR khusus sim** 0.04→0.12 m (SIM_ONLY, di `kki_arena.sdf`;
+  payload nyata tetap 4 cm). **Perlu verifikasi runtime** apakah kini `cv2` men-decode dari
+  kamera sim. Bila belum: naikkan lagi ukuran / debug pencahayaan-scene. Sementara tetap bisa
+  inject `/hydroships/qr_result` manual.
+- `[RESOLVED]` **`qr_detector` kini juga menerbitkan `/hydroships/qr_offset`**
+  (geometry_msgs/PointStamped): offset piksel ternormalisasi + ukuran-tampak QR, sebagai
+  sinyal **visual servo** (align presisi ROV ke payload). `camera_info` sudah dijembatani.
 - `[note-uji]` Run sim yang tumpang-tindih meninggalkan proses `mission_fsm`/`parameter_bridge`
   lama yang **saling adu perintah** → ROV berperilaku erratic. Selalu pastikan proses lama
   mati (`ps | grep`) sebelum run baru. Bukan bug kode.
