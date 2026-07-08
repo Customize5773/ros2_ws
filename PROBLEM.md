@@ -82,8 +82,8 @@ Menjawab "kenapa ROV makin dibiarkan makin melayang, tidak menggenang di air":
 > Catatan: M1/M2 sebelumnya ditandai ✅ tapi ternyata **thrust tak pernah benar-benar
 > menggerakkan ROV** (topik tak nyambung) — verifikasi lama kurang teliti. Kini teruji nyata.
 
-## FISIKA ROV — TEMUAN KETIGA: geometri thruster near-singular (YAW ~tak terkendali)
-- `[OPEN]` **Bidang horizontal (surge/sway/yaw) badly-conditioned; YAW praktis mati.**
+## FISIKA ROV — TEMUAN KETIGA: frame posisi thruster salah → YAW mati (RESOLVED)
+- `[RESOLVED]` **Bidang horizontal (surge/sway/yaw) badly-conditioned; YAW praktis mati.**
   Analisis numerik Thrust Allocation Matrix (dari `hydroships_control/allocation.py`):
   `cond(TAM) ≈ 12.377`, singular value terkecil ≈ `1e-4` (arah yaw). Dengan
   pseudo-inverse polos (invers eksak utk TAM 6×6 full-rank), perintah:
@@ -91,28 +91,25 @@ Menjawab "kenapa ROV makin dibiarkan makin melayang, tidak menggenang di air":
   - **surge 1 N** menuntut T3/T4 = **±648 N**
   → semua ter-clip lalu **merusak DOF lain**. Heading-hold & NAV_WALL karena itu
   tak bisa bekerja andal (cocok dgn catatan "belum di-tune untuk gerak nyata").
-- **Akar masalah (geometri):** `thruster_positions.csv` hanya berisi POSISI dgn
-  konvensi **X=kiri/kanan (lateral), Y=depan/belakang** (lihat `thruster_topview.png`),
-  sedangkan frame body ROS/URDF **x=maju, y=kiri** (gambar body-frame `Gambar ROV/`).
-  Posisi thruster disalin **mentah** `(X,Y,Z)→(x,y,z)` tanpa rotasi frame, sementara
-  arah dorong (`axis`) di-set by-intent (T3/T4=+x). Akibatnya dua thruster horizontal
-  yang secara FISIK terpisah kiri-kanan (mestinya beri yaw dari differensial) di model
-  jadi terpisah depan-belakang → **lengan momen yaw ≈ 0**. Gejala serupa berpotensi
-  menukar roll↔pitch pada pasangan vertikal.
-- **Belum bisa diperbaiki tuntas:** orientasi/vectoring asli T100-A & T100-C **belum
-  pasti** (investigasi FBX ambigu karena konvensi sumbu instance ber-"Mirror"; CSV tak
-  punya kolom orientasi). Membetulkan geometri = menebak sudut → ditunda sampai data
-  orientasi asli tersedia (dari pipeline pembuat CSV / CAD).
-- `[RESOLVED-mitigasi]` **Allocator damped least-squares.** `allocation.build_damped_pinv`
-  (dipakai `thruster_allocator`, param `alloc_damping=0.1`) menggantikan `np.linalg.pinv`
-  polos. Efek (terverifikasi numerik): surge 25 N tetap **tersalur bersih ~24.5 N**
-  (sebelumnya ±16.200 N lalu jenuh/rusak); perintah yaw **"menyerah anggun" ~0** alih-alih
-  meledak & merusak heave/sway. Heave/sway/surge terjaga ≥98%. Ini **mitigasi numerik**,
-  bukan penyembuh: yaw tetap lemah sampai geometri dibetulkan. Node kini juga
-  **log cond(TAM)** & memperingatkan bila > 100.
-- `[TODO]` Saat orientasi thruster asli diketahui: betulkan posisi/axis di URDF +
-  `allocation.py` (idealnya satu sumber-kebenaran parametrik utk hindari drift), lalu
-  turunkan `alloc_damping` bila TAM sudah well-conditioned.
+- **Akar masalah (geometri) — POSISI, bukan axis:** `thruster_positions.csv`
+  berkonvensi **X=lateral (kanan +), Y=fore/aft (DEPAN negatif), Z=atas** (lihat
+  `thruster_topview.png`), sedangkan frame body ROS **x=maju, y=kiri, z=atas**.
+  Posisi disalin **mentah** `(X,Y,Z)→(x,y,z)` tanpa rotasi frame → posisi terputar 90°.
+  Akibatnya T100-A/C yang FISIKnya terpisah kiri-kanan (sumber yaw) di model jadi
+  terpisah depan-belakang → **lengan momen yaw ≈ 0**. (Axis/peran sebenarnya **sudah
+  benar**: A/C surge, B sway, D/E/F vertikal — dikonfirmasi pengguna via anotasi arah
+  gaya. T100-B kini dilabeli **T200-B** tapi tetap thruster sway.)
+- `[RESOLVED]` **Fix:** koreksi konversi frame posisi di `allocation.py` (THRUSTERS)
+  & `hydroships.urdf.xacro`: `x_body=-Y_csv, y_body=-X_csv, z_body=Z_csv`. Hasil
+  (terverifikasi numerik): **cond(TAM) 12.377 → 19,7**, rank 6/6, **yaw 5 N·m cukup
+  ~18 N** (dulu 25.000 N), surge/sway/heave semua bersih. ROV kini terkendali penuh
+  6-DOF; heading-hold & navigasi bekerja.
+- `[RESOLVED-insurance]` **Allocator damped least-squares** (`build_damped_pinv`,
+  param `alloc_damping=0.1`) tetap dipakai sebagai jaring pengaman + node log cond(TAM).
+  Dgn TAM kini well-conditioned, redaman kecil ≈ pinv (tak merugikan). Bisa diturunkan
+  ke 0 bila diinginkan pinv murni.
+- `[note]` Konsistensi posisi URDF ↔ allocation.py masih manual (duplikat). Opsi lanjut:
+  satu sumber-kebenaran parametrik / test konsistensi otomatis (belum wajib).
 
 ## Model Visual ROV — DIBUAT ULANG jadi PRIMITIF SEDERHANA (RESOLVED tahap-1)
 - `[RESOLVED]` **Model visual dibuat ULANG dari primitif ringan** (ganti mesh STL 12 MB
