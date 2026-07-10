@@ -66,17 +66,16 @@ def test_allocate_clips_to_limits():
     assert np.all(forces >= MIN_THRUST - 1e-9)
 
 
-def test_damped_pinv_tames_singular_yaw():
-    """Geometri saat ini near-singular pada yaw. Invers polos menuntut gaya
-    raksasa (ribuan N) utk yaw kecil; damped pinv menahannya tetap wajar."""
+def test_geometry_well_conditioned():
+    """Geometri thruster (frame body benar) harus well-conditioned di 6 DOF —
+    khususnya YAW punya otoritas nyata. Dulu posisi tersalin dgn frame salah →
+    yaw near-singular (cond~1.2e4, butuh ribuan N); setelah dikoreksi cond~20,
+    yaw 5 N·m < 100 N. Test ini menjaga agar frame posisi tak ter-regresi
+    (lihat PROBLEM.md)."""
     tam = build_allocation_matrix(THRUSTERS)
-    yaw = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 5.0])   # 5 N·m yaw murni
-
-    f_plain = np.linalg.pinv(tam) @ yaw
-    assert np.max(np.abs(f_plain)) > 1000.0, 'prasyarat: yaw memang near-singular'
-
-    f_damped = build_damped_pinv(tam, damping=0.1) @ yaw
-    assert np.max(np.abs(f_damped)) < 100.0, 'damped pinv gagal menahan gaya yaw'
+    assert np.linalg.cond(tam) < 100.0, 'TAM ill-conditioned — cek frame posisi thruster'
+    f_yaw = np.linalg.pinv(tam) @ np.array([0.0, 0.0, 0.0, 0.0, 0.0, 5.0])
+    assert np.max(np.abs(f_yaw)) < 100.0, 'otoritas yaw lemah — cek posisi T100-A/C'
 
 
 def test_damped_pinv_preserves_strong_dofs():
