@@ -197,8 +197,12 @@
           </material>
         </visual>
         <visual name="qr">
+          <!-- SIM_ONLY: QR diperbesar 0.04 -> 0.12 m agar terbaca kamera sim di
+               kedalaman scan. Payload NYATA/KKI tetap 4 cm — ini murni alat bantu
+               render sim (lihat PROBLEM.md "Perbesar QR khusus sim"). Kembali ke
+               ukuran asli: set size 0.04 0.04. -->
           <pose>0 0.0012 0.04 0 0 0</pose>
-          <geometry><plane><normal>0 1 0</normal><size>0.04 0.04</size></plane></geometry>
+          <geometry><plane><normal>0 1 0</normal><size>0.12 0.12</size></plane></geometry>
           <material>
             <diffuse>1 1 1 1</diffuse>
             <specular>0 0 0 1</specular>
