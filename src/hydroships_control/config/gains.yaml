@@ -7,9 +7,9 @@ stabilizer:
     rate: 20.0
 
     depth:
-      kp: 45.0 # Diturunkan sedikit (dari 60.0) agar tidak terlalu agresif
-      ki: 6.0  # Diturunkan sedikit (dari 8.0) agar tidak mengakumulasi error terlalu cepat
-      kd: 55.0 # Dinaikkan (dari 40.0) untuk memperkuat fungsi "rem" otomatis
+      kp: 60.0 # Diturunkan sedikit (dari 60.0) agar tidak terlalu agresif
+      ki: 8.0  # Diturunkan sedikit (dari 8.0) agar tidak mengakumulasi error terlalu cepat
+      kd: 40.0 # Dinaikkan (dari 40.0) untuk memperkuat fungsi "rem" otomatis
       integral_limit: 30.0
       out_limit: 60.0      # batas |Fz| (N)
 
