@@ -1,0 +1,128 @@
+<?xml version="1.0"?>
+<robot name="rov" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- ============================================================
+       SUBSENSE / HYDROSHIP ROV — generated from rov.fbx
+       Source FBX units: millimetres  -> mesh_scale converts to metres.
+       Thruster mount coordinates below were supplied pre-measured
+       (metres, in the same local frame as the FBX origin / base_link).
+       ============================================================ -->
+
+  <xacro:property name="mesh_scale" value="0.001 0.001 0.001"/>
+
+  <!-- ============================================================
+       Base-link mass properties.
+       NOTE: mass/inertia are a PLACEHOLDER box approximation from
+       the hull bounding box (0.347 x 0.346 x 0.286 m) at an assumed
+       11 kg wet mass. Replace with measured/CAD values before use
+       in any dynamics-sensitive simulation (uuv_simulator, ArduSub
+       SITL buoyancy tuning, etc.).
+       ============================================================ -->
+  <xacro:property name="base_mass" value="11.0"/>
+  <xacro:property name="base_com_xyz" value="-0.0003 0.1301 -0.0620"/>
+  <xacro:property name="base_ixx" value="0.1844"/>
+  <xacro:property name="base_iyy" value="0.1854"/>
+  <xacro:property name="base_izz" value="0.2199"/>
+
+  <material name="hull_grey">
+    <color rgba="0.55 0.57 0.60 1.0"/>
+  </material>
+  <material name="t100_blue">
+    <color rgba="0.10 0.35 0.85 1.0"/>
+  </material>
+  <material name="t200_orange">
+    <color rgba="0.90 0.45 0.05 1.0"/>
+  </material>
+
+  <!-- ============================================================
+       BASE LINK — vehicle hull
+       ============================================================ -->
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://rov_description/meshes/rov_hull_visual.stl" scale="${mesh_scale}"/>
+      </geometry>
+      <material name="hull_grey"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://rov_description/meshes/rov_hull_collision.stl" scale="${mesh_scale}"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="${base_com_xyz}" rpy="0 0 0"/>
+      <mass value="${base_mass}"/>
+      <inertia ixx="${base_ixx}" ixy="0.0" ixz="0.0"
+               iyy="${base_iyy}" iyz="0.0"
+               izz="${base_izz}"/>
+    </inertial>
+  </link>
+
+  <!-- ============================================================
+       THRUSTER REFERENCE FRAME MACRO
+
+       Each thruster is NOT an actuated joint. It is a
+       massless-ish reference link + a `continuous` joint whose
+       <axis> encodes the thrust direction, purely so a thruster
+       plugin (gazebo_ros thruster plugin, uuv_simulator
+       ThrusterROSPlugin, or an ArduSub SITL bridge node) has a
+       clean TF frame to apply force/torque along.
+
+       Do NOT command this joint — nothing actuates it.
+       ============================================================ -->
+  <xacro:macro name="thruster_frame" params="label ardusub xyz axis_xyz material_name">
+    <link name="${label}_link">
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <sphere radius="0.012"/>
+        </geometry>
+        <material name="${material_name}"/>
+      </visual>
+      <inertial>
+        <!-- negligible mass: reference frame only, not a real body -->
+        <mass value="0.001"/>
+        <inertia ixx="1e-7" ixy="0" ixz="0" iyy="1e-7" iyz="0" izz="1e-7"/>
+      </inertial>
+    </link>
+
+    <joint name="${label}_joint" type="continuous">
+      <!-- ArduSub channel: ${ardusub} -->
+      <parent link="base_link"/>
+      <child link="${label}_link"/>
+      <origin xyz="${xyz}" rpy="0 0 0"/>
+      <axis xyz="${axis_xyz}"/>
+    </joint>
+  </xacro:macro>
+
+  <!-- ============================================================
+       THRUSTER INSTANCES  (Xacro label | ArduSub | position m | axis)
+       ============================================================ -->
+
+  <!-- T100_A | T100-A | thruster_4 | +X -->
+  <xacro:thruster_frame label="T100_A" ardusub="T100-A"
+    xyz="0.1296 0.1371 0.0374" axis_xyz="1 0 0" material_name="t100_blue"/>
+
+  <!-- T100_B | T100-B | thruster_5 | +Y -->
+  <xacro:thruster_frame label="T100_B" ardusub="T100-B"
+    xyz="-0.0455 -0.0003 -0.0994" axis_xyz="0 1 0" material_name="t100_blue"/>
+
+  <!-- T100_C | T100-C | thruster_3 | +X -->
+  <xacro:thruster_frame label="T100_C" ardusub="T100-C"
+    xyz="0.1298 -0.1371 0.0336" axis_xyz="1 0 0" material_name="t100_blue"/>
+
+  <!-- T100_D | T100-D | thruster_6 | +Z -->
+  <xacro:thruster_frame label="T100_D" ardusub="T100-D"
+    xyz="-0.1364 0.0003 0.0403" axis_xyz="0 0 1" material_name="t100_blue"/>
+
+  <!-- T200_E | T200-E | thruster_1 | +Z -->
+  <xacro:thruster_frame label="T200_E" ardusub="T200-E"
+    xyz="-0.0275 -0.1234 0.0142" axis_xyz="0 0 1" material_name="t200_orange"/>
+
+  <!-- T200_F | T200-F | thruster_2 | +Z -->
+  <xacro:thruster_frame label="T200_F" ardusub="T200-F"
+    xyz="-0.0290 0.1228 0.0148" axis_xyz="0 0 1" material_name="t200_orange"/>
+
+</robot>

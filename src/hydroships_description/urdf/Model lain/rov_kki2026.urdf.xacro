@@ -1,0 +1,122 @@
+<?xml version="1.0"?>
+<robot name="hydroship_rov" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- =================================================================
+       HYDROSHIP ROV — KKI 2026
+       Auto-generated from _ROV_KKI_2026_NEW_DESIGN.stl (NEW_DESIGN v23)
+
+       Units: meters / kg (STL was authored in mm and has been rescaled
+       x0.001 on export so mesh geometry and thruster coordinates below
+       share the same frame — no <mesh scale=".../> hack needed).
+
+       Structure:
+         base_link              -> full hull (visual: full-res mesh,
+                                    collision: convex hull, 1644 tris)
+         thruster_T100_A_link   -> continuous joint, axis = thrust dir
+         thruster_T100_B_link
+         thruster_T100_C_link
+         thruster_T100_D_link
+         thruster_T200_E_link
+         thruster_T200_F_link
+
+       Thruster joints carry NO actuation themselves; they exist as
+       reference frames for the ArduSub / Gazebo thruster plugin to
+       apply thrust along <axis>. If you use uuv_simulator or
+       gazebo_ros thruster plugins, point each plugin at the matching
+       joint name below.
+       ================================================================= -->
+
+  <!-- ============================ Properties ============================ -->
+
+  <!-- TODO: replace with real measured mass (kg). Placeholder used only
+       to seed a plausible inertia tensor from hull geometry below. -->
+  <xacro:property name="hull_mass" value="15.0"/>
+
+  <!-- Convex-hull-derived mass properties (assumed uniform density at
+       hull_mass above). Replace with CAD mass properties or measured
+       values once batteries/electronics/ballast are finalized. -->
+  <xacro:property name="com_xyz" value="-0.00344 0.09459 -0.07185"/>
+  <xacro:property name="ixx" value="0.265103"/>
+  <xacro:property name="ixy" value="-0.008048"/>
+  <xacro:property name="ixz" value="-0.002350"/>
+  <xacro:property name="iyy" value="0.173013"/>
+  <xacro:property name="iyz" value="-0.015907"/>
+  <xacro:property name="izz" value="0.282969"/>
+
+  <xacro:property name="thruster_mass" value="0.05"/>
+  <xacro:property name="thruster_radius" value="0.02"/>
+  <xacro:property name="thruster_length" value="0.01"/>
+
+  <!-- ============================ Materials ============================ -->
+
+  <material name="hull_navy">
+    <color rgba="0.043 0.098 0.184 1.0"/>
+  </material>
+  <material name="thruster_grey">
+    <color rgba="0.55 0.55 0.58 1.0"/>
+  </material>
+
+  <!-- ============================ Base link ============================ -->
+
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://hydroship_description/meshes/hull_visual.stl" scale="1 1 1"/>
+      </geometry>
+      <material name="hull_navy"/>
+    </visual>
+
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://hydroship_description/meshes/hull_collision.stl" scale="1 1 1"/>
+      </geometry>
+    </collision>
+
+    <inertial>
+      <origin xyz="${com_xyz}" rpy="0 0 0"/>
+      <mass value="${hull_mass}"/>
+      <inertia ixx="${ixx}" ixy="${ixy}" ixz="${ixz}"
+               iyy="${iyy}" iyz="${iyz}" izz="${izz}"/>
+    </inertial>
+  </link>
+
+  <!-- ============================ Thruster macro ============================ -->
+
+  <xacro:macro name="thruster" params="label fbx_ref xyz axis">
+    <link name="thruster_${label}_link">
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <cylinder radius="${thruster_radius}" length="${thruster_length}"/>
+        </geometry>
+        <material name="thruster_grey"/>
+      </visual>
+      <inertial>
+        <mass value="${thruster_mass}"/>
+        <inertia ixx="1e-5" ixy="0" ixz="0" iyy="1e-5" iyz="0" izz="1e-5"/>
+      </inertial>
+    </link>
+
+    <!-- fbx_ref kept as comment only, for cross-checking against the
+         original pyassimp extraction (${fbx_ref}) -->
+    <joint name="thruster_${label}_joint" type="continuous">
+      <parent link="base_link"/>
+      <child link="thruster_${label}_link"/>
+      <origin xyz="${xyz}" rpy="0 0 0"/>
+      <axis xyz="${axis}"/>
+    </joint>
+  </xacro:macro>
+
+  <!-- ============================ Thruster instances ============================ -->
+  <!-- T100 x4 (vectored, ~1.77 kgf max) + T200 x2 (vertical, ~3.6 kgf max) -->
+
+  <xacro:thruster label="T100_A" fbx_ref="thruster_4" xyz="0.1296 0.1371 0.0374"    axis="1 0 0"/>
+  <xacro:thruster label="T100_B" fbx_ref="thruster_5" xyz="-0.0455 -0.0003 -0.0994" axis="0 1 0"/>
+  <xacro:thruster label="T100_C" fbx_ref="thruster_3" xyz="0.1298 -0.1371 0.0336"   axis="1 0 0"/>
+  <xacro:thruster label="T100_D" fbx_ref="thruster_6" xyz="-0.1364 0.0003 0.0403"   axis="0 0 1"/>
+  <xacro:thruster label="T200_E" fbx_ref="thruster_1" xyz="-0.0275 -0.1234 0.0142"  axis="1 0 0"/>
+  <xacro:thruster label="T200_F" fbx_ref="thruster_2" xyz="-0.0290 0.1228 0.0148"   axis="1 0 0"/>
+
+</robot>
