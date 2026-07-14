@@ -12,6 +12,12 @@
       Ini placeholder yang di-tune di M2, BUKAN massa ROV asli.
     * Koefisien hidrodinamika memakai nilai acuan tipe BlueROV2 (di-tune belakangan).
 
+  PARAMETER FISIK TER-EKSTERNAL: massa, CoG/CoB, tensor inertia, & 18 koefisien
+  hidrodinamika kini dibaca dari config/rov_params.yaml (via xacro.load_yaml)
+  sehingga bisa diganti tanpa menyunting file ini. Semua masih ESTIMASI sampai
+  data ukur ROV nyata dimasukkan; pakai scripts/estimate_mass_inertia.py untuk
+  menurunkan massa & inertia dari geometri+material final. Lihat PROBLEM.md.
+
   Geometri & orientasi 6 thruster didokumentasikan di docs/thruster_config.md
   dan HARUS konsisten dengan tabel THRUSTERS di hydroships_control/thruster_allocator.py.
 -->
@@ -24,24 +30,37 @@
 
   <!-- (bow_yaw dulu untuk memutar mesh; visual kini primitif dgn haluan tetap +X.) -->
 
-  <!-- Massa base dipilih agar total near-neutral, sedikit positif buoyant. -->
-  <xacro:property name="base_mass" value="33.6"/>
-  <xacro:property name="thruster_mass" value="0.05"/>
+  <!-- ===== Parameter FISIK dari config/rov_params.yaml =====================
+       Massa, CoG/CoB, tensor inertia, & 18 koefisien hidrodinamika dipisah ke
+       file YAML agar bisa diganti TANPA menyunting URDF ini. Semua masih
+       ESTIMASI (placeholder box-geometri / BlueROV2-like) sampai data ukur ROV
+       nyata tersedia — lihat rov_params.yaml & PROBLEM.md. Path relatif thd
+       file xacro ini -> valid di layout sumber (src/.../urdf) & install
+       (share/pkg/urdf), keduanya bersebelahan dgn .../config. -->
+  <xacro:property name="rp" value="${xacro.load_yaml('../config/rov_params.yaml')}"/>
 
-  <xacro:property name="fluid_density" value="1000.0"/>
+  <xacro:property name="base_mass" value="${rp['base_mass']}"/>
+  <xacro:property name="thruster_mass" value="${rp['thruster_mass']}"/>
+  <xacro:property name="fluid_density" value="${rp['fluid_density']}"/>
 
-  <!-- Inersia kotak solid untuk base_link. -->
-  <xacro:property name="ixx" value="${base_mass / 12.0 * (body_y*body_y + body_z*body_z)}"/>
-  <xacro:property name="iyy" value="${base_mass / 12.0 * (body_x*body_x + body_z*body_z)}"/>
-  <xacro:property name="izz" value="${base_mass / 12.0 * (body_x*body_x + body_y*body_y)}"/>
+  <xacro:property name="cog" value="${rp['cog']}"/>
+
+  <!-- Tensor inertia base_link (kg*m^2) di CoG — dari YAML (dihitung oleh
+       scripts/estimate_mass_inertia.py dari geometri box + massa). -->
+  <xacro:property name="ixx" value="${rp['inertia']['ixx']}"/>
+  <xacro:property name="iyy" value="${rp['inertia']['iyy']}"/>
+  <xacro:property name="izz" value="${rp['inertia']['izz']}"/>
+  <xacro:property name="ixy" value="${rp['inertia']['ixy']}"/>
+  <xacro:property name="ixz" value="${rp['inertia']['ixz']}"/>
+  <xacro:property name="iyz" value="${rp['inertia']['iyz']}"/>
 
   <!-- ============================ base_link ============================ -->
   <link name="base_link">
     <inertial>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="${cog['x']} ${cog['y']} ${cog['z']}" rpy="0 0 0"/>
       <mass value="${base_mass}"/>
-      <inertia ixx="${ixx}" ixy="0.0" ixz="0.0"
-               iyy="${iyy}" iyz="0.0"
+      <inertia ixx="${ixx}" ixy="${ixy}" ixz="${ixz}"
+               iyy="${iyy}" iyz="${iyz}"
                izz="${izz}"/>
     </inertial>
     <!-- Visual: model SEDERHANA dari primitif (BUKAN mesh berat lagi).
@@ -250,44 +269,96 @@
     </sensor>
   </gazebo>
 
-  <!-- ==================== Gripper: DIHILANGKAN ==================== -->
-  <!-- Model gripper 2-DOF (gripper_base + 2 jari + JointPositionController +
-       JointStatePublisher) telah dihapus dari model ROV. Bila perlu manipulator
-       lagi, kembalikan dari riwayat git. Node gripper_controller & entri bridge
-       gripper (gripper_left/right, joint_states) juga sudah dikeluarkan. -->
+  <!-- ==================== Manipulator (rancang ulang M5) ====================
+       Gripper 1-DOF SEDERHANA (bukan 2 jari kompleks versi lama yg tak pernah
+       lolos uji grasp). Grasp FISIK memakai gz-sim DetachableJoint (sambungan
+       kaku ROV<->payload), BUKAN gesekan jari. Jari tunggal di sini KOSMETIK
+       (indikator visual buka/tutup). Reach ke BAWAH dari perut ROV karena
+       payload di-approach dari atas (kamera bawah). Lihat PROBLEM.md. -->
+  <xacro:property name="grip_mass" value="0.05"/>
+
+  <!-- Pangkal gripper: menempel kaku di perut depan ROV, menghadap ke bawah. -->
+  <link name="gripper_base">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="${grip_mass}"/>
+      <inertia ixx="1e-4" ixy="0.0" ixz="0.0" iyy="1e-4" iyz="0.0" izz="1e-4"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="0.05 0.05 0.03"/></geometry>
+      <material name="hydro_grip"><color rgba="0.2 0.2 0.22 1.0"/></material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="0.05 0.05 0.03"/></geometry>
+    </collision>
+  </link>
+  <joint name="gripper_base_joint" type="fixed">
+    <origin xyz="0.06 0 -0.16" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="gripper_base"/>
+  </joint>
+
+  <!-- Jari tunggal (1 DOF revolute, sumbu y). Kosmetik: menandai buka/tutup. -->
+  <link name="gripper_jaw">
+    <inertial>
+      <origin xyz="0 0 -0.03" rpy="0 0 0"/>
+      <mass value="${grip_mass}"/>
+      <inertia ixx="1e-4" ixy="0.0" ixz="0.0" iyy="1e-4" iyz="0.0" izz="1e-4"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 -0.03" rpy="0 0 0"/>
+      <geometry><box size="0.012 0.03 0.06"/></geometry>
+      <material name="hydro_jaw"><color rgba="0.85 0.7 0.1 1.0"/></material>
+    </visual>
+  </link>
+  <joint name="gripper_jaw_joint" type="revolute">
+    <origin xyz="0.02 0 -0.015" rpy="0 0 0"/>
+    <parent link="gripper_base"/>
+    <child link="gripper_jaw"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-0.1" upper="1.2" effort="10.0" velocity="2.0"/>
+    <dynamics damping="0.05" friction="0.0"/>
+  </joint>
 
   <!-- ============================================================ -->
   <!-- ===================  Plugin Gazebo Fortress  =============== -->
   <!-- ============================================================ -->
 
   <!-- Hydrodynamics (added-mass + drag Fossen) pada base_link.
-       Nilai acuan tipe BlueROV2; di-tune di M2. -->
+       SEMUA koefisien dibaca dari config/rov_params.yaml (added_mass,
+       linear_damping, quadratic_damping) — placeholder tipe BlueROV2, ganti
+       dgn data identifikasi nyata di YAML tanpa menyunting URDF ini. -->
+  <xacro:property name="am" value="${rp['added_mass']}"/>
+  <xacro:property name="ld" value="${rp['linear_damping']}"/>
+  <xacro:property name="qd" value="${rp['quadratic_damping']}"/>
   <gazebo>
     <plugin filename="gz-sim-hydrodynamics-system"
             name="gz::sim::systems::Hydrodynamics">
       <link_name>base_link</link_name>
       <water_density>${fluid_density}</water_density>
       <!-- Added mass -->
-      <xDotU>-6.36</xDotU>
-      <yDotV>-7.12</yDotV>
-      <zDotW>-18.68</zDotW>
-      <kDotP>-0.189</kDotP>
-      <mDotQ>-0.135</mDotQ>
-      <nDotR>-0.222</nDotR>
+      <xDotU>${am['xDotU']}</xDotU>
+      <yDotV>${am['yDotV']}</yDotV>
+      <zDotW>${am['zDotW']}</zDotW>
+      <kDotP>${am['kDotP']}</kDotP>
+      <mDotQ>${am['mDotQ']}</mDotQ>
+      <nDotR>${am['nDotR']}</nDotR>
       <!-- Linear damping -->
-      <xU>-11.7</xU>
-      <yV>-20.0</yV>
-      <zW>-31.9</zW>
-      <kP>-25.0</kP>
-      <mQ>-44.0</mQ>
-      <nR>-5.0</nR>
+      <xU>${ld['xU']}</xU>
+      <yV>${ld['yV']}</yV>
+      <zW>${ld['zW']}</zW>
+      <kP>${ld['kP']}</kP>
+      <mQ>${ld['mQ']}</mQ>
+      <nR>${ld['nR']}</nR>
       <!-- Quadratic damping -->
-      <xUabsU>-18.18</xUabsU>
-      <yVabsV>-21.66</yVabsV>
-      <zWabsW>-36.99</zWabsW>
-      <kPabsP>-1.55</kPabsP>
-      <mQabsQ>-1.55</mQabsQ>
-      <nRabsR>-1.55</nRabsR>
+      <xUabsU>${qd['xUabsU']}</xUabsU>
+      <yVabsV>${qd['yVabsV']}</yVabsV>
+      <zWabsW>${qd['zWabsW']}</zWabsW>
+      <kPabsP>${qd['kPabsP']}</kPabsP>
+      <mQabsQ>${qd['mQabsQ']}</mQabsQ>
+      <nRabsR>${qd['nRabsR']}</nRabsR>
     </plugin>
   </gazebo>
 
@@ -331,5 +402,40 @@
   <xacro:thruster_plugin name="thruster_4" diameter="0.048"/>
   <xacro:thruster_plugin name="thruster_5" diameter="0.048"/>
   <xacro:thruster_plugin name="thruster_6" diameter="0.048"/>
+
+  <!-- ============ Plugin manipulator (rancang ulang M5) ============ -->
+  <!-- Kontrol posisi jari kosmetik: target sudut (rad) via gz.msgs.Double di
+       /hydroships/gripper_jaw/cmd (dijembatani dari ROS Float64). -->
+  <gazebo>
+    <plugin filename="gz-sim-joint-position-controller-system"
+            name="gz::sim::systems::JointPositionController">
+      <joint_name>gripper_jaw_joint</joint_name>
+      <topic>/hydroships/gripper_jaw/cmd</topic>
+      <p_gain>2.0</p_gain>
+      <i_gain>0.0</i_gain>
+      <d_gain>0.1</d_gain>
+    </plugin>
+  </gazebo>
+
+  <!-- GRASP FISIK: DetachableJoint membuat sambungan kaku gripper_base<->payload.
+       attach saat pesan di /hydroships/gripper/attach, detach di .../detach
+       (gz.msgs.Empty, dijembatani dari ROS std_msgs/Empty).
+       <suppress_initial_attach>: JANGAN attach saat load (ROV & payload spawn di
+       posisi berbeda) — tunggu perintah. child_model 'payload' = model braket-L
+       di hydroships_gazebo/worlds/kki_arena.sdf (kini non-static agar bisa diangkat).
+       CATATAN [VERIFY/OPEN]: ketersediaan attach_topic + suppress_initial_attach
+       bergantung versi build gz-sim Fortress; grasp fisik BELUM diuji. Bila build
+       tak mendukung attach-on-command, sesuaikan (lihat PROBLEM.md). -->
+  <gazebo>
+    <plugin filename="gz-sim-detachable-joint-system"
+            name="gz::sim::systems::DetachableJoint">
+      <parent_link>gripper_base</parent_link>
+      <child_model>payload</child_model>
+      <child_link>payload_link</child_link>
+      <attach_topic>/hydroships/gripper/attach</attach_topic>
+      <detach_topic>/hydroships/gripper/detach</detach_topic>
+      <suppress_initial_attach>true</suppress_initial_attach>
+    </plugin>
+  </gazebo>
 
 </robot>

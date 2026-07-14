@@ -61,8 +61,56 @@ selesai. Format: `[status]` OPEN / VERIFY / RESOLVED.
 - `[note]` State `GRAB`/`HANG`/`AUTO_RELEASE` di `mission_fsm` **dipertahankan sebagai
   kerangka gerakan** (depth/surge saja, tanpa jepit) agar misi tetap jalan; logika
   manipulasi menyusul saat rancangan gripper baru siap.
-- `[TODO]` Rancang ulang manipulator (mekanik + kontrol + integrasi misi + grasp fisik,
-  mis. gz-sim DetachableJoint).
+- `[TODO→DIKERJAKAN]` Rancang ulang manipulator — lihat subseksi
+  **"Manipulator (M5) — RANCANG ULANG berbasis DetachableJoint"** di bawah.
+
+## Manipulator (M5) — RANCANG ULANG berbasis DetachableJoint (kode ADA; grasp VERIFY)
+Rancang ulang dari nol (bukan menghidupkan gripper 2-jari lama yg grasp fisiknya
+tak pernah lolos uji). Pendekatan: **grasp = gz-sim DetachableJoint** (sambungan
+kaku ROV↔payload), jari hanya kosmetik 1 DOF. Kontrak semantik lama dipertahankan
+(`/hydroships/gripper/command` "open"/"close") demi kompatibilitas GUI/autonomy.
+
+- `[RESOLVED]` **Model gripper 1-DOF dibuat ulang** di `hydroships.urdf.xacro`:
+  link `gripper_base` (kaku di perut depan ROV, menghadap bawah) + `gripper_jaw`
+  (revolute 1 DOF, kosmetik) + plugin `JointPositionController` (target sudut via
+  `/hydroships/gripper_jaw/cmd`). Reach ke BAWAH karena payload di-approach dari
+  atas (kamera bawah). URDF ter-proses bersih (xacro OK).
+- `[RESOLVED]` **Plugin DetachableJoint** ditambahkan: `parent_link=gripper_base`,
+  `child_model=payload`, `child_link=payload_link`, `attach_topic=/hydroships/gripper/attach`,
+  `detach_topic=/hydroships/gripper/detach`, `<suppress_initial_attach>true` (jangan
+  attach saat load). Payload di `worlds/kki_arena.sdf` diubah **non-static + diberi
+  massa (0.3 kg) & collision box** agar bisa diangkat & diam di dasar (negatif apung).
+- `[RESOLVED]` **Node `gripper_controller` baru** (`hydroships_control`): terima
+  open/close, gerakkan jari kosmetik, dan picu attach/detach. Attach HANYA saat
+  "close" DAN ROV di atas payload dalam **jangkauan aman** (dinilai dari
+  `/hydroships/qr_offset`: |offset x/y| kecil & ukuran-tampak QR cukup besar & segar)
+  → cegah attach "dari jauh" yg menyeret payload menembus air. Detach saat "open".
+- `[RESOLVED]` **Logika inti dipisah** ke `gripper_logic.py` (murni, tanpa rclpy) →
+  **teruji headless**: `test/test_gripper.py` (13 test: attach dalam/luar jangkauan,
+  sinyal basi, open/detach, sinonim, batas, dsb.) — **28/28 test paket lulus**
+  (15 lama + 13 gripper). Bridge `bridge.yaml` menambah 3 topik gripper
+  (jaw/cmd Float64↔Double, attach/detach Empty↔Empty). Node ditambahkan ke
+  `sim.launch.py`; entry-point ditambah di `setup.py`.
+- `[RESOLVED]` **Re-hook ke `mission_fsm.py`**: method `_grip(close)` dikembalikan;
+  `St.GRAB` mengirim 'close' (attach), `St.AUTO_RELEASE` mengirim 'close' saat
+  mendekati hook lalu 'open' (detach) saat melepas. Alur state IDLE→…→DONE TIDAK
+  diubah (hanya isi perintah manipulasi ditambahkan).
+- `[VERIFY]` **Grasp fisik BELUM diuji di sim/kolam.** Sama seperti gripper lama,
+  belum ada bukti bahwa attach/detach benar-benar mengangkat & melepas payload di
+  Gazebo. Perlu run sim: cek payload ter-attach saat GRAB, terbawa saat NAV_WALL,
+  lepas saat AUTO_RELEASE.
+- `[OPEN]` **Ketergantungan versi gz-sim Fortress.** `<attach_topic>` +
+  `<suppress_initial_attach>` (attach-on-command) tersedia di gz-sim rilis baru;
+  bila build Fortress terpasang HANYA mendukung DetachableJoint gaya lama (attach
+  saat load, detach saja), payload akan menempel ke ROV saat spawn. Perlu verifikasi
+  versi; bila tak didukung, opsi: spawn joint dinamis via service, atau downgrade
+  ke "spawn attached lalu detach".
+- `[OPEN]` **Tuning ambang jarak-aman & massa payload.** `max_offset=0.30`,
+  `min_size=0.12`, massa payload 0.3 kg, gaya JointPositionController — semua
+  ESTIMASI; setel setelah uji sim agar attach terpicu tepat & payload tak melayang.
+- `[OPEN]` **Jari kosmetik tak menyatu dgn grasp fisik.** Sudut jari hanya visual;
+  DetachableJoint yg memegang. Bila ingin jari benar-benar menjepit (dgn payload),
+  perlu geometri jari + friction/contact — di luar lingkup rancang-ulang minimal ini.
 ## Manipulator (M5) — GRIPPER DIHILANGKAN dari model
 - `[RESOLVED]` **Model gripper dihapus** dari ROV atas permintaan: link `gripper_base`
   + 2 jari + 2 `JointPositionController` + `JointStatePublisher` dilepas dari
@@ -188,8 +236,10 @@ Node `mission_fsm` (ROS 2) + launch `hydroships_bringup/launch/hydroships_missio
   `qr_detector` **sudah ada** (lihat M3, RESOLVED). Yang tersisa murni keterbacaan
   visual QR di render (lihat item "QR belum terbaca"); sampai itu beres, uji misi penuh
   dgn inject `ros2 topic pub /hydroships/qr_result` manual atau `start_state:=`.
-- `[TODO]` `APPROACH_HOOK` masih *timed* (visual servo ArUco ROS 2 belum ada) — referensi
-  port ada di `GUI-ROV/autonomy/`.
+- `[RESOLVED→VERIFY]` `APPROACH_HOOK` **tak lagi hanya timed**: node `hook_detector`
+  (port dari `GUI-ROV/autonomy/vision/hook_detect.py`) menerbitkan `/hydroships/hook_offset`
+  dan `mission_fsm` kini **servo** ke hook (fallback timed tetap ada). Belum diuji di
+  render sim — lihat seksi "Integrasi GUI tim (M7)".
 
 ## Sistem Launch Simulasi Gazebo — DIPERBAIKI (RESOLVED)
 - `[RESOLVED]` **`stabilizer` tak diberi `use_sim_time`.** Di
@@ -210,6 +260,44 @@ Node `mission_fsm` (ROS 2) + launch `hydroships_bringup/launch/hydroships_missio
   APPROACH + hold belum cukup.
 
 ## Umum / lintas-milestone
-- `[VERIFY]` Massa & koefisien hidrodinamika ROV masih **placeholder** near-neutral
-  (dari `hydroships.urdf.xacro`), belum data ROV asli. Setel di M2+ dgn data nyata.
-- `[OPEN]` Integrasi GUI tim (repo GUI-ROV) ↔ topik ROS 2 (M7) belum dijembatani.
+- `[VERIFY]` Massa & koefisien hidrodinamika ROV masih **placeholder** (near-neutral;
+  massa/inertia dari geometri box, hidrodinamika acuan tipe BlueROV2), **belum data
+  ROV asli**. STATUS BARU: parameter kini **ter-parameterisasi & siap diisi data nyata** —
+  dipindah dari nilai hardcode di `hydroships.urdf.xacro` ke
+  `hydroships_description/config/rov_params.yaml` (dibaca URDF via `xacro.load_yaml`).
+  Yang ter-eksternal: `base_mass`, `thruster_mass`, `fluid_density`, `cog`/`cob`,
+  tensor inertia 3×3, dan 18 koefisien hidrodinamika (added-mass + linear + quadratic).
+  Alat bantu `hydroships_description/scripts/estimate_mass_inertia.py` menghitung
+  estimasi massa & inertia dari dimensi box + massa jenis material (+ massa titik
+  komponen via teorema sumbu sejajar) → tinggal isi input ukur nyata, re-run, tempel
+  ke YAML, lalu ubah tag `[estimate]`→`[measured]`. URDF hasil parameterisasi
+  **identik** dgn versi hardcode (inertia cocok ~1e-6, massa & buoyancy tak berubah);
+  `test_allocation.py`/`test_pid.py` tetap 15/15 lulus. **Belum RESOLVED**: angka fisik
+  asli HYDROships belum tersedia — masih estimasi sampai diukur.
+## Integrasi GUI tim (M7) — ADAPTER DIBUAT (belum diverifikasi live)
+Repo GUI **Customize5773/GUI-ROV** ternyata **tidak memakai ROS 2** — memakai
+UDP-JSON + MAVLink (ArduSub). Analisis selisih lengkap & desain adapter di
+`docs/GUI-INTEGRATION.md`. Karena transport beda total, remap topik tak cukup →
+dibuat node adapter (bukan mengubah node inti).
+
+- `[RESOLVED]` **Analisis selisih antarmuka** GUI-ROV vs kontrak ROS
+  (`docs/ARCHITECTURE.md`) didokumentasikan (`docs/GUI-INTEGRATION.md`): transport,
+  unit (persen vs N, deg vs rad), nama/arah, frame — lengkap dgn penanganan.
+- `[RESOLVED]` **Node adapter `gui_bridge`** dibuat (`hydroships_control`):
+  UDP JSON `{name,value}` GUI → `/hydroships/cmd_vel` (wrench) & `gripper/command`;
+  `/hydroships/odom`+`/depth` → telemetri UDP JSON GUI. **Tak menyentuh** stabilizer/
+  mission_fsm/thruster_allocator. Logika murni `gui_bridge_logic.py` **teruji headless**.
+- `[RESOLVED]` **APPROACH_HOOK: visual servo** menggantikan behavior *timed*.
+  `autonomy/vision/hook_detect.py` GUI-ROV **di-port** jadi node `hook_detector`
+  (pola qr_detector) → `/hydroships/hook_offset`; `mission_fsm._st_approach_hook`
+  kini servo (heading dari offset-x, maju sampai dekat) dgn **fallback timed** aman.
+  Normalisasi offset murni `hook_logic.py` teruji.
+- `[VERIFY]` **Belum diuji end-to-end dgn GUI live** (joystick GUI → ROV sim gerak;
+  telemetri muncul di dashboard). Belum diverifikasi di environment ini.
+- `[VERIFY]` **Deteksi hook di render kamera sim belum diuji**; ambang default =
+  uji-meja, perlu tuning (glare/kekeruhan/kontras).
+- `[OPEN]` **Kalibrasi**: gain persen→N (`surge/sway/heave/yaw_gain`), offset heading
+  kompas (0° vs +x REP-103), tanda sumbu, port UDP (default cmd 14550 / telem 14551),
+  ambang servo hook (`hook_size_stop`, `hook_kp_yaw`). Semua estimasi.
+- `[OPEN]` Servo hook masih IBVS sederhana (heading+surge); pose-based (solvePnP)
+  menyusul bila `camera_info` hook dipetakan (referensi `autonomy/control/visual_servo.py`).
