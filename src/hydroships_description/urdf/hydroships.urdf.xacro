@@ -12,6 +12,12 @@
       Ini placeholder yang di-tune di M2, BUKAN massa ROV asli.
     * Koefisien hidrodinamika memakai nilai acuan tipe BlueROV2 (di-tune belakangan).
 
+  PARAMETER FISIK TER-EKSTERNAL: massa, CoG/CoB, tensor inertia, & 18 koefisien
+  hidrodinamika kini dibaca dari config/rov_params.yaml (via xacro.load_yaml)
+  sehingga bisa diganti tanpa menyunting file ini. Semua masih ESTIMASI sampai
+  data ukur ROV nyata dimasukkan; pakai scripts/estimate_mass_inertia.py untuk
+  menurunkan massa & inertia dari geometri+material final. Lihat PROBLEM.md.
+
   Geometri & orientasi 6 thruster didokumentasikan di docs/thruster_config.md
   dan HARUS konsisten dengan tabel THRUSTERS di hydroships_control/thruster_allocator.py.
 -->
@@ -24,24 +30,37 @@
 
   <!-- (bow_yaw dulu untuk memutar mesh; visual kini primitif dgn haluan tetap +X.) -->
 
-  <!-- Massa base dipilih agar total near-neutral, sedikit positif buoyant. -->
-  <xacro:property name="base_mass" value="33.6"/>
-  <xacro:property name="thruster_mass" value="0.05"/>
+  <!-- ===== Parameter FISIK dari config/rov_params.yaml =====================
+       Massa, CoG/CoB, tensor inertia, & 18 koefisien hidrodinamika dipisah ke
+       file YAML agar bisa diganti TANPA menyunting URDF ini. Semua masih
+       ESTIMASI (placeholder box-geometri / BlueROV2-like) sampai data ukur ROV
+       nyata tersedia — lihat rov_params.yaml & PROBLEM.md. Path relatif thd
+       file xacro ini -> valid di layout sumber (src/.../urdf) & install
+       (share/pkg/urdf), keduanya bersebelahan dgn .../config. -->
+  <xacro:property name="rp" value="${xacro.load_yaml('../config/rov_params.yaml')}"/>
 
-  <xacro:property name="fluid_density" value="1000.0"/>
+  <xacro:property name="base_mass" value="${rp['base_mass']}"/>
+  <xacro:property name="thruster_mass" value="${rp['thruster_mass']}"/>
+  <xacro:property name="fluid_density" value="${rp['fluid_density']}"/>
 
-  <!-- Inersia kotak solid untuk base_link. -->
-  <xacro:property name="ixx" value="${base_mass / 12.0 * (body_y*body_y + body_z*body_z)}"/>
-  <xacro:property name="iyy" value="${base_mass / 12.0 * (body_x*body_x + body_z*body_z)}"/>
-  <xacro:property name="izz" value="${base_mass / 12.0 * (body_x*body_x + body_y*body_y)}"/>
+  <xacro:property name="cog" value="${rp['cog']}"/>
+
+  <!-- Tensor inertia base_link (kg*m^2) di CoG — dari YAML (dihitung oleh
+       scripts/estimate_mass_inertia.py dari geometri box + massa). -->
+  <xacro:property name="ixx" value="${rp['inertia']['ixx']}"/>
+  <xacro:property name="iyy" value="${rp['inertia']['iyy']}"/>
+  <xacro:property name="izz" value="${rp['inertia']['izz']}"/>
+  <xacro:property name="ixy" value="${rp['inertia']['ixy']}"/>
+  <xacro:property name="ixz" value="${rp['inertia']['ixz']}"/>
+  <xacro:property name="iyz" value="${rp['inertia']['iyz']}"/>
 
   <!-- ============================ base_link ============================ -->
   <link name="base_link">
     <inertial>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="${cog['x']} ${cog['y']} ${cog['z']}" rpy="0 0 0"/>
       <mass value="${base_mass}"/>
-      <inertia ixx="${ixx}" ixy="0.0" ixz="0.0"
-               iyy="${iyy}" iyz="0.0"
+      <inertia ixx="${ixx}" ixy="${ixy}" ixz="${ixz}"
+               iyy="${iyy}" iyz="${iyz}"
                izz="${izz}"/>
     </inertial>
     <!-- Visual: model SEDERHANA dari primitif (BUKAN mesh berat lagi).
@@ -261,33 +280,38 @@
   <!-- ============================================================ -->
 
   <!-- Hydrodynamics (added-mass + drag Fossen) pada base_link.
-       Nilai acuan tipe BlueROV2; di-tune di M2. -->
+       SEMUA koefisien dibaca dari config/rov_params.yaml (added_mass,
+       linear_damping, quadratic_damping) — placeholder tipe BlueROV2, ganti
+       dgn data identifikasi nyata di YAML tanpa menyunting URDF ini. -->
+  <xacro:property name="am" value="${rp['added_mass']}"/>
+  <xacro:property name="ld" value="${rp['linear_damping']}"/>
+  <xacro:property name="qd" value="${rp['quadratic_damping']}"/>
   <gazebo>
     <plugin filename="gz-sim-hydrodynamics-system"
             name="gz::sim::systems::Hydrodynamics">
       <link_name>base_link</link_name>
       <water_density>${fluid_density}</water_density>
       <!-- Added mass -->
-      <xDotU>-6.36</xDotU>
-      <yDotV>-7.12</yDotV>
-      <zDotW>-18.68</zDotW>
-      <kDotP>-0.189</kDotP>
-      <mDotQ>-0.135</mDotQ>
-      <nDotR>-0.222</nDotR>
+      <xDotU>${am['xDotU']}</xDotU>
+      <yDotV>${am['yDotV']}</yDotV>
+      <zDotW>${am['zDotW']}</zDotW>
+      <kDotP>${am['kDotP']}</kDotP>
+      <mDotQ>${am['mDotQ']}</mDotQ>
+      <nDotR>${am['nDotR']}</nDotR>
       <!-- Linear damping -->
-      <xU>-11.7</xU>
-      <yV>-20.0</yV>
-      <zW>-31.9</zW>
-      <kP>-25.0</kP>
-      <mQ>-44.0</mQ>
-      <nR>-5.0</nR>
+      <xU>${ld['xU']}</xU>
+      <yV>${ld['yV']}</yV>
+      <zW>${ld['zW']}</zW>
+      <kP>${ld['kP']}</kP>
+      <mQ>${ld['mQ']}</mQ>
+      <nR>${ld['nR']}</nR>
       <!-- Quadratic damping -->
-      <xUabsU>-18.18</xUabsU>
-      <yVabsV>-21.66</yVabsV>
-      <zWabsW>-36.99</zWabsW>
-      <kPabsP>-1.55</kPabsP>
-      <mQabsQ>-1.55</mQabsQ>
-      <nRabsR>-1.55</nRabsR>
+      <xUabsU>${qd['xUabsU']}</xUabsU>
+      <yVabsV>${qd['yVabsV']}</yVabsV>
+      <zWabsW>${qd['zWabsW']}</zWabsW>
+      <kPabsP>${qd['kPabsP']}</kPabsP>
+      <mQabsQ>${qd['mQabsQ']}</mQabsQ>
+      <nRabsR>${qd['nRabsR']}</nRabsR>
     </plugin>
   </gazebo>
 

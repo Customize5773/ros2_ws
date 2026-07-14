@@ -210,6 +210,18 @@ Node `mission_fsm` (ROS 2) + launch `hydroships_bringup/launch/hydroships_missio
   APPROACH + hold belum cukup.
 
 ## Umum / lintas-milestone
-- `[VERIFY]` Massa & koefisien hidrodinamika ROV masih **placeholder** near-neutral
-  (dari `hydroships.urdf.xacro`), belum data ROV asli. Setel di M2+ dgn data nyata.
+- `[VERIFY]` Massa & koefisien hidrodinamika ROV masih **placeholder** (near-neutral;
+  massa/inertia dari geometri box, hidrodinamika acuan tipe BlueROV2), **belum data
+  ROV asli**. STATUS BARU: parameter kini **ter-parameterisasi & siap diisi data nyata** —
+  dipindah dari nilai hardcode di `hydroships.urdf.xacro` ke
+  `hydroships_description/config/rov_params.yaml` (dibaca URDF via `xacro.load_yaml`).
+  Yang ter-eksternal: `base_mass`, `thruster_mass`, `fluid_density`, `cog`/`cob`,
+  tensor inertia 3×3, dan 18 koefisien hidrodinamika (added-mass + linear + quadratic).
+  Alat bantu `hydroships_description/scripts/estimate_mass_inertia.py` menghitung
+  estimasi massa & inertia dari dimensi box + massa jenis material (+ massa titik
+  komponen via teorema sumbu sejajar) → tinggal isi input ukur nyata, re-run, tempel
+  ke YAML, lalu ubah tag `[estimate]`→`[measured]`. URDF hasil parameterisasi
+  **identik** dgn versi hardcode (inertia cocok ~1e-6, massa & buoyancy tak berubah);
+  `test_allocation.py`/`test_pid.py` tetap 15/15 lulus. **Belum RESOLVED**: angka fisik
+  asli HYDROships belum tersedia — masih estimasi sampai diukur.
 - `[OPEN]` Integrasi GUI tim (repo GUI-ROV) ↔ topik ROS 2 (M7) belum dijembatani.
