@@ -61,8 +61,56 @@ selesai. Format: `[status]` OPEN / VERIFY / RESOLVED.
 - `[note]` State `GRAB`/`HANG`/`AUTO_RELEASE` di `mission_fsm` **dipertahankan sebagai
   kerangka gerakan** (depth/surge saja, tanpa jepit) agar misi tetap jalan; logika
   manipulasi menyusul saat rancangan gripper baru siap.
-- `[TODO]` Rancang ulang manipulator (mekanik + kontrol + integrasi misi + grasp fisik,
-  mis. gz-sim DetachableJoint).
+- `[TODO→DIKERJAKAN]` Rancang ulang manipulator — lihat subseksi
+  **"Manipulator (M5) — RANCANG ULANG berbasis DetachableJoint"** di bawah.
+
+## Manipulator (M5) — RANCANG ULANG berbasis DetachableJoint (kode ADA; grasp VERIFY)
+Rancang ulang dari nol (bukan menghidupkan gripper 2-jari lama yg grasp fisiknya
+tak pernah lolos uji). Pendekatan: **grasp = gz-sim DetachableJoint** (sambungan
+kaku ROV↔payload), jari hanya kosmetik 1 DOF. Kontrak semantik lama dipertahankan
+(`/hydroships/gripper/command` "open"/"close") demi kompatibilitas GUI/autonomy.
+
+- `[RESOLVED]` **Model gripper 1-DOF dibuat ulang** di `hydroships.urdf.xacro`:
+  link `gripper_base` (kaku di perut depan ROV, menghadap bawah) + `gripper_jaw`
+  (revolute 1 DOF, kosmetik) + plugin `JointPositionController` (target sudut via
+  `/hydroships/gripper_jaw/cmd`). Reach ke BAWAH karena payload di-approach dari
+  atas (kamera bawah). URDF ter-proses bersih (xacro OK).
+- `[RESOLVED]` **Plugin DetachableJoint** ditambahkan: `parent_link=gripper_base`,
+  `child_model=payload`, `child_link=payload_link`, `attach_topic=/hydroships/gripper/attach`,
+  `detach_topic=/hydroships/gripper/detach`, `<suppress_initial_attach>true` (jangan
+  attach saat load). Payload di `worlds/kki_arena.sdf` diubah **non-static + diberi
+  massa (0.3 kg) & collision box** agar bisa diangkat & diam di dasar (negatif apung).
+- `[RESOLVED]` **Node `gripper_controller` baru** (`hydroships_control`): terima
+  open/close, gerakkan jari kosmetik, dan picu attach/detach. Attach HANYA saat
+  "close" DAN ROV di atas payload dalam **jangkauan aman** (dinilai dari
+  `/hydroships/qr_offset`: |offset x/y| kecil & ukuran-tampak QR cukup besar & segar)
+  → cegah attach "dari jauh" yg menyeret payload menembus air. Detach saat "open".
+- `[RESOLVED]` **Logika inti dipisah** ke `gripper_logic.py` (murni, tanpa rclpy) →
+  **teruji headless**: `test/test_gripper.py` (13 test: attach dalam/luar jangkauan,
+  sinyal basi, open/detach, sinonim, batas, dsb.) — **28/28 test paket lulus**
+  (15 lama + 13 gripper). Bridge `bridge.yaml` menambah 3 topik gripper
+  (jaw/cmd Float64↔Double, attach/detach Empty↔Empty). Node ditambahkan ke
+  `sim.launch.py`; entry-point ditambah di `setup.py`.
+- `[RESOLVED]` **Re-hook ke `mission_fsm.py`**: method `_grip(close)` dikembalikan;
+  `St.GRAB` mengirim 'close' (attach), `St.AUTO_RELEASE` mengirim 'close' saat
+  mendekati hook lalu 'open' (detach) saat melepas. Alur state IDLE→…→DONE TIDAK
+  diubah (hanya isi perintah manipulasi ditambahkan).
+- `[VERIFY]` **Grasp fisik BELUM diuji di sim/kolam.** Sama seperti gripper lama,
+  belum ada bukti bahwa attach/detach benar-benar mengangkat & melepas payload di
+  Gazebo. Perlu run sim: cek payload ter-attach saat GRAB, terbawa saat NAV_WALL,
+  lepas saat AUTO_RELEASE.
+- `[OPEN]` **Ketergantungan versi gz-sim Fortress.** `<attach_topic>` +
+  `<suppress_initial_attach>` (attach-on-command) tersedia di gz-sim rilis baru;
+  bila build Fortress terpasang HANYA mendukung DetachableJoint gaya lama (attach
+  saat load, detach saja), payload akan menempel ke ROV saat spawn. Perlu verifikasi
+  versi; bila tak didukung, opsi: spawn joint dinamis via service, atau downgrade
+  ke "spawn attached lalu detach".
+- `[OPEN]` **Tuning ambang jarak-aman & massa payload.** `max_offset=0.30`,
+  `min_size=0.12`, massa payload 0.3 kg, gaya JointPositionController — semua
+  ESTIMASI; setel setelah uji sim agar attach terpicu tepat & payload tak melayang.
+- `[OPEN]` **Jari kosmetik tak menyatu dgn grasp fisik.** Sudut jari hanya visual;
+  DetachableJoint yg memegang. Bila ingin jari benar-benar menjepit (dgn payload),
+  perlu geometri jari + friction/contact — di luar lingkup rancang-ulang minimal ini.
 ## Manipulator (M5) — GRIPPER DIHILANGKAN dari model
 - `[RESOLVED]` **Model gripper dihapus** dari ROV atas permintaan: link `gripper_base`
   + 2 jari + 2 `JointPositionController` + `JointStatePublisher` dilepas dari

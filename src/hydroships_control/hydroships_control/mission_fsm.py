@@ -110,6 +110,9 @@ class MissionFSM(Node):
         self.pub_depth = self.create_publisher(Float64, '/hydroships/setpoint/depth', 10)
         self.pub_head = self.create_publisher(Float64, '/hydroships/setpoint/heading', 10)
         self.pub_manual = self.create_publisher(Twist, '/hydroships/manual/cmd', 10)
+        # Manipulator (rancang ulang M5): perintah semantik open/close ke
+        # gripper_controller (yg memicu gz DetachableJoint attach/detach).
+        self.pub_grip = self.create_publisher(String, '/hydroships/gripper/command', 10)
         self.create_subscription(Float64, '/hydroships/depth', self._on_depth, 10)
         self.create_subscription(Odometry, '/hydroships/odom', self._on_odom, 10)
         self.create_subscription(String, '/hydroships/qr_result', self._on_qr, 10)
@@ -161,6 +164,12 @@ class MissionFSM(Node):
     def _set_surge(self, fx=0.0, fy=0.0):
         t = Twist(); t.linear.x = float(fx); t.linear.y = float(fy)
         self.pub_manual.publish(t)
+
+    def _grip(self, close):
+        """Kirim perintah manipulator: close=True -> 'close' (attach payload bila
+        di jangkauan), close=False -> 'open' (detach). gripper_controller yg
+        memutuskan attach fisik via DetachableJoint (lihat gripper_logic)."""
+        m = String(); m.data = 'close' if close else 'open'; self.pub_grip.publish(m)
 
     def _goto_xy(self, tx, ty, fmax=None):
         """PD posisi HOLONOMIK: dorong ROV ke (tx,ty) dunia via gaya horizontal
@@ -268,12 +277,16 @@ class MissionFSM(Node):
             self.get_logger().error('SCAN_QR timeout — tak ada QR'); self._to(St.ABORT)
 
     def _st_grab(self):
-        # Manipulasi (jepit) DIHAPUS — placeholder gerakan sampai dirancang ulang.
+        # Grasp via DetachableJoint (rancang ulang M5): kirim 'close' tiap tick →
+        # gripper_controller meng-attach payload begitu ROV di atasnya dalam
+        # jangkauan aman (dinilai dari qr_offset). Datang dari APPROACH_QR yg sudah
+        # memusatkan ROV di atas payload, jadi attach mestinya di tick awal.
         e = self._elapsed()
+        self._grip(True)
         if e < 4.0: self._set_surge(self.surge)
         elif e < 7.0: self._set_surge(0.0)
         else:
-            self.score['m2'] = 15; self.get_logger().info('GRAB selesai (placeholder)')
+            self.score['m2'] = 15; self.get_logger().info('GRAB selesai (attach dikirim)')
             self._to(St.NAV_WALL)
         if e > self.T['grab']: self.get_logger().error('GRAB timeout'); self._to(St.ABORT)
 
@@ -337,10 +350,13 @@ class MissionFSM(Node):
     def _st_auto_release(self):
         e = self._elapsed()
         self._set_depth(self.hook_depth if e < 15.0 else self.depth_surface)
-        # Manipulasi (jepit/lepas) DIHAPUS — placeholder gerakan sampai dirancang ulang.
-        if e < 11.0: self._set_surge(15.0 if e >= 8.0 else 0.0)
-        elif e < 14.0: self._set_surge(0.0)
-        elif e < 17.0: self._set_surge(-15.0)
+        # Grasp via DetachableJoint (rancang ulang M5): tetap tutup saat mendekati
+        # hook, LEPAS (detach) saat menggantung, lalu mundur.
+        if e < 11.0:
+            self._grip(True); self._set_surge(15.0 if e >= 8.0 else 0.0)  # dekati hook (tetap tutup)
+        elif e < 14.0:
+            self._grip(False); self._set_surge(0.0)                        # LEPAS payload ke hook
+        elif e < 17.0: self._set_surge(-15.0)                              # mundur dari hook
         elif e < 26.0: self._set_surge(0.0)   # naik (depth-hold ke permukaan)
         else:
             self._set_surge(0.0); self.score['m5'] = 40

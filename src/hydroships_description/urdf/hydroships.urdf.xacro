@@ -269,11 +269,58 @@
     </sensor>
   </gazebo>
 
-  <!-- ==================== Gripper: DIHILANGKAN ==================== -->
-  <!-- Model gripper 2-DOF (gripper_base + 2 jari + JointPositionController +
-       JointStatePublisher) telah dihapus dari model ROV. Bila perlu manipulator
-       lagi, kembalikan dari riwayat git. Node gripper_controller & entri bridge
-       gripper (gripper_left/right, joint_states) juga sudah dikeluarkan. -->
+  <!-- ==================== Manipulator (rancang ulang M5) ====================
+       Gripper 1-DOF SEDERHANA (bukan 2 jari kompleks versi lama yg tak pernah
+       lolos uji grasp). Grasp FISIK memakai gz-sim DetachableJoint (sambungan
+       kaku ROV<->payload), BUKAN gesekan jari. Jari tunggal di sini KOSMETIK
+       (indikator visual buka/tutup). Reach ke BAWAH dari perut ROV karena
+       payload di-approach dari atas (kamera bawah). Lihat PROBLEM.md. -->
+  <xacro:property name="grip_mass" value="0.05"/>
+
+  <!-- Pangkal gripper: menempel kaku di perut depan ROV, menghadap ke bawah. -->
+  <link name="gripper_base">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="${grip_mass}"/>
+      <inertia ixx="1e-4" ixy="0.0" ixz="0.0" iyy="1e-4" iyz="0.0" izz="1e-4"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="0.05 0.05 0.03"/></geometry>
+      <material name="hydro_grip"><color rgba="0.2 0.2 0.22 1.0"/></material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="0.05 0.05 0.03"/></geometry>
+    </collision>
+  </link>
+  <joint name="gripper_base_joint" type="fixed">
+    <origin xyz="0.06 0 -0.16" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="gripper_base"/>
+  </joint>
+
+  <!-- Jari tunggal (1 DOF revolute, sumbu y). Kosmetik: menandai buka/tutup. -->
+  <link name="gripper_jaw">
+    <inertial>
+      <origin xyz="0 0 -0.03" rpy="0 0 0"/>
+      <mass value="${grip_mass}"/>
+      <inertia ixx="1e-4" ixy="0.0" ixz="0.0" iyy="1e-4" iyz="0.0" izz="1e-4"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 -0.03" rpy="0 0 0"/>
+      <geometry><box size="0.012 0.03 0.06"/></geometry>
+      <material name="hydro_jaw"><color rgba="0.85 0.7 0.1 1.0"/></material>
+    </visual>
+  </link>
+  <joint name="gripper_jaw_joint" type="revolute">
+    <origin xyz="0.02 0 -0.015" rpy="0 0 0"/>
+    <parent link="gripper_base"/>
+    <child link="gripper_jaw"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-0.1" upper="1.2" effort="10.0" velocity="2.0"/>
+    <dynamics damping="0.05" friction="0.0"/>
+  </joint>
 
   <!-- ============================================================ -->
   <!-- ===================  Plugin Gazebo Fortress  =============== -->
@@ -355,5 +402,40 @@
   <xacro:thruster_plugin name="thruster_4" diameter="0.048"/>
   <xacro:thruster_plugin name="thruster_5" diameter="0.048"/>
   <xacro:thruster_plugin name="thruster_6" diameter="0.048"/>
+
+  <!-- ============ Plugin manipulator (rancang ulang M5) ============ -->
+  <!-- Kontrol posisi jari kosmetik: target sudut (rad) via gz.msgs.Double di
+       /hydroships/gripper_jaw/cmd (dijembatani dari ROS Float64). -->
+  <gazebo>
+    <plugin filename="gz-sim-joint-position-controller-system"
+            name="gz::sim::systems::JointPositionController">
+      <joint_name>gripper_jaw_joint</joint_name>
+      <topic>/hydroships/gripper_jaw/cmd</topic>
+      <p_gain>2.0</p_gain>
+      <i_gain>0.0</i_gain>
+      <d_gain>0.1</d_gain>
+    </plugin>
+  </gazebo>
+
+  <!-- GRASP FISIK: DetachableJoint membuat sambungan kaku gripper_base<->payload.
+       attach saat pesan di /hydroships/gripper/attach, detach di .../detach
+       (gz.msgs.Empty, dijembatani dari ROS std_msgs/Empty).
+       <suppress_initial_attach>: JANGAN attach saat load (ROV & payload spawn di
+       posisi berbeda) — tunggu perintah. child_model 'payload' = model braket-L
+       di hydroships_gazebo/worlds/kki_arena.sdf (kini non-static agar bisa diangkat).
+       CATATAN [VERIFY/OPEN]: ketersediaan attach_topic + suppress_initial_attach
+       bergantung versi build gz-sim Fortress; grasp fisik BELUM diuji. Bila build
+       tak mendukung attach-on-command, sesuaikan (lihat PROBLEM.md). -->
+  <gazebo>
+    <plugin filename="gz-sim-detachable-joint-system"
+            name="gz::sim::systems::DetachableJoint">
+      <parent_link>gripper_base</parent_link>
+      <child_model>payload</child_model>
+      <child_link>payload_link</child_link>
+      <attach_topic>/hydroships/gripper/attach</attach_topic>
+      <detach_topic>/hydroships/gripper/detach</detach_topic>
+      <suppress_initial_attach>true</suppress_initial_attach>
+    </plugin>
+  </gazebo>
 
 </robot>

@@ -95,5 +95,25 @@
   gz_type_name: "gz.msgs.Double"
   direction: ROS_TO_GZ
 
-# ---- Gripper DIHILANGKAN: entri joint_states & gripper_left/right/cmd dihapus
-#      seiring model gripper dilepas dari ROV. ----
+# ---- Manipulator (rancang ulang M5): DetachableJoint + jari kosmetik ----
+# Target sudut jari kosmetik (rad) : ROS -> Gazebo (JointPositionController).
+- ros_topic_name: "/hydroships/gripper_jaw/cmd"
+  gz_topic_name: "/hydroships/gripper_jaw/cmd"
+  ros_type_name: "std_msgs/msg/Float64"
+  gz_type_name: "gz.msgs.Double"
+  direction: ROS_TO_GZ
+
+# Trigger GRASP FISIK DetachableJoint (attach/detach) : ROS -> Gazebo.
+# gripper_controller menerbitkan std_msgs/Empty; plugin DetachableJoint di URDF
+# mendengarkan gz.msgs.Empty pada topik yg sama.
+- ros_topic_name: "/hydroships/gripper/attach"
+  gz_topic_name: "/hydroships/gripper/attach"
+  ros_type_name: "std_msgs/msg/Empty"
+  gz_type_name: "gz.msgs.Empty"
+  direction: ROS_TO_GZ
+
+- ros_topic_name: "/hydroships/gripper/detach"
+  gz_topic_name: "/hydroships/gripper/detach"
+  ros_type_name: "std_msgs/msg/Empty"
+  gz_type_name: "gz.msgs.Empty"
+  direction: ROS_TO_GZ

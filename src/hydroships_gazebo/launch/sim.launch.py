@@ -117,7 +117,15 @@ def _launch_setup(context, *args, **kwargs):
         parameters=[{'use_sim_time': True}],
     )
 
-    return [gz_sim, bridge, rsp, spawn, depth_pub, qr]
+    # Manipulator (M5 rancang ulang): open/close -> gz DetachableJoint attach/detach.
+    gripper = Node(
+        package='hydroships_control',
+        executable='gripper_controller',
+        output='screen',
+        parameters=[{'use_sim_time': True}],
+    )
+
+    return [gz_sim, bridge, rsp, spawn, depth_pub, qr, gripper]
 
 
 def generate_launch_description():

@@ -34,6 +34,7 @@ setup(
             'depth_publisher = hydroships_control.depth_publisher:main',
             'mission_fsm = hydroships_control.mission_fsm:main',
             'qr_detector = hydroships_control.qr_detector:main',
+            'gripper_controller = hydroships_control.gripper_controller:main',
         ],
     },
 )

@@ -52,6 +52,10 @@ menyediakan blok kendali & odometry; kamera/QR/kedalaman menyusul (M3).
 | `/hydroships/camera_front/image_raw` | `sensor_msgs/Image` | sim → GUI | ⏳ M3 |
 | `/hydroships/camera_bottom/image_raw` | `sensor_msgs/Image` | sim → GUI | ⏳ M3 |
 | `/hydroships/qr_result` | `std_msgs/String` | node QR → GUI | ⏳ M3 |
+| `/hydroships/gripper/command` | `std_msgs/String` | GUI/FSM → gripper_controller | 🧪 M5 ("open"/"close") |
+| `/hydroships/gripper_jaw/cmd` | `std_msgs/Float64` | gripper_controller → sim | 🧪 M5 (sudut jari kosmetik, rad) |
+| `/hydroships/gripper/attach` | `std_msgs/Empty` | gripper_controller → sim | 🧪 M5 (trigger DetachableJoint attach) |
+| `/hydroships/gripper/detach` | `std_msgs/Empty` | gripper_controller → sim | 🧪 M5 (trigger DetachableJoint detach) |
 
 > Saat integrasi GUI (M7): jika GUI tim mengharapkan nama topic berbeda,
 > cukup remap di launch (`--ros-args -r from:=to`) atau sesuaikan tabel ini —
