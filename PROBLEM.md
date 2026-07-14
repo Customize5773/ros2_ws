@@ -4,9 +4,6 @@ Dokumen ini mengumpulkan masalah diketahui, keputusan sementara, dan hal yang **
 perlu diverifikasi di kolam/hardware asli**. Dijadikan catatan akhir saat semua milestone
 selesai. Format: `[status]` OPEN / VERIFY / RESOLVED.
 
-> Konteks lintas-repo: dokumen arsitektur & roadmap referensi ada di repo lama
-> **ROV-GAZEBO-SIMULATION** (GitHub), bukan di workspace ini.
-
 ---
 
 ## Arena (M4) — sudah dibangun
