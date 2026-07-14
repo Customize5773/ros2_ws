@@ -90,6 +90,12 @@ Folder build/ install/ log/ sengaja di-gitignore; regenerasi dgn colcon build.
 Contoh gabungan:
   ros2 launch hydroships_bringup hydroships_mission.launch.py headless:=true world:=kki_arena.sdf
 
+Argumen launch (default cocok GUI-ROV: cmd 14550, telem 14551):
+
+ros2 launch hydroships_bringup hydroships_gui.launch.py \
+    gui_host:=192.168.2.1 cmd_port:=14550 telem_port:=14551
+# atau headless:=true / world:=pool_empty.sdf
+
 
 --------------------------------------------------------------------------------
 5. PERINTAH UJI BERGUNA (terminal terpisah, sudah di-source)
