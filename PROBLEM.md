@@ -236,8 +236,10 @@ Node `mission_fsm` (ROS 2) + launch `hydroships_bringup/launch/hydroships_missio
   `qr_detector` **sudah ada** (lihat M3, RESOLVED). Yang tersisa murni keterbacaan
   visual QR di render (lihat item "QR belum terbaca"); sampai itu beres, uji misi penuh
   dgn inject `ros2 topic pub /hydroships/qr_result` manual atau `start_state:=`.
-- `[TODO]` `APPROACH_HOOK` masih *timed* (visual servo ArUco ROS 2 belum ada) — referensi
-  port ada di `GUI-ROV/autonomy/`.
+- `[RESOLVED→VERIFY]` `APPROACH_HOOK` **tak lagi hanya timed**: node `hook_detector`
+  (port dari `GUI-ROV/autonomy/vision/hook_detect.py`) menerbitkan `/hydroships/hook_offset`
+  dan `mission_fsm` kini **servo** ke hook (fallback timed tetap ada). Belum diuji di
+  render sim — lihat seksi "Integrasi GUI tim (M7)".
 
 ## Sistem Launch Simulasi Gazebo — DIPERBAIKI (RESOLVED)
 - `[RESOLVED]` **`stabilizer` tak diberi `use_sim_time`.** Di
@@ -272,4 +274,30 @@ Node `mission_fsm` (ROS 2) + launch `hydroships_bringup/launch/hydroships_missio
   **identik** dgn versi hardcode (inertia cocok ~1e-6, massa & buoyancy tak berubah);
   `test_allocation.py`/`test_pid.py` tetap 15/15 lulus. **Belum RESOLVED**: angka fisik
   asli HYDROships belum tersedia — masih estimasi sampai diukur.
-- `[OPEN]` Integrasi GUI tim (repo GUI-ROV) ↔ topik ROS 2 (M7) belum dijembatani.
+## Integrasi GUI tim (M7) — ADAPTER DIBUAT (belum diverifikasi live)
+Repo GUI **Customize5773/GUI-ROV** ternyata **tidak memakai ROS 2** — memakai
+UDP-JSON + MAVLink (ArduSub). Analisis selisih lengkap & desain adapter di
+`docs/GUI-INTEGRATION.md`. Karena transport beda total, remap topik tak cukup →
+dibuat node adapter (bukan mengubah node inti).
+
+- `[RESOLVED]` **Analisis selisih antarmuka** GUI-ROV vs kontrak ROS
+  (`docs/ARCHITECTURE.md`) didokumentasikan (`docs/GUI-INTEGRATION.md`): transport,
+  unit (persen vs N, deg vs rad), nama/arah, frame — lengkap dgn penanganan.
+- `[RESOLVED]` **Node adapter `gui_bridge`** dibuat (`hydroships_control`):
+  UDP JSON `{name,value}` GUI → `/hydroships/cmd_vel` (wrench) & `gripper/command`;
+  `/hydroships/odom`+`/depth` → telemetri UDP JSON GUI. **Tak menyentuh** stabilizer/
+  mission_fsm/thruster_allocator. Logika murni `gui_bridge_logic.py` **teruji headless**.
+- `[RESOLVED]` **APPROACH_HOOK: visual servo** menggantikan behavior *timed*.
+  `autonomy/vision/hook_detect.py` GUI-ROV **di-port** jadi node `hook_detector`
+  (pola qr_detector) → `/hydroships/hook_offset`; `mission_fsm._st_approach_hook`
+  kini servo (heading dari offset-x, maju sampai dekat) dgn **fallback timed** aman.
+  Normalisasi offset murni `hook_logic.py` teruji.
+- `[VERIFY]` **Belum diuji end-to-end dgn GUI live** (joystick GUI → ROV sim gerak;
+  telemetri muncul di dashboard). Belum diverifikasi di environment ini.
+- `[VERIFY]` **Deteksi hook di render kamera sim belum diuji**; ambang default =
+  uji-meja, perlu tuning (glare/kekeruhan/kontras).
+- `[OPEN]` **Kalibrasi**: gain persen→N (`surge/sway/heave/yaw_gain`), offset heading
+  kompas (0° vs +x REP-103), tanda sumbu, port UDP (default cmd 14550 / telem 14551),
+  ambang servo hook (`hook_size_stop`, `hook_kp_yaw`). Semua estimasi.
+- `[OPEN]` Servo hook masih IBVS sederhana (heading+surge); pose-based (solvePnP)
+  menyusul bila `camera_info` hook dipetakan (referensi `autonomy/control/visual_servo.py`).

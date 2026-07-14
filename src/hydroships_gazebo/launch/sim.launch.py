@@ -125,7 +125,15 @@ def _launch_setup(context, *args, **kwargs):
         parameters=[{'use_sim_time': True}],
     )
 
-    return [gz_sim, bridge, rsp, spawn, depth_pub, qr, gripper]
+    # Deteksi hook (port GUI-ROV) -> /hydroships/hook_offset (visual servo APPROACH_HOOK).
+    hook = Node(
+        package='hydroships_control',
+        executable='hook_detector',
+        output='screen',
+        parameters=[{'use_sim_time': True}],
+    )
+
+    return [gz_sim, bridge, rsp, spawn, depth_pub, qr, gripper, hook]
 
 
 def generate_launch_description():

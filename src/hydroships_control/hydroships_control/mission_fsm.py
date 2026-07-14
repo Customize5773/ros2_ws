@@ -27,7 +27,7 @@ from enum import Enum, auto
 
 import rclpy
 from rclpy.node import Node
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, PointStamped
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64, String
 
@@ -82,6 +82,12 @@ class MissionFSM(Node):
         p('t_dive', 20.0); p('t_scan', 45.0); p('t_grab', 10.0); p('t_nav', 30.0)
         p('t_hang', 15.0); p('t_surface', 20.0); p('t_dock', 12.0)
         p('t_approach', 20.0); p('t_release', 30.0)
+        # APPROACH_HOOK visual servo (deteksi hook dari hook_detector; port GUI-ROV)
+        p('hook_max_age', 1.0)       # s umur maks hook_offset agar segar
+        p('hook_kp_yaw', 0.6)        # rad koreksi heading per unit offset x
+        p('hook_surge', 12.0)        # N gaya maju saat mendekati hook
+        p('hook_size_stop', 0.35)    # ukuran-tampak hook -> dianggap cukup dekat
+        p('hook_center_tol', 0.15)   # |offset x| dianggap "sejajar"
 
         g = lambda n: self.get_parameter(n).value
         self.surge = float(g('surge_force'))
@@ -105,6 +111,11 @@ class MissionFSM(Node):
         self.T = {k: float(g('t_' + k)) for k in
                   ('dive', 'scan', 'grab', 'nav', 'hang', 'surface', 'dock',
                    'approach', 'release')}
+        self.hook_max_age = float(g('hook_max_age'))
+        self.hook_kp_yaw = float(g('hook_kp_yaw'))
+        self.hook_surge = float(g('hook_surge'))
+        self.hook_size_stop = float(g('hook_size_stop'))
+        self.hook_center_tol = float(g('hook_center_tol'))
 
         # I/O
         self.pub_depth = self.create_publisher(Float64, '/hydroships/setpoint/depth', 10)
@@ -116,6 +127,8 @@ class MissionFSM(Node):
         self.create_subscription(Float64, '/hydroships/depth', self._on_depth, 10)
         self.create_subscription(Odometry, '/hydroships/odom', self._on_odom, 10)
         self.create_subscription(String, '/hydroships/qr_result', self._on_qr, 10)
+        # hook_offset (visual servo APPROACH_HOOK; dari node hook_detector).
+        self.create_subscription(PointStamped, '/hydroships/hook_offset', self._on_hook, 10)
 
         # State
         self.depth = None
@@ -126,6 +139,8 @@ class MissionFSM(Node):
         self.vy = 0.0
         self.qr_wall = None
         self.qr_time = 0.0
+        self.hook_off = None      # (ex, ey, size)
+        self.hook_time = 0.0
         self.wall = None
         self.score = {'m1': 0, 'm2': 0, 'm3': 0, 'm4': 0, 'm5': 0}
         self.state = St.IDLE
@@ -221,6 +236,18 @@ class MissionFSM(Node):
         w = (msg.data or '').strip().upper()
         if w in WALL_HEADING_DEG:
             self.qr_wall = w; self.qr_time = self._now()
+
+    def _on_hook(self, msg):
+        self.hook_off = (msg.point.x, msg.point.y, msg.point.z)
+        self.hook_time = self._now()
+
+    def _hook_fresh(self):
+        """Kembalikan (ex, ey, size) bila deteksi hook masih segar, else None."""
+        if self.hook_off is None:
+            return None
+        if self._now() - self.hook_time > self.hook_max_age:
+            return None
+        return self.hook_off
 
     # ---- main tick ----
     def _tick(self):
@@ -340,11 +367,30 @@ class MissionFSM(Node):
             self.get_logger().error('DOCK timeout'); self._to(St.ABORT)
 
     def _st_approach_hook(self):
-        # TODO (M3 lanjut): visual servo ArUco di ROS 2 belum ada -> sementara timed.
+        # Visual servo hook (port GUI-ROV autonomy/vision/hook_detect via node
+        # hook_detector -> /hydroships/hook_offset). Bila deteksi segar: sejajarkan
+        # heading dari offset-x & maju hingga hook cukup dekat (size besar). Bila
+        # TAK ada deteksi: fallback ke perilaku timed lama (aman, tak menggantung).
         self._set_depth(self.hook_depth)
+        off = self._hook_fresh()
+        if off is not None:
+            ex, _ey, size = off
+            if self.yaw is not None:
+                self._set_heading(self.yaw - self.hook_kp_yaw * ex)  # koreksi ke tengah
+            aligned = abs(ex) < self.hook_center_tol
+            near = size >= self.hook_size_stop
+            self._set_surge(0.0 if near else self.hook_surge)
+            if near and aligned:
+                self.get_logger().info('APPROACH_HOOK: hook tercapai (visual servo, size %.2f)' % size)
+                self._set_surge(0.0); self._to(St.AUTO_RELEASE); return
+            if self._elapsed() > self.T['approach']:
+                self.get_logger().warn('APPROACH_HOOK timeout (servo, size %.2f) -> lanjut' % size)
+                self._set_surge(0.0); self._to(St.AUTO_RELEASE)
+            return
+        # Fallback timed (tak ada hook_offset — hook_detector mati / tak terdeteksi).
         self._set_surge(10.0 if self._elapsed() < 6.0 else 0.0)
         if self._elapsed() >= 6.0 or self._elapsed() > self.T['approach']:
-            self.get_logger().warn('APPROACH_HOOK timed (visual servo ROS2 belum ada)')
+            self.get_logger().warn('APPROACH_HOOK timed (tak ada deteksi hook)')
             self._set_surge(0.0); self._to(St.AUTO_RELEASE)
 
     def _st_auto_release(self):
