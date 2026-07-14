@@ -250,6 +250,12 @@
     </sensor>
   </gazebo>
 
+  <!-- ==================== Gripper: DIHILANGKAN ==================== -->
+  <!-- Model gripper 2-DOF (gripper_base + 2 jari + JointPositionController +
+       JointStatePublisher) telah dihapus dari model ROV. Bila perlu manipulator
+       lagi, kembalikan dari riwayat git. Node gripper_controller & entri bridge
+       gripper (gripper_left/right, joint_states) juga sudah dikeluarkan. -->
+
   <!-- ============================================================ -->
   <!-- ===================  Plugin Gazebo Fortress  =============== -->
   <!-- ============================================================ -->

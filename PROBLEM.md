@@ -66,6 +66,33 @@ selesai. Format: `[status]` OPEN / VERIFY / RESOLVED.
   manipulasi menyusul saat rancangan gripper baru siap.
 - `[TODO]` Rancang ulang manipulator (mekanik + kontrol + integrasi misi + grasp fisik,
   mis. gz-sim DetachableJoint).
+## Manipulator (M5) — GRIPPER DIHILANGKAN dari model
+- `[RESOLVED]` **Model gripper dihapus** dari ROV atas permintaan: link `gripper_base`
+  + 2 jari + 2 `JointPositionController` + `JointStatePublisher` dilepas dari
+  `hydroships.urdf.xacro`; node `gripper_controller` dilepas dari `sim.launch.py`;
+  entri bridge `joint_states` & `gripper_left/right/cmd` dilepas dari `bridge.yaml`.
+  Bila perlu manipulator lagi, kembalikan dari riwayat git. Catatan lama di bawah
+  disimpan sebagai referensi bila akan dibangun ulang.
+
+<details><summary>Catatan lama (gripper, sudah tidak aktif)</summary>
+
+- Gripper 2 jari (revolute sumbu z) di depan ROV, dikontrol gz JointPositionController.
+  Perintah semantik `/hydroships/gripper/command` ("open"/"close") → node
+  `gripper_controller` → setpoint 2 jari (bridge → gz). State jari di
+  `/hydroships/joint_states`. **Terverifikasi**: open ≈ +0.50/−0.50, close ≈ −0.14/+0.15 rad.
+- `[VERIFY]` Sudut `open_angle=0.5` / `close_angle=-0.15` (param node) & arah buka/tutup
+  masih perlu dicek visual di GUI/kolam agar celah jepit pas ukuran payload.
+- `[OPEN]` **Grasp fisik belum diuji**: jari punya collision tapi belum ada model payload
+  (bagian M4). Menjepit andal kemungkinan butuh penyetelan friction atau plugin
+  attach/detach (mis. gz-sim DetachableJoint) — belum diimplementasi.
+- `[OPEN]` `/hydroships/joint_states` (dari gz) hanya berisi 2 joint gripper, bukan
+  thruster. TF jari via robot_state_publisher belum tersambung (rsp mendengar
+  `/joint_states`, sedangkan bridge ke `/hydroships/joint_states`). Remap bila butuh TF.
+- `[note]` `ros2 topic pub --once` ke command bisa meleset karena race discovery;
+  node menerbitkan ulang setpoint 2 Hz sehingga joint tetap menahan posisi. Konsumen
+  nyata (GUI/autonomy) mengirim berulang, jadi aman.
+
+</details>
 
 ## FISIKA ROV — DUA BUG BESAR DITEMUKAN & DIPERBAIKI (RESOLVED)
 Menjawab "kenapa ROV makin dibiarkan makin melayang, tidak menggenang di air":
