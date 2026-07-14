@@ -31,6 +31,8 @@ from geometry_msgs.msg import Twist, PointStamped
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64, String
 
+from hydroships_control.hook_logic import HookServoGains, hook_servo
+
 
 def yaw_from_quaternion(q):
     siny_cosp = 2.0 * (q.w * q.z + q.x * q.y)
@@ -82,12 +84,19 @@ class MissionFSM(Node):
         p('t_dive', 20.0); p('t_scan', 45.0); p('t_grab', 10.0); p('t_nav', 30.0)
         p('t_hang', 15.0); p('t_surface', 20.0); p('t_dock', 12.0)
         p('t_approach', 20.0); p('t_release', 30.0)
-        # APPROACH_HOOK visual servo (deteksi hook dari hook_detector; port GUI-ROV)
+        # APPROACH_HOOK visual servo PD (deteksi hook dari hook_detector; port GUI-ROV).
+        # Holonomik: sway (offset-x) + surge (ukuran-tampak) + koreksi setpoint depth
+        # (offset-y). Ganti servo proporsional-heading lama -> PD penuh (kp*err-kd*vel).
         p('hook_max_age', 1.0)       # s umur maks hook_offset agar segar
-        p('hook_kp_yaw', 0.6)        # rad koreksi heading per unit offset x
-        p('hook_surge', 12.0)        # N gaya maju saat mendekati hook
+        p('hook_kp_surge', 40.0)     # N per unit error ukuran-tampak (maju bila jauh)
+        p('hook_kd_surge', 30.0)     # N per (m/s) redaman surge (body vx)
+        p('hook_kp_sway', 45.0)      # N per unit offset-x (koreksi lateral)
+        p('hook_kd_sway', 30.0)      # N per (m/s) redaman sway (body vy)
+        p('hook_kp_depth', 0.25)     # m per unit offset-y (geser setpoint depth)
+        p('hook_fmax', 16.0)         # N batas gaya horizontal servo hook
+        p('hook_depth_range', 0.20)  # m simpangan maks setpoint depth dari hook_depth
         p('hook_size_stop', 0.35)    # ukuran-tampak hook -> dianggap cukup dekat
-        p('hook_center_tol', 0.15)   # |offset x| dianggap "sejajar"
+        p('hook_center_tol', 0.15)   # |offset| dianggap "sejajar"
 
         g = lambda n: self.get_parameter(n).value
         self.surge = float(g('surge_force'))
@@ -112,10 +121,12 @@ class MissionFSM(Node):
                   ('dive', 'scan', 'grab', 'nav', 'hang', 'surface', 'dock',
                    'approach', 'release')}
         self.hook_max_age = float(g('hook_max_age'))
-        self.hook_kp_yaw = float(g('hook_kp_yaw'))
-        self.hook_surge = float(g('hook_surge'))
-        self.hook_size_stop = float(g('hook_size_stop'))
-        self.hook_center_tol = float(g('hook_center_tol'))
+        self.hook_gains = HookServoGains(
+            kp_surge=float(g('hook_kp_surge')), kd_surge=float(g('hook_kd_surge')),
+            kp_sway=float(g('hook_kp_sway')), kd_sway=float(g('hook_kd_sway')),
+            kp_depth=float(g('hook_kp_depth')),
+            size_stop=float(g('hook_size_stop')), center_tol=float(g('hook_center_tol')),
+            fmax=float(g('hook_fmax')), depth_range=float(g('hook_depth_range')))
 
         # I/O
         self.pub_depth = self.create_publisher(Float64, '/hydroships/setpoint/depth', 10)
@@ -367,31 +378,34 @@ class MissionFSM(Node):
             self.get_logger().error('DOCK timeout'); self._to(St.ABORT)
 
     def _st_approach_hook(self):
-        # Visual servo hook (port GUI-ROV autonomy/vision/hook_detect via node
-        # hook_detector -> /hydroships/hook_offset). Bila deteksi segar: sejajarkan
-        # heading dari offset-x & maju hingga hook cukup dekat (size besar). Bila
-        # TAK ada deteksi: fallback ke perilaku timed lama (aman, tak menggantung).
-        self._set_depth(self.hook_depth)
+        # Visual servo PD hook (deteksi contour dari node hook_detector ->
+        # /hydroships/hook_offset). Bila deteksi segar: PD holonomik koreksi
+        # sway (offset-x) + surge (ukuran-tampak) + setpoint depth (offset-y),
+        # dgn redaman kecepatan (mirip _goto_xy), sampai cukup dekat & terpusat
+        # -> AUTO_RELEASE. Bila TAK ada deteksi: fallback timed lama (aman).
+        # Heading di-hold menghadap wall agar kamera depan tetap melihat hook.
         off = self._hook_fresh()
         if off is not None:
-            ex, _ey, size = off
-            if self.yaw is not None:
-                self._set_heading(self.yaw - self.hook_kp_yaw * ex)  # koreksi ke tengah
-            aligned = abs(ex) < self.hook_center_tol
-            near = size >= self.hook_size_stop
-            self._set_surge(0.0 if near else self.hook_surge)
-            if near and aligned:
-                self.get_logger().info('APPROACH_HOOK: hook tercapai (visual servo, size %.2f)' % size)
-                self._set_surge(0.0); self._to(St.AUTO_RELEASE); return
+            cmd = hook_servo(off, self.vx, self.vy, self.hook_depth, self.hook_gains)
+            self._set_depth(cmd.target_depth)
+            if self.wall in WALL_HEADING_DEG:
+                self._set_heading(math.radians(WALL_HEADING_DEG[self.wall]))
+            if cmd.near and cmd.aligned:
+                self.get_logger().info('APPROACH_HOOK: hook tercapai (PD servo, size %.2f)' % off[2])
+                self._set_surge(0.0, 0.0); self._to(St.AUTO_RELEASE); return
+            # Sudah dekat tapi belum terpusat: berhenti maju, hanya koreksi lateral/vert.
+            surge = 0.0 if cmd.near else cmd.surge
+            self._set_surge(surge, cmd.sway)
             if self._elapsed() > self.T['approach']:
-                self.get_logger().warn('APPROACH_HOOK timeout (servo, size %.2f) -> lanjut' % size)
-                self._set_surge(0.0); self._to(St.AUTO_RELEASE)
+                self.get_logger().warn('APPROACH_HOOK timeout (PD servo, size %.2f) -> lanjut' % off[2])
+                self._set_surge(0.0, 0.0); self._to(St.AUTO_RELEASE)
             return
         # Fallback timed (tak ada hook_offset — hook_detector mati / tak terdeteksi).
+        self._set_depth(self.hook_depth)
         self._set_surge(10.0 if self._elapsed() < 6.0 else 0.0)
         if self._elapsed() >= 6.0 or self._elapsed() > self.T['approach']:
             self.get_logger().warn('APPROACH_HOOK timed (tak ada deteksi hook)')
-            self._set_surge(0.0); self._to(St.AUTO_RELEASE)
+            self._set_surge(0.0, 0.0); self._to(St.AUTO_RELEASE)
 
     def _st_auto_release(self):
         e = self._elapsed()

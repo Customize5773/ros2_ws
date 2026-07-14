@@ -273,6 +273,19 @@ Node `mission_fsm` (ROS 2) + launch `hydroships_bringup/launch/hydroships_missio
   (port dari `GUI-ROV/autonomy/vision/hook_detect.py`) menerbitkan `/hydroships/hook_offset`
   dan `mission_fsm` kini **servo** ke hook (fallback timed tetap ada). Belum diuji di
   render sim — lihat seksi "Integrasi GUI tim (M7)".
+  - **UPDATE — servo di-upgrade jadi PD penuh (Tugas 3):** servo lama hanya proporsional
+    pada HEADING (`hook_kp_yaw * ex`). Diganti **PD holonomik** di `hook_logic.hook_servo`
+    (fungsi MURNI, testable): **sway** dari offset-x + **surge** dari ukuran-tampak +
+    **koreksi setpoint kedalaman** dari offset-y, semua dgn **redaman kecepatan** body-frame
+    (kp·err − kd·vel, pola `_goto_xy`). Heading di-hold menghadap wall (kamera depan tetap
+    melihat hook). `_st_approach_hook` di-rewire; `T['approach']` tetap timeout aman (ABORT/
+    lanjut bila tak konvergen); fallback timed dipertahankan bila deteksi hilang.
+    **Bukti offline:** `test/test_hook_servo.py` (11 test: arah tanda sway/surge/depth,
+    redaman kecepatan, clamp gaya, konvergensi loop, flag aligned/near). **Suite 58/58 lulus.**
+  - **TETAP [VERIFY]** (bukan RESOLVED): belum ada run sim (env ini tak punya ROS2/Gazebo).
+    Yang kurang: log NYATA servo konvergen ke hook di render sim + deteksi hook di kamera
+    depan terbukti (ambang `min_area`/CLAHE default masih uji-meja). Gain PD (`hook_kp_*`,
+    `hook_kd_*`) = estimasi, perlu tuning saat uji sim.
 
 ## Sistem Launch Simulasi Gazebo — DIPERBAIKI (RESOLVED)
 - `[RESOLVED]` **`stabilizer` tak diberi `use_sim_time`.** Di
@@ -323,8 +336,10 @@ dibuat node adapter (bukan mengubah node inti).
 - `[RESOLVED]` **APPROACH_HOOK: visual servo** menggantikan behavior *timed*.
   `autonomy/vision/hook_detect.py` GUI-ROV **di-port** jadi node `hook_detector`
   (pola qr_detector) → `/hydroships/hook_offset`; `mission_fsm._st_approach_hook`
-  kini servo (heading dari offset-x, maju sampai dekat) dgn **fallback timed** aman.
-  Normalisasi offset murni `hook_logic.py` teruji.
+  kini servo dgn **fallback timed** aman. Normalisasi offset & PD servo murni di
+  `hook_logic.py` teruji. **UPDATE (Tugas 3):** servo di-upgrade dari proporsional-heading
+  jadi **PD holonomik penuh** (sway+surge+koreksi-depth, redaman kecepatan) —
+  `hook_logic.hook_servo` + `test/test_hook_servo.py`. Lihat detail di seksi M6.
 - `[VERIFY]` **Belum diuji end-to-end dgn GUI live** (joystick GUI → ROV sim gerak;
   telemetri muncul di dashboard). Belum diverifikasi di environment ini.
 - `[VERIFY]` **Deteksi hook di render kamera sim belum diuji**; ambang default =
@@ -332,5 +347,7 @@ dibuat node adapter (bukan mengubah node inti).
 - `[OPEN]` **Kalibrasi**: gain persen→N (`surge/sway/heave/yaw_gain`), offset heading
   kompas (0° vs +x REP-103), tanda sumbu, port UDP (default cmd 14550 / telem 14551),
   ambang servo hook (`hook_size_stop`, `hook_kp_yaw`). Semua estimasi.
-- `[OPEN]` Servo hook masih IBVS sederhana (heading+surge); pose-based (solvePnP)
-  menyusul bila `camera_info` hook dipetakan (referensi `autonomy/control/visual_servo.py`).
+- `[OPEN]` Servo hook masih IBVS (image-based: PD sway+surge+depth, tanpa kalibrasi);
+  pose-based (solvePnP/PBVS) menyusul bila kalibrasi kamera FISIK hook tersedia
+  (intrinsics sim sudah mengalir tapi bukan kalibrasi hardware — lihat Tugas 2 &
+  `PoseServo` di `GUI-ROV/autonomy/control/visual_servo.py`).
