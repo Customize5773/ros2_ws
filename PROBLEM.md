@@ -77,6 +77,14 @@ selesai. Format: `[status]` OPEN / VERIFY / RESOLVED.
   - **Yang MASIH kurang untuk → [RESOLVED]:** log NYATA `/hydroships/qr_result` berisi
     A/B/C/D terbaca otomatis saat FSM di APPROACH_QR/SCAN_QR (tanpa inject manual), diambil
     dari run sim ber-GPU/EGL. Belum bisa dijalankan di environment ini.
+  - **Instrumentasi diagnosis ditambahkan (untuk mempermudah run sim asli PERTAMA):**
+    `qr_detector.py` kini (a) log "FRAME PERTAMA dari <topic>" sekali per kamera (bukti
+    subscriber dapat data), (b) log "DECODE GAGAL" ber-throttle 5 s yang MEMBEDAKAN
+    "QR tak terdeteksi (pts=None)" vs "QR terdeteksi tapi decode kosong" — dua kondisi
+    ini butuh fix beda; dan (c) `_to_cv` kini menghormati `msg.step` (row stride) agar
+    gambar tak ter-geser diam-diam bila publisher memberi padding baris. Log sukses
+    "QR terbaca" tak diubah. **Run sim asli: TBD — run lokal Rasya** (hasil log akan
+    dilaporkan balik untuk menentukan RESOLVED atau debug lanjutan).
 - `[RESOLVED]` **`qr_detector` kini juga menerbitkan `/hydroships/qr_offset`**
   (geometry_msgs/PointStamped): offset piksel ternormalisasi + ukuran-tampak QR, sebagai
   sinyal **visual servo** (align presisi ROV ke payload). `camera_info` sudah dijembatani.
