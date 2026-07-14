@@ -213,6 +213,23 @@
             <diffuse>0.82 0.83 0.86 1</diffuse>
           </material>
         </visual>
+        <!-- SIM_ONLY: MARGIN QUIET-ZONE putih di belakang QR. Plane putih self-lit
+             sedikit lebih besar (0.16 vs QR 0.12) di y sedikit di BELAKANG QR
+             (0.0006 < 0.0012) → memberi zona-tenang bersih di sekeliling QR
+             sehingga finder-pattern QR tak terganggu lantai berfaset/bayangan saat
+             render (fix teringan opsi (a), lihat PROBLEM.md item "QR belum terbaca").
+             Emissive putih agar tak ter-render hitam di kamera Fortress headless
+             (sama alasan dgn emissive_map QR). Hapus bila kembali ke ukuran asli. -->
+        <visual name="qr_quiet_zone">
+          <pose>0 0.0006 0.04 0 0 0</pose>
+          <geometry><plane><normal>0 1 0</normal><size>0.16 0.16</size></plane></geometry>
+          <material>
+            <ambient>1 1 1 1</ambient>
+            <diffuse>1 1 1 1</diffuse>
+            <specular>0 0 0 1</specular>
+            <emissive>1 1 1 1</emissive>
+          </material>
+        </visual>
         <visual name="qr">
           <!-- SIM_ONLY: QR diperbesar 0.04 -> 0.12 m agar terbaca kamera sim di
                kedalaman scan. Payload NYATA/KKI tetap 4 cm — ini murni alat bantu
@@ -235,6 +252,24 @@
         </visual>
       </link>
     </model>
+
+    <!-- SIM_ONLY: Lampu lokal di ATAS payload untuk menerangi area QR tanpa
+         mengubah exposure global scene (fix opsi (b), lihat PROBLEM.md item
+         "QR belum terbaca"). Point light ~0.4 m di atas QR (world z payload
+         ~-0.85, QR menghadap +z) menaikkan kontras QR vs lantai berfaset.
+         Range kecil (0.8 m) agar tak membanjiri seluruh kolam. -->
+    <light type="point" name="payload_fill">
+      <cast_shadows>false</cast_shadows>
+      <pose>0.4 0 -0.45 0 0 0</pose>
+      <diffuse>0.8 0.8 0.8 1</diffuse>
+      <specular>0.1 0.1 0.1 1</specular>
+      <attenuation>
+        <range>0.8</range>
+        <constant>0.3</constant>
+        <linear>0.5</linear>
+        <quadratic>1.0</quadratic>
+      </attenuation>
+    </light>
 
     <!-- ============================ Hook / gantungan ============================ -->
     <!--

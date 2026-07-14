@@ -16,8 +16,20 @@ selesai. Format: `[status]` OPEN / VERIFY / RESOLVED.
 ## Sensor & Persepsi (M3) — sudah dibangun
 - `[VERIFY]` Kamera di-render headless via `gz-sim-sensors-system` (ogre2). Jalan di mesin
   dev ini (~22 Hz). Di mesin/CI tanpa GPU/EGL, sensor kamera bisa gagal render — perlu cek.
-- `[OPEN]` Kalibrasi/CameraInfo kamera sim belum dipetakan ke intrinsics nyata; `camera_info`
-  di-publish gz tapi belum dijembatani ke ROS (baru image_raw). Tambah bila node PBVS butuh.
+- `[VERIFY→terbagi]` **CameraInfo — dipisah jadi 2 sub-masalah** (status lama "belum
+  dijembatani" sudah usang):
+  - `[VERIFY]` **Jalur topic camera_info** SUDAH dijembatani di `bridge.yaml` (GZ_TO_ROS
+    utk `/hydroships/camera_front/camera_info` & `/hydroships/camera_bottom/camera_info`,
+    tipe `sensor_msgs/CameraInfo`). `qr_detector.py` kini juga SUBSCRIBE keduanya dan
+    menyimpan matriks K per-kamera (log fx/fy/cx/cy saat pertama diterima). **Masih perlu
+    verifikasi runtime**: `ros2 topic echo /hydroships/camera_front/camera_info --once`
+    saat sim jalan → cek K/D/width/height terisi masuk akal (bukan nol) & nama topik gz
+    aktual cocok (`gz topic -l`). Belum bisa diverifikasi di env ini (tak ada ROS2/Gazebo).
+  - `[OPEN]` **Kalibrasi ke kamera fisik ROV asli** — intrinsics yang mengalir HANYA hasil
+    kalkulasi Gazebo dari FOV/resolusi kamera SDF sim, **BUKAN** kalibrasi hardware ROV
+    (belum ada datanya). K yang disimpan `qr_detector` **TIDAK** boleh dipakai untuk
+    estimasi jarak riil sampai kalibrasi kamera fisik tersedia. Ini gap hardware, bukan
+    bug kode — jangan "diselesaikan" dgn mengarang angka.
 - `[VERIFY]` `depth_publisher` menurunkan kedalaman = max(0,−z) dari odom. Benar di sim
   (permukaan z=0). ROV near-neutral **sedikit positif** → mengapung ke permukaan saat
   thruster mati (depth→0). Ini sesuai desain M1, bukan bug.
@@ -44,6 +56,27 @@ selesai. Format: `[status]` OPEN / VERIFY / RESOLVED.
   payload nyata tetap 4 cm). **Perlu verifikasi runtime** apakah kini `cv2` men-decode dari
   kamera sim. Bila belum: naikkan lagi ukuran / debug pencahayaan-scene. Sementara tetap bisa
   inject `/hydroships/qr_result` manual.
+  - **UPDATE (percobaan fix, BELUM diverifikasi runtime sim — env dev ini tak punya
+    ROS2/Gazebo, jadi hanya bukti OFFLINE):** menerapkan fix berjenjang dari yang paling
+    ringan (urutan sesuai arahan), TANPA menambah dependency:
+    1. **(opsi c) Preprocessing decode** — logika decode dipindah ke modul murni
+       `qr_logic.robust_decode` (testable headless): coba decode via beberapa kandidat
+       — mentah → grayscale+CLAHE → adaptive-threshold (±median-blur) → Otsu → upscale 2×.
+       `qr_detector.py` kini memanggilnya. **Bukti offline:** `test/test_qr_logic.py`
+       + harness adegan-terdegradasi (lantai berfaset + bayangan + kontras rendah + noise)
+       → decode **mentah gagal** tapi **robust_decode memulihkan** frame ambang (mis. QR
+       130 px kontras 0.5). Robust ≥ mentah (tak pernah regresi). CATATAN: adegan sintetik
+       ekstrem (kontras 0.45, QR ≤110 px) masih gagal → preprocessing membantu frame
+       marginal, BUKAN peluru perak; butuh uji render sim asli.
+    2. **(opsi a) Quiet-zone** — plane putih self-lit 0.16 m di belakang QR (SIM_ONLY di
+       `kki_arena.sdf`) memberi zona-tenang bersih agar finder-pattern QR tak terganggu
+       lantai berfaset.
+    3. **(opsi b) Lampu lokal** — `<light type="point" name="payload_fill">` (range 0.8 m)
+       di atas payload menaikkan kontras QR tanpa mengubah exposure global scene.
+    4. **(opsi d) Perbesar QR lagi**: TIDAK dilakukan (masih opsi terakhir; lihat "Opsi ditunda").
+  - **Yang MASIH kurang untuk → [RESOLVED]:** log NYATA `/hydroships/qr_result` berisi
+    A/B/C/D terbaca otomatis saat FSM di APPROACH_QR/SCAN_QR (tanpa inject manual), diambil
+    dari run sim ber-GPU/EGL. Belum bisa dijalankan di environment ini.
 - `[RESOLVED]` **`qr_detector` kini juga menerbitkan `/hydroships/qr_offset`**
   (geometry_msgs/PointStamped): offset piksel ternormalisasi + ukuran-tampak QR, sebagai
   sinyal **visual servo** (align presisi ROV ke payload). `camera_info` sudah dijembatani.

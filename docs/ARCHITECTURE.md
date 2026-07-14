@@ -59,6 +59,8 @@ GUI (M7) menyusul.
 | `/hydroships/depth` | `std_msgs/Float64` | sim → GUI | ⏳ M3 |
 | `/hydroships/camera_front/image_raw` | `sensor_msgs/Image` | sim → GUI | ⏳ M3 |
 | `/hydroships/camera_bottom/image_raw` | `sensor_msgs/Image` | sim → GUI | ⏳ M3 |
+| `/hydroships/camera_front/camera_info` | `sensor_msgs/CameraInfo` | sim → servo/PBVS | 🧪 M3 (intrinsics **sim**, bukan kalibrasi hardware — lihat catatan) |
+| `/hydroships/camera_bottom/camera_info` | `sensor_msgs/CameraInfo` | sim → servo/PBVS | 🧪 M3 (idem) |
 | `/hydroships/qr_result` | `std_msgs/String` | node QR → GUI | ⏳ M3 |
 | `/hydroships/qr_offset` | `geometry_msgs/PointStamped` | qr_detector → FSM/servo | ⏳ M3 (offset piksel ternorm. + ukuran) |
 | `/hydroships/hook_offset` | `geometry_msgs/PointStamped` | hook_detector → FSM | 🧪 M7 (visual servo APPROACH_HOOK; port GUI-ROV) |
@@ -66,6 +68,14 @@ GUI (M7) menyusul.
 | `/hydroships/gripper_jaw/cmd` | `std_msgs/Float64` | gripper_controller → sim | 🧪 M5 (sudut jari kosmetik, rad) |
 | `/hydroships/gripper/attach` | `std_msgs/Empty` | gripper_controller → sim | 🧪 M5 (trigger DetachableJoint attach) |
 | `/hydroships/gripper/detach` | `std_msgs/Empty` | gripper_controller → sim | 🧪 M5 (trigger DetachableJoint detach) |
+
+> **Catatan CameraInfo (intrinsics):** topik `camera_info` dijembatani dari Gazebo
+> (`bridge.yaml`) dan matriks K disimpan oleh `qr_detector`. **PENTING — bedakan dua hal:**
+> (1) *jalur topic camera_info* → **selesai** bila `ros2 topic echo .../camera_info --once`
+> menunjukkan K/D/width/height terisi masuk akal saat sim jalan (masih perlu verifikasi
+> runtime); (2) *kalibrasi ke kamera fisik ROV asli* → **tetap OPEN**: intrinsics ini murni
+> kalkulasi Gazebo dari FOV/resolusi SDF, **bukan** kalibrasi hardware. Jangan pakai K untuk
+> estimasi jarak riil sampai data kalibrasi kamera fisik tersedia (lihat PROBLEM.md).
 
 > Saat integrasi GUI (M7): jika GUI tim mengharapkan nama topic berbeda,
 > cukup remap di launch (`--ros-args -r from:=to`) atau sesuaikan tabel ini —
