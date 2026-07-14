@@ -60,8 +60,14 @@ Menerjemahkan dua arah, memakai titik-masuk yang SUDAH ada:
 - Logika murni (skala persen→wrench, rad→deg, failsafe) di `gui_bridge_logic.py`,
   **teruji headless** (`test/test_gui_bridge.py`).
 
-Jalankan: `ros2 run hydroships_control gui_bridge` (default dengar UDP :14550,
-telemetri → 127.0.0.1:14551, cocok port GUI). Node inti tak disentuh.
+Jalankan sim + adapter sekaligus (disarankan):
+```
+ros2 launch hydroships_bringup hydroships_gui.launch.py \
+    gui_host:=192.168.2.1 cmd_port:=14550 telem_port:=14551
+```
+(sim + thruster_allocator + gui_bridge; `gui_host` = laptop GUI/server.js.)
+Atau node adapter saja: `ros2 run hydroships_control gui_bridge` (default dengar
+UDP :14550, telemetri → 127.0.0.1:14551). Node inti tak disentuh.
 
 ### 3b. Node `hook_detector` (port GUI-ROV) untuk APPROACH_HOOK
 `autonomy/vision/hook_detect.py` (`detect_hook`, contour/CLAHE→Hough, murni cv2)
