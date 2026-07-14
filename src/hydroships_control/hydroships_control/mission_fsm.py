@@ -11,7 +11,9 @@ Aliran (lihat docs/ARCHITECTURE.md):
     keluar: /hydroships/setpoint/depth   (Float64, negatif = dalam)
             /hydroships/setpoint/heading (Float64, rad)
             /hydroships/manual/cmd       (Twist, Fx/Fy gaya horizontal N)
-            /hydroships/gripper/command  (String open/close)
+
+Catatan: subsistem GRIPPER/manipulasi DIHAPUS (akan dirancang ulang). State
+GRAB/HANG/AUTO_RELEASE kini hanya gerakan (depth/surge), tanpa perintah jepit.
 
 State: IDLE -> DIVE -> SCAN_QR -> GRAB -> NAV_WALL -> HANG -> SURFACE -> DOCK
        -> APPROACH_HOOK -> AUTO_RELEASE -> DONE (atau ABORT).
@@ -71,6 +73,11 @@ class MissionFSM(Node):
         p('approach_kd', 70.0)       # N/(m/s) redaman kecepatan (cegah overshoot)
         p('approach_fmax', 16.0)     # N batas gaya approach
         p('approach_tol', 0.06)      # m radius "sudah di atas payload"
+        # NAV_WALL HOLONOMIK (mitigasi yaw lemah — lihat PROBLEM.md): ROV translasi
+        # ke posisi wall di dunia TANPA memutar badan (surge+sway), heading di-hold.
+        p('wall_dist', 2.30)         # m jarak pusat->target wall (standoff; hook ~2.4 m)
+        p('nav_tol', 0.15)           # m radius "tiba di wall"
+        p('nav_fmax', 22.0)          # N batas gaya navigasi holonomik
         # timeout per state (s)
         p('t_dive', 20.0); p('t_scan', 45.0); p('t_grab', 10.0); p('t_nav', 30.0)
         p('t_hang', 15.0); p('t_surface', 20.0); p('t_dock', 12.0)
@@ -92,6 +99,9 @@ class MissionFSM(Node):
         self.approach_kd = float(g('approach_kd'))
         self.approach_fmax = float(g('approach_fmax'))
         self.approach_tol = float(g('approach_tol'))
+        self.wall_dist = float(g('wall_dist'))
+        self.nav_tol = float(g('nav_tol'))
+        self.nav_fmax = float(g('nav_fmax'))
         self.T = {k: float(g('t_' + k)) for k in
                   ('dive', 'scan', 'grab', 'nav', 'hang', 'surface', 'dock',
                    'approach', 'release')}
@@ -100,7 +110,6 @@ class MissionFSM(Node):
         self.pub_depth = self.create_publisher(Float64, '/hydroships/setpoint/depth', 10)
         self.pub_head = self.create_publisher(Float64, '/hydroships/setpoint/heading', 10)
         self.pub_manual = self.create_publisher(Twist, '/hydroships/manual/cmd', 10)
-        self.pub_grip = self.create_publisher(String, '/hydroships/gripper/command', 10)
         self.create_subscription(Float64, '/hydroships/depth', self._on_depth, 10)
         self.create_subscription(Odometry, '/hydroships/odom', self._on_odom, 10)
         self.create_subscription(String, '/hydroships/qr_result', self._on_qr, 10)
@@ -153,24 +162,41 @@ class MissionFSM(Node):
         t = Twist(); t.linear.x = float(fx); t.linear.y = float(fy)
         self.pub_manual.publish(t)
 
-    def _grip(self, close):
-        m = String(); m.data = 'close' if close else 'open'; self.pub_grip.publish(m)
-
-    def _goto_xy(self, tx, ty):
-        """PD posisi: dorong ROV ke (tx,ty) dunia via gaya horizontal body-frame,
-        dgn redaman kecepatan agar tak overshoot. Kembalikan jarak sisa (m)."""
+    def _goto_xy(self, tx, ty, fmax=None):
+        """PD posisi HOLONOMIK: dorong ROV ke (tx,ty) dunia via gaya horizontal
+        body-frame (surge+sway), dgn redaman kecepatan agar tak overshoot.
+        Kompensasi yaw tiap tick -> arah gerak tetap benar walau heading melenceng
+        (mitigasi yaw lemah, lihat PROBLEM.md). Kembalikan jarak sisa (m)."""
         if self.x is None or self.yaw is None:
             return 999.0
+        fm = self.approach_fmax if fmax is None else fmax
         ex, ey = tx - self.x, ty - self.y
         c, s = math.cos(self.yaw), math.sin(self.yaw)
         bx = ex * c + ey * s      # error posisi di body +x (surge)
         by = -ex * s + ey * c     # error posisi di body +y (sway)
-        cl = lambda v: max(-self.approach_fmax, min(self.approach_fmax, v))
+        cl = lambda v: max(-fm, min(fm, v))
         # vx,vy sudah body-frame dari odom twist -> pakai untuk redaman
         surge = self.approach_kp * bx - self.approach_kd * self.vx
         sway = self.approach_kp * by - self.approach_kd * self.vy
         self._set_surge(cl(surge), cl(sway))
         return math.hypot(ex, ey)
+
+    def _move_world(self, wx, wy, force):
+        """Set gaya horizontal menuju arah DUNIA (wx,wy) unit, kompensasi yaw
+        (gerak tak bergantung heading — mitigasi yaw lemah)."""
+        if self.yaw is None:
+            self._set_surge(0.0, 0.0); return
+        c, s = math.cos(self.yaw), math.sin(self.yaw)
+        self._set_surge(force * (wx * c + wy * s), force * (-wx * s + wy * c))
+
+    def _wall_xy(self, wall):
+        """Posisi target XY (dunia) di depan wall A/B/C/D (dari geometri arena)."""
+        d = self.wall_dist
+        return {'A': (0.0, -d), 'B': (0.0, d), 'C': (d, 0.0), 'D': (-d, 0.0)}[wall]
+
+    def _wall_inward(self, wall):
+        """Vektor satuan DUNIA dari pusat menuju wall ('maju ke wall')."""
+        return {'A': (0.0, -1.0), 'B': (0.0, 1.0), 'C': (1.0, 0.0), 'D': (-1.0, 0.0)}[wall]
 
     # ---- callbacks ----
     def _on_depth(self, msg): self.depth = msg.data
@@ -242,35 +268,41 @@ class MissionFSM(Node):
             self.get_logger().error('SCAN_QR timeout — tak ada QR'); self._to(St.ABORT)
 
     def _st_grab(self):
+        # Manipulasi (jepit) DIHAPUS — placeholder gerakan sampai dirancang ulang.
         e = self._elapsed()
-        if e < 1.0: self._grip(False)
-        elif e < 4.0: self._set_surge(self.surge); self._grip(False)
-        elif e < 7.0: self._set_surge(0.0); self._grip(True)
+        if e < 4.0: self._set_surge(self.surge)
+        elif e < 7.0: self._set_surge(0.0)
         else:
-            self.score['m2'] = 15; self.get_logger().info('Payload diambil (+15)')
+            self.score['m2'] = 15; self.get_logger().info('GRAB selesai (placeholder)')
             self._to(St.NAV_WALL)
         if e > self.T['grab']: self.get_logger().error('GRAB timeout'); self._to(St.ABORT)
 
     def _st_nav_wall(self):
+        """Navigasi HOLONOMIK ke wall (mitigasi yaw lemah): tahan heading, translasi
+        surge+sway ke posisi wall di dunia. Tak perlu memutar badan menghadap wall."""
         if self.wall is None: self._to(St.ABORT); return
-        tgt = math.radians(WALL_HEADING_DEG[self.wall])
-        self._set_heading(tgt)
-        aligned = self.yaw is not None and abs(wrap_to_pi(tgt - self.yaw)) < self.yaw_tol
-        self._set_surge(self.surge if (aligned and self._elapsed() > 4.0) else 0.0)
-        self._grip(True)
-        if self._elapsed() > 18.0:
-            self.score['m3'] = 0  # skor diberi di HANG
-            self._set_surge(0.0); self._to(St.HANG)
+        tx, ty = self._wall_xy(self.wall)
+        self._set_depth(self.hook_depth)     # turun ke level hook sambil bergerak
+        self._set_heading(0.0)               # HOLD heading (yaw lemah -> jangan slew)
+        dist = self._goto_xy(tx, ty, fmax=self.nav_fmax)
+        if dist < self.nav_tol:
+            self._set_surge(0.0)
+            self.get_logger().info('Tiba di wall %s (dist %.2fm)' % (self.wall, dist))
+            self._to(St.HANG)
         elif self._elapsed() > self.T['nav']:
-            self.get_logger().error('NAV_WALL timeout'); self._to(St.ABORT)
+            self.get_logger().error('NAV_WALL timeout (dist %.2fm)' % dist); self._to(St.ABORT)
 
     def _st_hang(self):
         e = self._elapsed()
         self._set_depth(self.hook_depth)   # naik/turun ke level hook
-        if e < 5.0: self._grip(True)
-        elif e < 8.0: self._set_surge(15.0); self._grip(True)
-        elif e < 11.0: self._set_surge(0.0); self._grip(False)
-        elif e < 13.0: self._set_surge(-15.0); self._grip(False)
+        self._set_heading(0.0)
+        ux, uy = self._wall_inward(self.wall) if self.wall else (0.0, 0.0)
+        # Manipulasi (jepit/lepas) DIHAPUS — placeholder gerakan WORLD-FRAME sampai
+        # dirancang ulang: dekati wall lalu mundur (arah dunia, tak bergantung heading).
+        if e < 5.0: self._set_surge(0.0)
+        elif e < 8.0: self._move_world(ux, uy, 15.0)      # dekati wall
+        elif e < 11.0: self._set_surge(0.0)
+        elif e < 13.0: self._move_world(-ux, -uy, 15.0)   # mundur dari wall
         else:
             self._set_surge(0.0); self.score['m3'] = 15
             self.get_logger().info('Payload tergantung di wall %s (+15)' % self.wall)
@@ -305,13 +337,13 @@ class MissionFSM(Node):
     def _st_auto_release(self):
         e = self._elapsed()
         self._set_depth(self.hook_depth if e < 15.0 else self.depth_surface)
-        if e < 8.0: self._grip(False)
-        elif e < 11.0: self._set_surge(15.0); self._grip(False)
-        elif e < 14.0: self._set_surge(0.0); self._grip(True)
-        elif e < 17.0: self._set_surge(-15.0); self._grip(True)
-        elif e < 26.0: self._set_surge(0.0); self._grip(True)   # naik (depth-hold ke permukaan)
+        # Manipulasi (jepit/lepas) DIHAPUS — placeholder gerakan sampai dirancang ulang.
+        if e < 11.0: self._set_surge(15.0 if e >= 8.0 else 0.0)
+        elif e < 14.0: self._set_surge(0.0)
+        elif e < 17.0: self._set_surge(-15.0)
+        elif e < 26.0: self._set_surge(0.0)   # naik (depth-hold ke permukaan)
         else:
-            self._grip(False); self._set_surge(0.0); self.score['m5'] = 40
+            self._set_surge(0.0); self.score['m5'] = 40
             self.get_logger().info('Misi 5 AUTONOMOUS selesai (+40)!')
             self._print_score(); self._to(St.DONE)
         if e > self.T['release'] + 8.0:

@@ -60,7 +60,7 @@ def _launch_setup(context, *args, **kwargs):
         launch_arguments={'gz_args': gz_args}.items(),
     )
 
-    # Proses xacro -> URDF string.
+    # Proses xacro -> URDF string. (hydroships.urdf.xacro)
     xacro_file = os.path.join(pkg_description, 'urdf', 'hydroships.urdf.xacro')
     robot_desc = xacro.process_file(xacro_file).toxml()
 

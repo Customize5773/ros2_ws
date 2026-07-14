@@ -43,6 +43,21 @@
   gz_type_name: "gz.msgs.Image"
   direction: GZ_TO_ROS
 
+# CameraInfo (intrinsics) — gz menerbitkan otomatis di sibling '<...>/camera_info'
+# (leaf 'image' diganti 'camera_info'). Dibutuhkan visual servo / PBVS.
+# Jika tak nyambung, cek nama aktual dgn `gz topic -l` saat sim hidup lalu samakan.
+- ros_topic_name: "/hydroships/camera_front/camera_info"
+  gz_topic_name: "/hydroships/camera_front/camera_info"
+  ros_type_name: "sensor_msgs/msg/CameraInfo"
+  gz_type_name: "gz.msgs.CameraInfo"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "/hydroships/camera_bottom/camera_info"
+  gz_topic_name: "/hydroships/camera_bottom/camera_info"
+  ros_type_name: "sensor_msgs/msg/CameraInfo"
+  gz_type_name: "gz.msgs.CameraInfo"
+  direction: GZ_TO_ROS
+
 # ---- Perintah gaya per thruster (N) : ROS -> Gazebo ----
 - ros_topic_name: "/hydroships/thruster_1/thrust"
   gz_topic_name: "/hydroships/thruster_1/thrust"

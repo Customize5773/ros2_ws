@@ -41,16 +41,31 @@ selesai. Format: `[status]` OPEN / VERIFY / RESOLVED.
   mendorong ROV **DI ATAS** payload/QR datar & **menahannya**. Terverifikasi bersih: ROV
   menetap di **(0.41, 0.00, ~0.63)** tepat di target `payload_x/y` (0.4, 0) dan stabil.
   Kamera bawah digeser sedikit ke bawah badan (z=-0.18) agar tak terhalang mesh sendiri.
-- `[OPEN]` **QR belum terbaca meski posisi sudah tepat.** Di kedalaman scan, kamera bawah
-  menampilkan lantai berfaset + bayangan; **payload/QR tak tampil jelas** (QR emissif 4 cm
-  terlalu kecil pada render ini, atau isu render payload jarak dekat). Loop kontrol (approach)
-  sudah beres — sisanya murni keterbacaan visual. **Uji misi penuh sekarang: inject
-  `/hydroships/qr_result` manual.** Fix: **perbesar QR khusus sim** (lihat "Opsi ditunda"),
-  atau debug pencahayaan/scene agar QR emissif kontras & cukup besar di frame.
+- `[VERIFY]` **QR belum terbaca meski posisi sudah tepat.** Di kedalaman scan, kamera bawah
+  menampilkan lantai berfaset + bayangan; QR emissif 4 cm terlalu kecil pada render ini.
+  **Fix diterapkan: perbesar QR khusus sim** 0.04→0.12 m (SIM_ONLY, di `kki_arena.sdf`;
+  payload nyata tetap 4 cm). **Perlu verifikasi runtime** apakah kini `cv2` men-decode dari
+  kamera sim. Bila belum: naikkan lagi ukuran / debug pencahayaan-scene. Sementara tetap bisa
+  inject `/hydroships/qr_result` manual.
+- `[RESOLVED]` **`qr_detector` kini juga menerbitkan `/hydroships/qr_offset`**
+  (geometry_msgs/PointStamped): offset piksel ternormalisasi + ukuran-tampak QR, sebagai
+  sinyal **visual servo** (align presisi ROV ke payload). `camera_info` sudah dijembatani.
 - `[note-uji]` Run sim yang tumpang-tindih meninggalkan proses `mission_fsm`/`parameter_bridge`
   lama yang **saling adu perintah** → ROV berperilaku erratic. Selalu pastikan proses lama
   mati (`ps | grep`) sebelum run baru. Bukan bug kode.
 
+## Manipulator (M5) — DIHAPUS (akan dirancang ulang)
+- `[REMOVED]` Seluruh subsistem gripper **dihapus** atas permintaan (rencana dibuat ulang).
+  Yang dibuang: link `gripper_base` + 2 jari & plugin `JointPositionController`/
+  `JointStatePublisher` di `hydroships.urdf.xacro`; node `gripper_controller`
+  (+ entry-point `setup.py` & Node di `sim.launch.py`); topik `gripper_left/right/cmd`
+  & `joint_states` di `bridge.yaml`; publisher `/hydroships/gripper/command`, method
+  `_grip`, & semua panggilannya di `mission_fsm.py`.
+- `[note]` State `GRAB`/`HANG`/`AUTO_RELEASE` di `mission_fsm` **dipertahankan sebagai
+  kerangka gerakan** (depth/surge saja, tanpa jepit) agar misi tetap jalan; logika
+  manipulasi menyusul saat rancangan gripper baru siap.
+- `[TODO]` Rancang ulang manipulator (mekanik + kontrol + integrasi misi + grasp fisik,
+  mis. gz-sim DetachableJoint).
 ## Manipulator (M5) — GRIPPER DIHILANGKAN dari model
 - `[RESOLVED]` **Model gripper dihapus** dari ROV atas permintaan: link `gripper_base`
   + 2 jari + 2 `JointPositionController` + `JointStatePublisher` dilepas dari
@@ -97,6 +112,35 @@ Menjawab "kenapa ROV makin dibiarkan makin melayang, tidak menggenang di air":
 > Catatan: M1/M2 sebelumnya ditandai ✅ tapi ternyata **thrust tak pernah benar-benar
 > menggerakkan ROV** (topik tak nyambung) — verifikasi lama kurang teliti. Kini teruji nyata.
 
+## FISIKA ROV — TEMUAN KETIGA: frame posisi thruster salah → YAW mati (RESOLVED)
+- `[RESOLVED]` **Bidang horizontal (surge/sway/yaw) badly-conditioned; YAW praktis mati.**
+  Analisis numerik Thrust Allocation Matrix (dari `hydroships_control/allocation.py`):
+  `cond(TAM) ≈ 12.377`, singular value terkecil ≈ `1e-4` (arah yaw). Dengan
+  pseudo-inverse polos (invers eksak utk TAM 6×6 full-rank), perintah:
+  - **yaw 1 N·m** menuntut T3/T4 = **±5000 N** (batas ±50 N),
+  - **surge 1 N** menuntut T3/T4 = **±648 N**
+  → semua ter-clip lalu **merusak DOF lain**. Heading-hold & NAV_WALL karena itu
+  tak bisa bekerja andal (cocok dgn catatan "belum di-tune untuk gerak nyata").
+- **Akar masalah (geometri) — POSISI, bukan axis:** `thruster_positions.csv`
+  berkonvensi **X=lateral (kanan +), Y=fore/aft (DEPAN negatif), Z=atas** (lihat
+  `thruster_topview.png`), sedangkan frame body ROS **x=maju, y=kiri, z=atas**.
+  Posisi disalin **mentah** `(X,Y,Z)→(x,y,z)` tanpa rotasi frame → posisi terputar 90°.
+  Akibatnya T100-A/C yang FISIKnya terpisah kiri-kanan (sumber yaw) di model jadi
+  terpisah depan-belakang → **lengan momen yaw ≈ 0**. (Axis/peran sebenarnya **sudah
+  benar**: A/C surge, B sway, D/E/F vertikal — dikonfirmasi pengguna via anotasi arah
+  gaya. T100-B kini dilabeli **T200-B** tapi tetap thruster sway.)
+- `[RESOLVED]` **Fix:** koreksi konversi frame posisi di `allocation.py` (THRUSTERS)
+  & `hydroships.urdf.xacro`: `x_body=-Y_csv, y_body=-X_csv, z_body=Z_csv`. Hasil
+  (terverifikasi numerik): **cond(TAM) 12.377 → 19,7**, rank 6/6, **yaw 5 N·m cukup
+  ~18 N** (dulu 25.000 N), surge/sway/heave semua bersih. ROV kini terkendali penuh
+  6-DOF; heading-hold & navigasi bekerja.
+- `[RESOLVED-insurance]` **Allocator damped least-squares** (`build_damped_pinv`,
+  param `alloc_damping=0.1`) tetap dipakai sebagai jaring pengaman + node log cond(TAM).
+  Dgn TAM kini well-conditioned, redaman kecil ≈ pinv (tak merugikan). Bisa diturunkan
+  ke 0 bila diinginkan pinv murni.
+- `[note]` Konsistensi posisi URDF ↔ allocation.py masih manual (duplikat). Opsi lanjut:
+  satu sumber-kebenaran parametrik / test konsistensi otomatis (belum wajib).
+
 ## Model Visual ROV — DIBUAT ULANG jadi PRIMITIF SEDERHANA (RESOLVED tahap-1)
 - `[RESOLVED]` **Model visual dibuat ULANG dari primitif ringan** (ganti mesh STL 12 MB
   yang acak-acak & berat). Visual `base_link` kini = rangka kotak HITAM (bawah) + busa
@@ -121,10 +165,11 @@ Menjawab "kenapa ROV makin dibiarkan makin melayang, tidak menggenang di air":
   URDF origin xyz=0. (Fortress tak bisa FBX → dipakai STL hasil konversi.)
 - `[RESOLVED]` `package://`→`model://` tak ketemu → tambah `IGN_GAZEBO_RESOURCE_PATH`
   di `sim.launch.py`. Mesh ter-load tanpa error (0 geometry-load-failures).
-- `[OPEN]` **Poly-count berat.** Model punya 279 komponen terpisah; fast-simplification
-  mentok di ~237 k segitiga (STL 12 MB) — tak bisa turun ke ~40 k. Akibat: **rate kamera
-  turun ~22 → ~10 Hz** (render lebih berat). Untuk lebih ringan: pakai decimator quadric
-  (open3d/pymeshlab) atau buang komponen kecil (baut/pipa) sebelum merge.
+- `[MOOT]` **Poly-count berat.** (Historis — mesh STL 12 MB sudah dihapus & diganti
+  primitif ringan; lihat "Model Visual ROV — DIBUAT ULANG". Tak lagi relevan kecuali
+  mesh detail dihidupkan lagi.) Dulu: 279 komponen, fast-simplification mentok ~237 k
+  segitiga → rate kamera ~22→10 Hz. Bila kelak pakai mesh: decimator quadric
+  (open3d/pymeshlab) atau buang komponen kecil sebelum merge.
 - `[VERIFY]` **Arah bow (haluan) belum dipastikan.** Footprint mesh ~persegi (X≈Y) jadi
   tak bisa ditebak dari bbox. Diatur via properti `bow_yaw` (rad) di `hydroships.urdf.xacro`
   (default 0 = bow menghadap +X). Cek di GUI & set 1.5708/−1.5708/3.14159 bila perlu.
@@ -135,15 +180,17 @@ Menjawab "kenapa ROV makin dibiarkan makin melayang, tidak menggenang di air":
 ## Autonomy (M6) — kode dibangun, INTEGRASI JALAN (setelah fix fisika)
 Node `mission_fsm` (ROS 2) + launch `hydroships_bringup/launch/hydroships_mission.launch.py`
 (sim + allocator + stabilizer + FSM). FSM mengendalikan lewat setpoint stabilizer
-(`setpoint/depth`, `setpoint/heading`, `manual/cmd`) + `/hydroships/gripper/command`.
+(`setpoint/depth`, `setpoint/heading`, `manual/cmd`). (Perintah gripper dihapus — lihat M5.)
 
 - `[RESOLVED]` Setelah dua fix fisika di atas, misi **berjalan**: FSM `IDLE→DIVE` →
   "Dasar tercapai (0.76 m)" → `DIVE→SCAN_QR` → (inject QR "A") "QR → wall A (+15)" →
   `SCAN_QR→GRAB`. Depth-hold & heading-hold bekerja.
 - `[VERIFY]` Timeout tiap state, gaya (`surge_force` dll), & sudut belum di-tune untuk
   gerak nyata di arena; baru diuji transisi awal.
-- `[OPEN]` `SCAN_QR` menunggu `/hydroships/qr_result` (node QR belum ada) → tanpa QR akan
-  timeout; sementara uji dgn `ros2 topic pub /hydroships/qr_result` manual atau `start_state:=`.
+- `[VERIFY]` `SCAN_QR`/`APPROACH_QR` mengonsumsi `/hydroships/qr_result` — node
+  `qr_detector` **sudah ada** (lihat M3, RESOLVED). Yang tersisa murni keterbacaan
+  visual QR di render (lihat item "QR belum terbaca"); sampai itu beres, uji misi penuh
+  dgn inject `ros2 topic pub /hydroships/qr_result` manual atau `start_state:=`.
 - `[TODO]` `APPROACH_HOOK` masih *timed* (visual servo ArUco ROS 2 belum ada) — referensi
   port ada di `GUI-ROV/autonomy/`.
 

@@ -27,6 +27,7 @@ from hydroships_control.allocation import (
     THRUSTERS,
     allocate,
     build_allocation_matrix,
+    build_damped_pinv,
 )
 
 
@@ -34,9 +35,15 @@ class ThrusterAllocator(Node):
     def __init__(self):
         super().__init__('thruster_allocator')
 
+        # Redaman alokasi (damped least-squares). Default 0.1 menahan penguatan
+        # gaya pada arah near-singular (yaw) supaya perintah tak meledak &
+        # menjenuhkan thruster (lihat allocation.build_damped_pinv & PROBLEM.md).
+        # Set 0.0 untuk kembali ke pseudo-inverse polos.
+        self.declare_parameter('alloc_damping', 0.1)
+        damping = float(self.get_parameter('alloc_damping').value)
+
         self.tam = build_allocation_matrix(THRUSTERS)
-        # Pseudo-inverse: f = pinv(TAM) @ wrench.
-        self.tam_pinv = np.linalg.pinv(self.tam)
+        self.tam_pinv = build_damped_pinv(self.tam, damping)
 
         self.pubs = [
             self.create_publisher(Float64, f'/hydroships/thruster_{i + 1}/thrust', 10)
@@ -50,9 +57,17 @@ class ThrusterAllocator(Node):
         self.last_cmd_time = self.get_clock().now()
         self.timer = self.create_timer(0.1, self.on_timer)
 
+        cond = np.linalg.cond(self.tam)
         self.get_logger().info(
             f'Thruster allocator siap. TAM rank = '
-            f'{np.linalg.matrix_rank(self.tam)} / 6.')
+            f'{np.linalg.matrix_rank(self.tam)} / 6, cond = {cond:.0f}, '
+            f'damping = {damping}.')
+        if cond > 100.0:
+            self.get_logger().warn(
+                f'TAM ill-conditioned (cond={cond:.0f}): ada DOF dgn otoritas '
+                'sangat lemah (yaw) — periksa geometri/orientasi thruster '
+                '(lihat PROBLEM.md). Redaman mencegah gaya meledak tapi DOF '
+                'lemah tetap kurang terkendali sampai geometri dibetulkan.')
 
     def on_cmd(self, msg: Twist):
         wrench = np.array([

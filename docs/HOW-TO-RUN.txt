@@ -1,0 +1,164 @@
+================================================================================
+ HYDROships ROV — CARA MENJALANKAN SIMULASI KOLAM (step-by-step)
+ KKI 2026 | ROS 2 Humble + Gazebo Fortress (gz-sim 6)
+================================================================================
+
+Dokumen ini panduan praktis menjalankan & menguji simulasi di kolam sim.
+Ringkas: (0) prasyarat -> (1) build -> (2) source -> (3) run -> (4) uji.
+
+
+--------------------------------------------------------------------------------
+0. PRASYARAT (sekali saja)
+--------------------------------------------------------------------------------
+- Ubuntu 22.04 + ROS 2 Humble terpasang.
+- Gazebo Fortress (gz-sim 6) + jembatan ROS<->GZ:
+      sudo apt install ros-humble-ros-gz-sim ros-humble-ros-gz-bridge
+- Dependensi lain (biasanya sudah ada via rosdep):
+      ros-humble-xacro ros-humble-robot-state-publisher
+      python3-numpy python3-opencv
+- Cara aman memasang semua dependensi paket (dijalankan di root workspace):
+      cd ~/ros2_ws
+      rosdep install --from-paths src --ignore-src -r -y
+
+Catatan GPU: sensor kamera (gz-sim-sensors, ogre2) butuh render. Di mesin tanpa
+GPU/EGL, pakai mode headless (lihat argumen 'headless' di bawah) atau kamera bisa
+gagal render (lihat PROBLEM.md).
+
+
+--------------------------------------------------------------------------------
+1. BUILD WORKSPACE  (WAJIB tiap kali kode/URDF/world/config berubah)
+--------------------------------------------------------------------------------
+      cd ~/ros2_ws
+      colcon build
+
+PENTING: launch memproses URDF (xacro) dari direktori install/, BUKAN dari src/.
+Jadi setelah `git pull` / mengubah file, WAJIB `colcon build` lagi — kalau tidak,
+sim masih memakai versi lama (mis. model/thruster/gripper lama).
+
+Folder build/ install/ log/ sengaja di-gitignore; regenerasi dgn colcon build.
+
+
+--------------------------------------------------------------------------------
+2. SOURCE ENVIRONMENT  (WAJIB tiap terminal baru)
+--------------------------------------------------------------------------------
+      source /opt/ros/humble/setup.bash
+      source ~/ros2_ws/install/setup.bash
+
+
+--------------------------------------------------------------------------------
+3. MENJALANKAN — pilih salah satu skenario
+--------------------------------------------------------------------------------
+
+  ── 3A. SIM SAJA (lihat ROV di kolam, tanpa kendali) ──────────────────────────
+  Menyalakan: Gazebo + spawn ROV + bridge + depth_publisher + qr_detector.
+      ros2 launch hydroships_gazebo sim.launch.py world:=kki_arena.sdf
+  (default world sim.launch.py = pool_empty.sdf; pakai kki_arena.sdf utk arena lomba.)
+
+  ── 3B. SIM + STABILISASI + KENDALI MANUAL (teleop) (SIMULASI AIR KOLAM TIDAK ADA)───────────────────────────
+  Menyalakan: sim + thruster_allocator + stabilizer (depth-hold & heading-hold).
+      ros2 launch hydroships_bringup hydroships_stabilized.launch.py
+  Lalu DI TERMINAL KEDUA (sudah di-source, lihat langkah 2), kemudikan horizontal:
+      ros2 run hydroships_control teleop_stabilized
+
+  ── 3C. MISI AUTONOMOUS PENUH (FSM) ───────────────────────────────────────────
+  Menyalakan: sim + allocator + stabilizer + mission_fsm (IDLE->DIVE->...->DONE).
+      ros2 launch hydroships_bringup hydroships_mission.launch.py
+  Mulai dari state tertentu (lewati DIVE/SCAN):
+      ros2 launch hydroships_bringup hydroships_mission.launch.py start_state:=NAV_WALL
+
+
+--------------------------------------------------------------------------------
+4. ARGUMEN LAUNCH (opsional, tambahkan di belakang perintah, format arg:=nilai)
+--------------------------------------------------------------------------------
+  headless:=true      -> gz sim tanpa GUI (server saja); untuk CI / mesin tanpa GPU.
+  world:=kki_arena.sdf -> arena lomba (default mission/stabilized). Alt: pool_empty.sdf.
+  start_state:=DIVE   -> (mission) state awal FSM: DIVE/APPROACH_QR/SCAN_QR/GRAB/
+                         NAV_WALL/HANG/SURFACE/DOCK/APPROACH_HOOK/AUTO_RELEASE.
+  x:=0 y:=0 z:=-0.5   -> posisi spawn ROV (default 0 0 -0.5, sedikit di bawah permukaan).
+  spawn_delay:=3.0    -> jeda (detik) sebelum spawn ROV; naikkan bila mesin lambat
+                         (cegah race: service create belum siap).
+
+Contoh gabungan:
+  ros2 launch hydroships_bringup hydroships_mission.launch.py headless:=true world:=kki_arena.sdf
+
+
+--------------------------------------------------------------------------------
+5. PERINTAH UJI BERGUNA (terminal terpisah, sudah di-source)
+--------------------------------------------------------------------------------
+  Lihat daftar & data topik:
+      ros2 topic list
+      ros2 topic echo /hydroships/odom          # pose & twist ROV
+      ros2 topic echo /hydroships/depth          # kedalaman (m, >=0)
+
+  Kendali langsung (saat mode 3B/3C berjalan):
+      # target kedalaman (negatif = menyelam)
+      ros2 topic pub -1 /hydroships/setpoint/depth std_msgs/msg/Float64 "{data: -0.6}"
+      # target heading (rad)
+      ros2 topic pub -1 /hydroships/setpoint/heading std_msgs/msg/Float64 "{data: 1.57}"
+      # gaya horizontal manual (Fx maju, Fy samping) — Newton, body-frame
+      ros2 topic pub -1 /hydroships/manual/cmd geometry_msgs/msg/Twist "{linear: {x: 15.0, y: 0.0}}"
+
+  Suntik hasil QR manual (bila QR belum terbaca visual — lihat PROBLEM.md):
+      ros2 topic pub -1 /hydroships/qr_result std_msgs/msg/String "{data: 'A'}"
+
+  Uji thruster langsung (mode 3A, gaya N per thruster):
+      ros2 topic pub -1 /hydroships/thruster_3/thrust std_msgs/msg/Float64 "{data: 20.0}"
+
+
+--------------------------------------------------------------------------------
+6. VERIFIKASI CEPAT PASCA-PERBAIKAN FISIKA (disarankan)
+--------------------------------------------------------------------------------
+  Setelah perbaikan geometri thruster (yaw pulih, lihat PROBLEM.md), cek di sim:
+
+  a) YAW berputar benar:
+       ros2 topic pub -1 /hydroships/setpoint/heading std_msgs/msg/Float64 "{data: 1.57}"
+     -> ROV berputar ke ~90°. Pantau yaw via: ros2 topic echo /hydroships/odom
+
+  b) TANDA sway benar:
+       ros2 topic pub -1 /hydroships/manual/cmd geometry_msgs/msg/Twist "{linear: {y: 15.0}}"
+     -> ROV geser ke KIRI (y+). Bila terbalik: flip axis T200-B (+y -> -y) di URDF
+        & allocation.py.
+
+  c) DEPTH/DIVE normal:
+       ros2 topic pub -1 /hydroships/setpoint/depth std_msgs/msg/Float64 "{data: -0.7}"
+     -> ROV menyelam & menahan kedalaman.
+
+  d) NAV_WALL (mode 3C): jalankan misi, suntik QR (mis. 'A'), ROV harus bergerak
+     ke wall A tanpa harus memutar badan (navigasi holonomik).
+
+
+--------------------------------------------------------------------------------
+7. TROUBLESHOOTING
+--------------------------------------------------------------------------------
+- Model/perubahan tak muncul di Gazebo:
+    Lupa `colcon build` + relaunch. Launch baca URDF dari install/. Rebuild dulu.
+
+- ROV berperilaku erratic / thruster "adu perintah":
+    Ada proses sim/node lama yang masih hidup. Matikan semuanya lalu ulang:
+      pkill -f 'gz sim'; pkill -f parameter_bridge; pkill -f robot_state_publisher
+      pkill -f mission_fsm; pkill -f stabilizer; pkill -f thruster_allocator
+    (Selalu pastikan bersih sebelum run baru — lihat catatan PROBLEM.md.)
+
+- Kamera hitam / sim berat / crash render di mesin tanpa GPU:
+    Pakai headless:=true, atau jalankan di mesin ber-GPU.
+
+- Model gagal spawn (service create belum siap):
+    Naikkan spawn_delay, mis. spawn_delay:=6.0.
+
+- ros2/gz command "not found":
+    Terminal belum di-source. Ulangi langkah 2.
+
+
+--------------------------------------------------------------------------------
+8. MENJALANKAN UNIT TEST (opsional, tanpa Gazebo)
+--------------------------------------------------------------------------------
+      cd ~/ros2_ws
+      colcon test --packages-select hydroships_control
+      colcon test-result --verbose
+
+
+================================================================================
+ Ringkasan tercepat:
+   cd ~/ros2_ws && colcon build && source install/setup.bash
+   ros2 launch hydroships_bringup hydroships_mission.launch.py world:=kki_arena.sdf
+================================================================================
