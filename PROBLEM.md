@@ -110,9 +110,11 @@ kaku ROV↔payload), jari hanya kosmetik 1 DOF. Kontrak semantik lama dipertahan
   atas (kamera bawah). URDF ter-proses bersih (xacro OK).
 - `[RESOLVED]` **Plugin DetachableJoint** ditambahkan: `parent_link=gripper_base`,
   `child_model=payload`, `child_link=payload_link`, `attach_topic=/hydroships/gripper/attach`,
-  `detach_topic=/hydroships/gripper/detach`, `<suppress_initial_attach>true` (jangan
-  attach saat load). Payload di `worlds/kki_arena.sdf` diubah **non-static + diberi
-  massa (0.3 kg) & collision box** agar bisa diangkat & diam di dasar (negatif apung).
+  `detach_topic=/hydroships/gripper/detach`. Payload di `worlds/kki_arena.sdf` diubah
+  **non-static + diberi massa (0.3 kg) & collision box** agar bisa diangkat & diam di
+  dasar (negatif apung). (CATATAN: tag `<suppress_initial_attach>` yang sempat dipakai
+  di sini ternyata TIDAK valid di Fortress → dihapus; initial-attach ditangani lewat
+  auto-detach startup node. Lihat item "Ketergantungan versi gz-sim Fortress" [RESOLVED].)
 - `[RESOLVED]` **Node `gripper_controller` baru** (`hydroships_control`): terima
   open/close, gerakkan jari kosmetik, dan picu attach/detach. Attach HANYA saat
   "close" DAN ROV di atas payload dalam **jangkauan aman** (dinilai dari
@@ -132,12 +134,25 @@ kaku ROV↔payload), jari hanya kosmetik 1 DOF. Kontrak semantik lama dipertahan
   belum ada bukti bahwa attach/detach benar-benar mengangkat & melepas payload di
   Gazebo. Perlu run sim: cek payload ter-attach saat GRAB, terbawa saat NAV_WALL,
   lepas saat AUTO_RELEASE.
-- `[OPEN]` **Ketergantungan versi gz-sim Fortress.** `<attach_topic>` +
-  `<suppress_initial_attach>` (attach-on-command) tersedia di gz-sim rilis baru;
-  bila build Fortress terpasang HANYA mendukung DetachableJoint gaya lama (attach
-  saat load, detach saja), payload akan menempel ke ROV saat spawn. Perlu verifikasi
-  versi; bila tak didukung, opsi: spawn joint dinamis via service, atau downgrade
-  ke "spawn attached lalu detach".
+- `[RESOLVED]` **Ketergantungan versi gz-sim Fortress (initial-attach).**
+  **Akar masalah:** tag `<suppress_initial_attach>true</suppress_initial_attach>`
+  yang dipakai di `hydroships.urdf.xacro` **TIDAK valid di gz-sim Fortress** — tak
+  ada di dokumentasi plugin DetachableJoint versi 6/7/9; fitur serupa
+  (`<initial_attach>`) baru diusulkan lewat **PR gz-sim #3268 (masih Open, menyasar
+  gz-sim10)**, jauh di atas Fortress. Tag itu diabaikan Gazebo secara diam-diam →
+  perilaku default DetachableJoint = **SELALU attached saat load**, payload nge-lock
+  ke ROV sejak detik pertama sim, sebelum FSM masuk state GRAB.
+  **Fix (opsi "spawn attached lalu detach"):** (1) hapus tag yang tak berfungsi dari
+  URDF (+ komentar penjelas agar tak menyesatkan). (2) `gripper_controller` kini
+  menerbitkan **satu pesan detach otomatis saat startup node** (timer satu-kali,
+  delay `startup_detach_delay`=1.5 s agar model ROV & payload sudah ter-spawn),
+  memaksa lepas kondisi attached bawaan sebelum menerima open/close apa pun. Logika
+  murni `gripper_logic.startup_detach()` **teruji** (`test/test_gripper.py`:
+  emit-detach, clear-prior-attach, re-attach-normal-setelahnya). Suite **31/31
+  gripper lulus** (dari 28 → +3). Detach pada joint yg tak ada aman diabaikan gz,
+  jadi fix idempoten. **Verifikasi runtime sim (payload benar-benar lepas saat
+  spawn) masih menyusul** — env dev tanpa Gazebo, tapi mekanisme detach sudah
+  terbukti dipakai di jalur GRAB/AUTO_RELEASE.
 - `[OPEN]` **Tuning ambang jarak-aman & massa payload.** `max_offset=0.30`,
   `min_size=0.12`, massa payload 0.3 kg, gaya JointPositionController — semua
   ESTIMASI; setel setelah uji sim agar attach terpicu tepat & payload tak melayang.

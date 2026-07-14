@@ -114,6 +114,38 @@ def test_boundary_offset_inclusive():
     assert g.on_command('close', now)['joint'] == 'attach'
 
 
+def test_startup_detach_emits_detach_and_opens():
+    # Auto-detach saat startup: selalu terbitkan 'detach' & keadaan jadi open,
+    # walau logic belum pernah attach (memaksa lepas attach bawaan gz Fortress).
+    g = GripperLogic()
+    act = g.startup_detach()
+    assert act['joint'] == 'detach'
+    assert act['state'] == 'open'
+    assert g.attached is False
+    assert g.jaw_target == g.jaw_open
+
+
+def test_startup_detach_clears_prior_attach():
+    # Bila (secara kebetulan) sudah dianggap attached, startup_detach melepasnya.
+    g = GripperLogic(max_offset=0.3, min_size=0.12)
+    now = _fresh(g, x=0.05, y=0.05, z=0.4)
+    g.on_command('close', now)
+    assert g.attached is True
+    act = g.startup_detach()
+    assert act['joint'] == 'detach'
+    assert g.attached is False
+
+
+def test_close_after_startup_detach_can_reattach():
+    # Setelah auto-detach startup, siklus GRAB normal masih bisa attach lagi.
+    g = GripperLogic(max_offset=0.3, min_size=0.12)
+    g.startup_detach()
+    now = _fresh(g, x=0.0, y=0.0, z=0.5)
+    act = g.on_command('close', now)
+    assert act['joint'] == 'attach'
+    assert g.attached is True
+
+
 def test_force_detach():
     g = GripperLogic()
     now = _fresh(g, z=0.5)

@@ -420,12 +420,14 @@
   <!-- GRASP FISIK: DetachableJoint membuat sambungan kaku gripper_base<->payload.
        attach saat pesan di /hydroships/gripper/attach, detach di .../detach
        (gz.msgs.Empty, dijembatani dari ROS std_msgs/Empty).
-       <suppress_initial_attach>: JANGAN attach saat load (ROV & payload spawn di
-       posisi berbeda) — tunggu perintah. child_model 'payload' = model braket-L
-       di hydroships_gazebo/worlds/kki_arena.sdf (kini non-static agar bisa diangkat).
-       CATATAN [VERIFY/OPEN]: ketersediaan attach_topic + suppress_initial_attach
-       bergantung versi build gz-sim Fortress; grasp fisik BELUM diuji. Bila build
-       tak mendukung attach-on-command, sesuaikan (lihat PROBLEM.md). -->
+       child_model 'payload' = model braket-L di hydroships_gazebo/worlds/kki_arena.sdf
+       (kini non-static agar bisa diangkat).
+       CATATAN penting: gz-sim Fortress SELALU meng-attach saat load (perilaku default
+       DetachableJoint; tak ada cara menahannya lewat SDF — <suppress_initial_attach>
+       TIDAK valid di Fortress, <initial_attach> baru diusulkan PR gz-sim #3268 utk
+       gz-sim10). Kondisi attached bawaan itu DILEPAS oleh gripper_controller yang
+       menerbitkan satu pesan detach otomatis saat startup node (lihat PROBLEM.md
+       "Ketergantungan versi gz-sim Fortress" [RESOLVED]). -->
   <gazebo>
     <plugin filename="gz-sim-detachable-joint-system"
             name="gz::sim::systems::DetachableJoint">
@@ -434,7 +436,6 @@
       <child_link>payload_link</child_link>
       <attach_topic>/hydroships/gripper/attach</attach_topic>
       <detach_topic>/hydroships/gripper/detach</detach_topic>
-      <suppress_initial_attach>true</suppress_initial_attach>
     </plugin>
   </gazebo>
 

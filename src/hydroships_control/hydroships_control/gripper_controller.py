@@ -34,6 +34,9 @@ class GripperController(Node):
         p('offset_timeout', 1.5)    # umur maks qr_offset (s)
         p('jaw_open', 0.6)          # sudut jari terbuka (rad)
         p('jaw_close', 0.0)         # sudut jari menutup (rad)
+        # Delay auto-detach startup: beri waktu model ROV & payload ter-spawn di
+        # dunia gz sebelum memaksa lepas attach bawaan Fortress (lihat _startup_detach).
+        p('startup_detach_delay', 1.5)   # s
         g = lambda n: self.get_parameter(n).value
 
         self.logic = GripperLogic(
@@ -50,6 +53,14 @@ class GripperController(Node):
         # Terbitkan target jari berkala (2 Hz) agar tak hilang bila bridge/gz belum
         # siap saat publish awal — sama pola gripper lama.
         self._timer = self.create_timer(0.5, self._apply_jaw)
+
+        # AUTO-DETACH STARTUP: gz-sim Fortress selalu attach DetachableJoint saat
+        # load (payload nge-lock ke ROV sejak awal). Timer satu-kali menerbitkan
+        # detach setelah delay singkat (model sudah ter-spawn), sebelum command apa
+        # pun dari FSM. Lihat gripper_logic.startup_detach & PROBLEM.md.
+        self._did_startup_detach = False
+        self._startup_timer = self.create_timer(
+            float(g('startup_detach_delay')), self._startup_detach)
         self.get_logger().info('gripper_controller siap (DetachableJoint; perintah open/close)')
 
     def _now(self):
@@ -65,6 +76,17 @@ class GripperController(Node):
     def _apply_jaw(self):
         m = Float64(); m.data = float(self.logic.jaw_target)
         self.pub_jaw.publish(m)
+
+    def _startup_detach(self):
+        # Satu-kali: batalkan timer & paksa lepas kondisi attached bawaan gz.
+        self._startup_timer.cancel()
+        if self._did_startup_detach:
+            return
+        self._did_startup_detach = True
+        action = self.logic.startup_detach()
+        self._apply_jaw()
+        self.pub_detach.publish(Empty())
+        self.get_logger().info('gripper %s: %s' % (action['state'], action['reason']))
 
     def _on_cmd(self, msg: String):
         action = self.logic.on_command(msg.data, self._now())

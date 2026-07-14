@@ -108,3 +108,20 @@ class GripperLogic:
         self.attached = False
         self.jaw_target = self.jaw_open
         return was
+
+    def startup_detach(self):
+        """Aksi auto-detach saat node START.
+
+        gz-sim Fortress SELALU meng-attach DetachableJoint saat load (payload
+        langsung nge-lock ke ROV sejak sim jalan; tak bisa ditahan lewat SDF —
+        lihat catatan di hydroships.urdf.xacro & PROBLEM.md). Node menerbitkan
+        SATU pesan detach saat startup untuk memaksa lepas kondisi attached
+        bawaan itu, sebelum menerima perintah open/close apa pun.
+
+        Selalu mengembalikan aksi 'detach' (idempoten; aman walau gz kebetulan
+        tak attach — detach pada joint yg tak ada diabaikan). Menyelaraskan
+        keadaan internal ke 'open/lepas'."""
+        self.attached = False
+        self.jaw_target = self.jaw_open
+        return {'jaw': self.jaw_open, 'joint': 'detach', 'state': 'open',
+                'reason': 'auto-detach startup (lepas attach bawaan gz Fortress)'}
