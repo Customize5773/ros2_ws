@@ -43,7 +43,7 @@ node adapter.
 | Heading telemetri | `heading` **derajat 0..360** | `/hydroships/odom` yaw **rad REP-103** | Adapter konversi rad→deg |
 | Depth telemetri | `depth` m (positif ke bawah) | `/hydroships/depth` m (≥0) | Sama arah → passthrough |
 | Roll/pitch | derajat | odom quaternion (rad) | Adapter quaternion→deg |
-| Visual servo hook | `autonomy/vision/hook_detect.py` (murni, non-ROS) | belum ada (APPROACH_HOOK timed) | **Di-port** jadi node `hook_detector` |
+| Visual servo hook | `autonomy/vision/hook_detect.py` (murni, non-ROS) | semula APPROACH_HOOK *timed* | **Di-port** jadi node `hook_detector`; APPROACH_HOOK kini servo PD holonomik (fallback timed) |
 
 Frame/unit yang perlu kalibrasi lapangan: penyelarasan **heading kompas** (offset
 0° kompas vs +x REP-103) dan **tanda sumbu** (surge/sway/yaw/heave) — ditandai
@@ -73,14 +73,16 @@ UDP :14550, telemetri → 127.0.0.1:14551). Node inti tak disentuh.
 `autonomy/vision/hook_detect.py` (`detect_hook`, contour/CLAHE→Hough, murni cv2)
 di-port jadi node ROS pola `qr_detector`: baca `/hydroships/camera_front/image_raw`,
 publish `/hydroships/hook_offset` (PointStamped ex/ey/size — konvensi sama qr_offset).
-`mission_fsm` state `APPROACH_HOOK` kini **servo** ke hook (sejajarkan heading dari
-offset-x, maju hingga size ≥ ambang) menggantikan gerak *timed*; **fallback timed**
-tetap ada bila deteksi tak tersedia (aman).
+`mission_fsm` state `APPROACH_HOOK` kini **servo PD holonomik** ke hook
+(`hook_logic.hook_servo`: sway dari offset-x, surge dari ukuran-tampak, koreksi setpoint
+kedalaman dari offset-y, semua dgn redaman kecepatan body-frame; heading di-hold menghadap
+wall) menggantikan gerak *timed*; **fallback timed** tetap ada bila deteksi tak tersedia
+(aman). Teruji headless `test/test_hook_servo.py`.
 
 ## 4. Yang BELUM (VERIFY/OPEN)
 - Verifikasi end-to-end dgn GUI live (kirim joystick nyata → ROV sim bergerak;
   telemetri muncul di dashboard). Belum dijalankan.
 - Kalibrasi gain persen→N, offset heading kompas, dan tanda sumbu.
 - Tuning ambang deteksi hook di render kamera sim (nilai default = uji-meja).
-- Servo hook memakai heading+surge sederhana; pose-based (PnP) menyusul bila
-  `camera_info` hook dipetakan.
+- Servo hook = PD holonomik IBVS (sway+surge+koreksi-depth, image-based tanpa kalibrasi);
+  pose-based (solvePnP/PBVS) menyusul bila kalibrasi kamera fisik hook tersedia.
