@@ -185,23 +185,23 @@
     "semantic_hash": ""
   },
   "PROBLEM.md": {
-    "mtime": 1784225760.6973815,
-    "ast_hash": "7a2f2827a3e9a62c5210927d7a874cd4",
+    "mtime": 1784218698.581873,
+    "ast_hash": "8a338d7570c320a728378a55b517569c",
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1784225785.824847,
-    "ast_hash": "eab08fe6efb5c20f43821d5727b22040",
+    "mtime": 1784218698.581873,
+    "ast_hash": "1a1e2a823fc78f07764477a25f6992a8",
     "semantic_hash": ""
   },
   "docs/ARCHITECTURE.md": {
-    "mtime": 1784226061.6144412,
-    "ast_hash": "b4d7e773501caa6eed311ed24a8f8cfd",
+    "mtime": 1784218698.581873,
+    "ast_hash": "e3ad85013735ed0ecac522a2623318de",
     "semantic_hash": ""
   },
   "docs/GUI-INTEGRATION.md": {
-    "mtime": 1784226063.1174736,
-    "ast_hash": "f77a3bba90e47e2d40217f383d3307d7",
+    "mtime": 1784218698.582873,
+    "ast_hash": "e0c0346ec863a786a517d789e3cc55fc",
     "semantic_hash": ""
   },
   "docs/HOW-TO-RUN.txt": {
@@ -210,8 +210,8 @@
     "semantic_hash": ""
   },
   "docs/thruster_config.md": {
-    "mtime": 1784225829.2626717,
-    "ast_hash": "eda1ee4d69449c4c0235553b3a27c31a",
+    "mtime": 1783461297.0141344,
+    "ast_hash": "620a271dd6d4062b091e14e6480877a9",
     "semantic_hash": ""
   },
   "requirements.txt": {
@@ -312,21 +312,6 @@
   "src/hydroships_gazebo/media/qr_A.png": {
     "mtime": 1783307201.8229437,
     "ast_hash": "4fd5bed927e0eebd56ac776a77ad2d00",
-    "semantic_hash": ""
-  },
-  "docs/CHANGELOG.md": {
-    "mtime": 1784225753.619252,
-    "ast_hash": "604dba3aada8c8cf9a38245027533040",
-    "semantic_hash": ""
-  },
-  "docs/STATUS.md": {
-    "mtime": 1784225690.060123,
-    "ast_hash": "457f8c5716a7e3d67d3150bbf7313bbe",
-    "semantic_hash": ""
-  },
-  "docs/VERIFICATION-CHECKLIST.md": {
-    "mtime": 1784226018.2725122,
-    "ast_hash": "bb0487d55d867c27c80dba6fbf2e2b16",
     "semantic_hash": ""
   }
 }

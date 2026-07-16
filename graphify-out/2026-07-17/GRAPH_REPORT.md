@@ -1,16 +1,16 @@
-# Graph Report - ros2_ws  (2026-07-17)
+# Graph Report - ros2_ws  (2026-07-16)
 
 ## Corpus Check
-- 46 files · ~67,847 words
+- 43 files · ~68,602 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 409 nodes · 627 edges · 28 communities (20 shown, 8 thin omitted)
-- Extraction: 87% EXTRACTED · 13% INFERRED · 0% AMBIGUOUS · INFERRED: 84 edges (avg confidence: 0.78)
+- 394 nodes · 603 edges · 31 communities (22 shown, 9 thin omitted)
+- Extraction: 86% EXTRACTED · 14% INFERRED · 0% AMBIGUOUS · INFERRED: 84 edges (avg confidence: 0.78)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `2dbdef8e`
+- Built from commit: `ac8c243c`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -30,7 +30,10 @@
 - estimate_mass_inertia.py
 - Integrasi GUI-ROV ↔ hydroships (ROS 2) — Analisis Selisih & Adapter
 - DepthPublisher
+- Arsitektur Simulasi HYDROships (KKI 2026)
+- Konfigurasi & Alokasi 6 Thruster — HYDROships
 - sim.launch.py
+- ARENA ROV KKI 2026
 - hydroships_gui.launch.py
 - hydroships_mission.launch.py
 - hydroships_sim.launch.py
@@ -46,11 +49,11 @@
 3. `GuiBridgeLogic` - 18 edges
 4. `hook_servo()` - 15 edges
 5. `PID` - 15 edges
-6. `_fresh()` - 12 edges
-7. `QRDetector` - 11 edges
-8. `build_allocation_matrix()` - 10 edges
-9. `GripperController` - 10 edges
-10. `GuiBridge` - 10 edges
+6. `PROBLEM.md — Catatan Masalah & Verifikasi Tertunda (HYDROships ros2_ws)` - 14 edges
+7. `_fresh()` - 12 edges
+8. `QRDetector` - 11 edges
+9. `build_allocation_matrix()` - 10 edges
+10. `GripperController` - 10 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `test_tam_full_rank()` --calls--> `build_allocation_matrix()`  [INFERRED]
@@ -67,7 +70,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (28 total, 8 thin omitted)
+## Communities (31 total, 9 thin omitted)
 
 ### Community 0 - "MissionFSM"
 Cohesion: 0.10
@@ -102,8 +105,8 @@ Cohesion: 0.13
 Nodes (21): _candidates(), offset_from_points(), parse_wall(), qr_logic — logika murni deteksi/decode QR (tanpa rclpy), agar testable headless., Hitung (ex, ey, size) ternormalisasi dari 4 sudut QR (piksel).       ex   : offs, Ekstrak huruf sisi A/B/C/D dari isi QR, atau None bila tak ada., Hasilkan (varian_gambar, skala) untuk dicoba decode, dari yang paling     murah/, Coba decode QR dari `img` lewat beberapa pra-pemrosesan.      Mengembalikan (dat (+13 more)
 
 ### Community 8 - "PROBLEM.md — Catatan Masalah & Verifikasi Tertunda (HYDROships ros2_ws)"
-Cohesion: 0.13
-Nodes (15): 2026-07-07, 2026-07-08, 2026-07-11, 2026-07-12, 2026-07-14, 2026-07-15 … 07-16, 2026-07-17, CHANGELOG — Riwayat Kronologis HYDROships (KKI 2026) (+7 more)
+Cohesion: 0.12
+Nodes (15): Arena (M4) — sudah dibangun, Autonomy (M6) — kode dibangun, INTEGRASI JALAN (setelah fix fisika), (Catatan lama — mesh FBX, sudah tidak dipakai), FISIKA ROV — DUA BUG BESAR DITEMUKAN & DIPERBAIKI (RESOLVED), FISIKA ROV — TEMUAN KETIGA: frame posisi thruster salah → YAW mati (RESOLVED), Integrasi GUI tim (M7) — ADAPTER DIBUAT (belum diverifikasi live), Manipulator (M5) — DIHAPUS (akan dirancang ulang), Manipulator (M5) — GRIPPER DIHILANGKAN dari model (+7 more)
 
 ### Community 9 - "hook_detector.py"
 Cohesion: 0.22
@@ -122,31 +125,39 @@ Cohesion: 0.38
 Nodes (9): box_inertia(), build_components(), combine(), format_yaml(), main(), _parse_args(), Tensor inertia kotak pejal (di pusatnya), massa seragam.      Ixx = m/12 (sy^2 +, Gabungkan daftar komponen -> (massa_total, cog, inertia_full_di_cog).      compo (+1 more)
 
 ### Community 13 - "Integrasi GUI-ROV ↔ hydroships (ROS 2) — Analisis Selisih & Adapter"
-Cohesion: 0.06
-Nodes (30): Arsitektur Simulasi HYDROships (KKI 2026), Diagram aliran (Milestone 1–2), File & model legacy, Keputusan desain, Kontrak interface topic (untuk GUI / GCS tim), Paket, 1. Temuan utama: GUI-ROV bukan ROS 2, 2. Tabel selisih antarmuka (+22 more)
+Cohesion: 0.25
+Nodes (7): 1. Temuan utama: GUI-ROV bukan ROS 2, 2. Tabel selisih antarmuka, 3. Penanganan (tanpa mengubah node inti), 3a. Node adapter `gui_bridge` (hydroships_control), 3b. Node `hook_detector` (port GUI-ROV) untuk APPROACH_HOOK, 4. Yang BELUM (VERIFY/OPEN), Integrasi GUI-ROV ↔ hydroships (ROS 2) — Analisis Selisih & Adapter
 
 ### Community 14 - "DepthPublisher"
 Cohesion: 0.29
 Nodes (5): DepthPublisher, main(), Node, Odometry, depth_publisher — turunkan KEDALAMAN ROV dari odometry (Milestone 3).  Di simula
+
+### Community 15 - "Arsitektur Simulasi HYDROships (KKI 2026)"
+Cohesion: 0.33
+Nodes (5): Arsitektur Simulasi HYDROships (KKI 2026), Diagram aliran (Milestone 1–2), Keputusan desain, Kontrak interface topic (untuk GUI / GCS tim), Paket
+
+### Community 16 - "Konfigurasi & Alokasi 6 Thruster — HYDROships"
+Cohesion: 0.40
+Nodes (4): Catatan penyetelan (Milestone berikutnya), Konfigurasi & Alokasi 6 Thruster — HYDROships, Tabel thruster, Thrust Allocation Matrix (TAM)
 
 ### Community 17 - "sim.launch.py"
 Cohesion: 0.67
 Nodes (3): generate_launch_description(), _launch_setup(), Launch simulasi Gazebo Fortress + spawn ROV HYDROships + ros_gz_bridge.  Argumen
 
 ## Knowledge Gaps
-- **38 isolated node(s):** `ros2-ws`, `graphify`, `PROBLEM.md — pindah ke docs/`, `Status Milestone`, `Instalasi Dependensi` (+33 more)
+- **29 isolated node(s):** `ros2-ws`, `graphify`, `Arena (M4) — sudah dibangun`, `Sensor & Persepsi (M3) — sudah dibangun`, `Manipulator (M5) — DIHAPUS (akan dirancang ulang)` (+24 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **8 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **9 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `normalize_hook_offset()` connect `hook_servo` to `hook_detector.py`?**
-  _High betweenness centrality (0.132) - this node is a cross-community bridge._
+  _High betweenness centrality (0.142) - this node is a cross-community bridge._
 - **Why does `GripperController` connect `QRDetector` to `GripperLogic`?**
-  _High betweenness centrality (0.097) - this node is a cross-community bridge._
+  _High betweenness centrality (0.105) - this node is a cross-community bridge._
 - **Why does `GripperLogic` connect `GripperLogic` to `QRDetector`?**
-  _High betweenness centrality (0.082) - this node is a cross-community bridge._
+  _High betweenness centrality (0.088) - this node is a cross-community bridge._
 - **Are the 18 inferred relationships involving `GripperLogic` (e.g. with `GripperController` and `.__init__()`) actually correct?**
   _`GripperLogic` has 18 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 11 inferred relationships involving `GuiBridgeLogic` (e.g. with `GuiBridge` and `.__init__()`) actually correct?**
