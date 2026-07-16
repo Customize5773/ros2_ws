@@ -316,7 +316,7 @@ Node `mission_fsm` (ROS 2) + launch `hydroships_bringup/launch/hydroships_missio
   sim & node lain di sim-time → PID d-term & laju setpoint salah timing. **Fix:**
   `parameters=[gains, {'use_sim_time': True}]`.
 - `[RESOLVED]` **Race condition spawn ROV.** Node `create` dijalankan bersamaan
-  dgn server gz; bila service `/world/<world>/create` belum siap, model gagal
+  dgn server gz; bila service `/world/<world>/create` belum  siap, model gagal
   di-spawn. **Fix:** bungkus spawn di `TimerAction` (delay default 3 s, arg
   `spawn_delay` bisa dinaikkan untuk mesin lambat) di `sim.launch.py`.
 - `[note]` `install/` kini di-gitignore → jalankan `colcon build` lokal dulu

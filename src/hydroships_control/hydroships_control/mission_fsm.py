@@ -78,6 +78,7 @@ class MissionFSM(Node):
         # NAV_WALL HOLONOMIK (mitigasi yaw lemah — lihat PROBLEM.md): ROV translasi
         # ke posisi wall di dunia TANPA memutar badan (surge+sway), heading di-hold.
         p('wall_dist', 2.30)         # m jarak pusat->target wall (standoff; hook ~2.4 m)
+        p('hook_dist', 0.30)  # m jarak target di depan hook (lebih dekat dari wall_dist)
         p('nav_tol', 0.15)           # m radius "tiba di wall"
         p('nav_fmax', 22.0)          # N batas gaya navigasi holonomik
         # timeout per state (s)
@@ -103,7 +104,9 @@ class MissionFSM(Node):
         self.depth_bottom = float(g('depth_bottom'))
         self.depth_surface = float(g('depth_surface'))
         self.depth_tol = float(g('depth_tol'))
+        self.done_hooks = set()
         self.hook_depth = float(g('hook_depth'))
+        self.hook_dist = float(g('hook_dist'))
         self.scan_rate = float(g('scan_rate'))
         self.yaw_tol = math.radians(float(g('yaw_tol_deg')))
         self.qr_max_age = float(g('qr_max_age'))
@@ -153,6 +156,7 @@ class MissionFSM(Node):
         self.hook_off = None      # (ex, ey, size)
         self.hook_time = 0.0
         self.wall = None
+        self.done_hooks = set()
         self.score = {'m1': 0, 'm2': 0, 'm3': 0, 'm4': 0, 'm5': 0}
         self.state = St.IDLE
         self.t_state = self._now()
@@ -228,6 +232,15 @@ class MissionFSM(Node):
         """Posisi target XY (dunia) di depan wall A/B/C/D (dari geometri arena)."""
         d = self.wall_dist
         return {'A': (0.0, -d), 'B': (0.0, d), 'C': (d, 0.0), 'D': (-d, 0.0)}[wall]
+    
+    def _hook_xy(self, wall):
+        """Posisi target XY (dunia) di depan hook A/B/C/D (lebih dekat dari wall_dist)."""
+        d = self.hook_dist
+        return {'A': (0.0, -d), 'B': (0.0, d), 'C': (d, 0.0), 'D': (-d, 0.0)}[wall]
+    
+    def _hook_inward(self, wall):
+        """Vektor satuan DUNIA dari pusat menuju hook."""
+        return {'A': (0.0, -1.0), 'B': (0.0, 1.0), 'C': (1.0, 0.0), 'D': (-1.0, 0.0)}[wall]
 
     def _wall_inward(self, wall):
         """Vektor satuan DUNIA dari pusat menuju wall ('maju ke wall')."""
@@ -362,10 +375,20 @@ class MissionFSM(Node):
 
     def _st_surface(self):
         self._set_depth(self.depth_surface)
-        if self.depth is not None and self.depth <= self.depth_surface:
-            self._set_surge(0.0); self.get_logger().info('Permukaan tercapai'); self._to(St.DOCK)
+        if self.depth is not None and self.depth <= self.depth_surface + 0.05:
+            self._set_surge(0.0)
+            self.done_hooks.add(self.wall)
+            self.get_logger().info('Permukaan tercapai. Hook %s selesai. Done: %s' % (self.wall, self.done_hooks))
+            if len(self.done_hooks) >= 4:
+                self.score['m5'] = 40
+                self.get_logger().info('Semua hook selesai (+40)!')
+                self._print_score(); self._to(St.DONE)
+            else:
+                self.wall = None
+                self._to(St.DIVE)
         elif self._elapsed() > self.T['surface']:
             self.get_logger().error('SURFACE timeout'); self._to(St.ABORT)
+
 
     def _st_dock(self):
         self._set_depth(self.depth_surface)
@@ -419,11 +442,16 @@ class MissionFSM(Node):
         elif e < 17.0: self._set_surge(-15.0)                              # mundur dari hook
         elif e < 26.0: self._set_surge(0.0)   # naik (depth-hold ke permukaan)
         else:
-            self._set_surge(0.0); self.score['m5'] = 40
-            self.get_logger().info('Misi 5 AUTONOMOUS selesai (+40)!')
-            self._print_score(); self._to(St.DONE)
-        if e > self.T['release'] + 8.0:
-            self.get_logger().error('AUTO_RELEASE timeout'); self._print_score(); self._to(St.DONE)
+            self._set_surge(0.0)
+            self.done_hooks.add(self.wall)
+            self.get_logger().info('Hook %s selesai. Done: %s' % (self.wall, self.done_hooks))
+            if len(self.done_hooks) >= 4:
+                self.score['m5'] = 40
+                self.get_logger().info('Semua hook selesai (+40)!')
+                self._print_score(); self._to(St.DONE)
+            else:
+                self.wall = None
+                self._to(St.DIVE)
 
     def _print_score(self):
         s = self.score; tot = sum(s.values())
