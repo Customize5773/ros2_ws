@@ -6,7 +6,7 @@ yang dipakai untuk menjembatani keduanya **tanpa mengubah node inti** (stabilize
 mission_fsm, thruster_allocator).
 
 > Status: kode adapter & detektor hook **sudah dibuat** tetapi **BELUM diverifikasi
-> end-to-end dengan GUI live** — lihat PROBLEM.md. Gain/tanda masih estimasi.
+> end-to-end dengan GUI live** — lihat [`STATUS.md`](STATUS.md). Gain/tanda masih estimasi.
 
 ## 1. Temuan utama: GUI-ROV bukan ROS 2
 

@@ -76,7 +76,7 @@ terverifikasi di sim; kamera/QR/kedalaman (M3), manipulator (M5), integrasi GUI 
 > menunjukkan K/D/width/height terisi masuk akal saat sim jalan (masih perlu verifikasi
 > runtime); (2) *kalibrasi ke kamera fisik ROV asli* → **tetap OPEN**: intrinsics ini murni
 > kalkulasi Gazebo dari FOV/resolusi SDF, **bukan** kalibrasi hardware. Jangan pakai K untuk
-> estimasi jarak riil sampai data kalibrasi kamera fisik tersedia (lihat PROBLEM.md).
+> estimasi jarak riil sampai data kalibrasi kamera fisik tersedia (lihat [`STATUS.md`](STATUS.md)).
 
 > Saat integrasi GUI (M7): jika GUI tim mengharapkan nama topic berbeda,
 > cukup remap di launch (`--ros-args -r from:=to`) atau sesuaikan tabel ini —
