@@ -59,6 +59,7 @@ class MissionFSM(Node):
         p = self.declare_parameter
         p('start_state', 'DIVE')
         p('start_delay', 3.0)
+        p('start_wall', '')          # override manual utk testing start_state=NAV_WALL/HANG/dst
         p('surge_force', 25.0)       # N gaya maju horizontal
         p('depth_bottom', 0.70)      # m kedalaman dasar
         p('depth_surface', 0.08)     # m ambang "di permukaan"
@@ -165,6 +166,13 @@ class MissionFSM(Node):
             self._start_state = St[g('start_state')]
         except KeyError:
             self._start_state = St.DIVE
+        # Seed manual self.wall utk testing state mid-FSM (NAV_WALL/HANG/SURFACE/
+        # APPROACH_HOOK/AUTO_RELEASE) yg biasanya di-set oleh QR di APPROACH_QR/SCAN_QR.
+        # Harus SETELAH self.wall = None di atas agar tak tertimpa. Guard di
+        # _st_nav_wall tetap abort bila wall benar-benar tak diketahui (operasi normal).
+        sw = str(g('start_wall')).strip().upper()
+        if sw in WALL_HEADING_DEG:
+            self.wall = sw
         self._started = False
         self._t0 = self._now()
         self._start_delay = float(g('start_delay'))

@@ -121,6 +121,18 @@ Commit hash & tanggal dari `git log` (rentang 2026-07-07 … 2026-07-17).
   Catatan: `<dontcollapse>` TIDAK dikenali sdformat, dan `<disableFixedJointLumping>`
   pada link TIDAK cukup di Fortress bila `base_link` punya banyak child fixed-joint
   lain (imu/kamera) — link tetap ter-lump; `preserveFixedJoint` pada joint andal.
+- **[RESOLVED] Fix `NAV_WALL` langsung ABORT saat FSM di-start mid-state utk testing.**
+  Gejala: `start_state:=NAV_WALL` → `NAV_WALL -> ABORT` dalam 1 tick (~250ms), robot
+  tak bergerak. Akar masalah: `self.wall` hanya di-set di `_st_approach_qr`/`_st_scan_qr`
+  saat QR terbaca; start mid-FSM via `start_state` melewati state itu → `self.wall`
+  masih `None` → guard `if self.wall is None: self._to(St.ABORT)` di `_st_nav_wall`
+  langsung memicu ABORT (guard-nya benar utk operasi normal). Fix: parameter baru
+  `start_wall` di `mission_fsm.py` yg men-seed `self.wall` (divalidasi thd
+  `WALL_HEADING_DEG`) setelah init `self.wall = None`. Guard tak diubah. State lain
+  yg baca `self.wall` (`HANG`/`SURFACE`/`APPROACH_HOOK`/`AUTO_RELEASE`) kini bisa
+  dites langsung dgn `start_wall` yg sama. Catatan: `hydroships_mission.launch.py`
+  juga di-update untuk mendeklarasikan & meneruskan arg `start_wall` ke node —
+  tanpa ini arg CLI diabaikan diam-diam & node tetap pakai default `''` (ABORT).
 
 ---
 
