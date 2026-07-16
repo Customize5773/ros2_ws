@@ -89,6 +89,7 @@ class MissionFSM(Node):
         self.depth_bottom = float(g('depth_bottom'))
         self.depth_surface = float(g('depth_surface'))
         self.depth_tol = float(g('depth_tol'))
+        self.done_hooks = set()
         self.hook_depth = float(g('hook_depth'))
         self.hook_dist = float(g('hook_dist'))
         self.scan_rate = float(g('scan_rate'))
@@ -126,6 +127,7 @@ class MissionFSM(Node):
         self.qr_wall = None
         self.qr_time = 0.0
         self.wall = None
+        self.done_hooks = set()
         self.score = {'m1': 0, 'm2': 0, 'm3': 0, 'm4': 0, 'm5': 0}
         self.state = St.IDLE
         self.t_state = self._now()
@@ -279,14 +281,11 @@ class MissionFSM(Node):
             self.get_logger().error('SCAN_QR timeout — tak ada QR'); self._to(St.ABORT)
 
     def _st_grab(self):
-        # Manipulasi (jepit) DIHAPUS — placeholder gerakan sampai dirancang ulang.
-        e = self._elapsed()
-        if e < 4.0: self._set_surge(self.surge)
-        elif e < 7.0: self._set_surge(0.0)
-        else:
-            self.score['m2'] = 15; self.get_logger().info('GRAB selesai (placeholder)')
-            self._to(St.NAV_WALL)
-        if e > self.T['grab']: self.get_logger().error('GRAB timeout'); self._to(St.ABORT)
+        # Manipulasi (jepit) DIHAPUS — gripper belum ada, lewati langsung (instan).
+        self._set_surge(0.0)
+        self.score['m2'] = 15
+        self.get_logger().info('GRAB dilewati (gripper dihapus, placeholder instan)')
+        self._to(St.NAV_WALL)
 
     def _st_nav_wall(self):
         """Navigasi HOLONOMIK ke wall (mitigasi yaw lemah): tahan heading, translasi
@@ -322,10 +321,20 @@ class MissionFSM(Node):
 
     def _st_surface(self):
         self._set_depth(self.depth_surface)
-        if self.depth is not None and self.depth <= self.depth_surface:
-            self._set_surge(0.0); self.get_logger().info('Permukaan tercapai'); self._to(St.DOCK)
+        if self.depth is not None and self.depth <= self.depth_surface + 0.05:
+            self._set_surge(0.0)
+            self.done_hooks.add(self.wall)
+            self.get_logger().info('Permukaan tercapai. Hook %s selesai. Done: %s' % (self.wall, self.done_hooks))
+            if len(self.done_hooks) >= 4:
+                self.score['m5'] = 40
+                self.get_logger().info('Semua hook selesai (+40)!')
+                self._print_score(); self._to(St.DONE)
+            else:
+                self.wall = None
+                self._to(St.DIVE)
         elif self._elapsed() > self.T['surface']:
             self.get_logger().error('SURFACE timeout'); self._to(St.ABORT)
+
 
     def _st_dock(self):
         self._set_depth(self.depth_surface)
@@ -338,7 +347,7 @@ class MissionFSM(Node):
             self.get_logger().error('DOCK timeout'); self._to(St.ABORT)
 
     def _st_approach_hook(self):
-         """Navigasi HOLONOMIK ke hook (posisi sebenarnya, bukan timed)."""
+        """Navigasi HOLONOMIK ke hook (posisi sebenarnya, bukan timed)."""
         if self.wall is None: self._to(St.ABORT); return
         tx, ty = self._hook_xy(self.wall)
         self._set_depth(self.hook_depth)
@@ -348,7 +357,7 @@ class MissionFSM(Node):
             self._set_surge(0.0)
             self.get_logger().info('Tiba di hook %s (dist %.2fm)' % (self.wall, dist))
             self._to(St.AUTO_RELEASE)
-    elif self._elapsed() > self.T['approach']:
+        elif self._elapsed() > self.T['approach']:
             self.get_logger().error('APPROACH_HOOK timeout (dist %.2fm)' % dist); self._to(St.ABORT)
 
     def _st_auto_release(self):
@@ -360,11 +369,16 @@ class MissionFSM(Node):
         elif e < 17.0: self._set_surge(-15.0)
         elif e < 26.0: self._set_surge(0.0)   # naik (depth-hold ke permukaan)
         else:
-            self._set_surge(0.0); self.score['m5'] = 40
-            self.get_logger().info('Misi 5 AUTONOMOUS selesai (+40)!')
-            self._print_score(); self._to(St.DONE)
-        if e > self.T['release'] + 8.0:
-            self.get_logger().error('AUTO_RELEASE timeout'); self._print_score(); self._to(St.DONE)
+            self._set_surge(0.0)
+            self.done_hooks.add(self.wall)
+            self.get_logger().info('Hook %s selesai. Done: %s' % (self.wall, self.done_hooks))
+            if len(self.done_hooks) >= 4:
+                self.score['m5'] = 40
+                self.get_logger().info('Semua hook selesai (+40)!')
+                self._print_score(); self._to(St.DONE)
+            else:
+                self.wall = None
+                self._to(St.DIVE)
 
     def _print_score(self):
         s = self.score; tot = sum(s.values())
