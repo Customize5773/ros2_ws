@@ -106,6 +106,21 @@ Commit hash & tanggal dari `git log` (rentang 2026-07-07 … 2026-07-17).
 
 ## 2026-07-17
 - **`612eee3`** — uv add.
+- **[RESOLVED] Fix DetachableJoint init gagal — `gripper_base` tak ditemukan di SDF.**
+  Gejala: `[Err] [DetachableJoint.cc:62] Link with name gripper_base not found in
+  model hydroships` saat `ros2 launch hydroships_gazebo sim.launch.py world:=kki_arena.sdf`.
+  Akar masalah: joint `gripper_base_joint` bertipe `fixed` → saat `sdformat`
+  convert URDF→SDF, child link dari joint `fixed` **di-lump/collapse** ke parent
+  (`base_link`) secara default. `robot_state_publisher` (baca URDF asli) tetap kenal
+  `gripper_base`, tapi plugin `gz-sim-detachable-joint-system` (baca SDF hasil convert)
+  tidak → `parent_link` invalid. `gripper_jaw` tak kena karena joint-nya `revolute`.
+  Fix: `<gazebo reference="gripper_base_joint"><preserveFixedJoint>true</preserveFixedJoint></gazebo>`
+  di `hydroships.urdf.xacro` — menahan joint fixed jadi joint SDF nyata sehingga
+  `gripper_base` tetap link tersendiri (kinematika kaku tak berubah). Diverifikasi
+  dgn `ign sdf -p` (Fortress): link `gripper_base` kini muncul di SDF hasil convert.
+  Catatan: `<dontcollapse>` TIDAK dikenali sdformat, dan `<disableFixedJointLumping>`
+  pada link TIDAK cukup di Fortress bila `base_link` punya banyak child fixed-joint
+  lain (imu/kamera) — link tetap ter-lump; `preserveFixedJoint` pada joint andal.
 
 ---
 

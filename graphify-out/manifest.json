@@ -315,8 +315,8 @@
     "semantic_hash": ""
   },
   "docs/CHANGELOG.md": {
-    "mtime": 1784225753.619252,
-    "ast_hash": "604dba3aada8c8cf9a38245027533040",
+    "mtime": 1784244173.2014744,
+    "ast_hash": "e9a6bf03bdb24da1aa9e02f036f227b5",
     "semantic_hash": ""
   },
   "docs/STATUS.md": {
@@ -327,6 +327,11 @@
   "docs/VERIFICATION-CHECKLIST.md": {
     "mtime": 1784226018.2725122,
     "ast_hash": "bb0487d55d867c27c80dba6fbf2e2b16",
+    "semantic_hash": ""
+  },
+  "docs/HYDRO-ROV-Hull+ThrusterLayout.png": {
+    "mtime": 1784241317.8278778,
+    "ast_hash": "1512275b60b2d9fd1e08c03a98af4763",
     "semantic_hash": ""
   }
 }
