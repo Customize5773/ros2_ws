@@ -91,6 +91,21 @@ terverifikasi di sim; kamera/QR/kedalaman (M3), manipulator (M5), integrasi GUI 
 | `hydroships_control` | `thruster_allocator`, `teleop_keyboard`, `stabilizer`, `mission_fsm`, `qr_detector`, `gripper_controller`, `hook_detector`, `gui_bridge` (adapter GUI-ROV) |
 | `hydroships_bringup` | launch top-level `hydroships_sim.launch.py` |
 
+## File & model legacy
+
+- **Model aktif ROV** = geometri **primitif** di `hydroships_description/urdf/hydroships.urdf.xacro`.
+  Mesh berat lama **`model/rov.fbx` (FBX) & `meshes/rov.stl` (~12 MB) sudah DIHAPUS** dari
+  repo (tak lagi dirujuk URDF; `meshes/` kini hanya berisi `README.md` placeholder). Catatan
+  lama yang menyebut "`model/rov.fbx` 48 MB dibiarkan di repo" **tidak berlaku lagi**.
+  Riwayat lengkap: [`CHANGELOG.md`](CHANGELOG.md).
+- **Xacro legacy** di `hydroships_description/urdf/Model lain/` (`rov.urdf.xacro`,
+  `rov_kki2026.urdf.xacro`) **BUKAN model aktif**: keduanya masih di-track git namun merujuk
+  mesh (`rov_hull_visual.stl`, `hull_visual.stl`, dll.) & nama paket (`rov_description`,
+  `hydroship_description`) yang **tidak ada** di workspace ini. Disimpan sebagai referensi
+  desain. Saran (opsional, **jangan hapus tanpa diminta**): arsipkan ke luar `urdf/`,
+  pindahkan mesh besar (bila kelak ditambahkan) ke **Git LFS**, atau hapus dari tracking bila
+  sudah tak dibutuhkan sebagai referensi.
+
 ## Keputusan desain
 
 - **Fortress dipilih** karena plugin Buoyancy/Hydrodynamics/Thruster sudah bawaan
