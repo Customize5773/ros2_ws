@@ -76,6 +76,7 @@ class MissionFSM(Node):
         # NAV_WALL HOLONOMIK (mitigasi yaw lemah — lihat PROBLEM.md): ROV translasi
         # ke posisi wall di dunia TANPA memutar badan (surge+sway), heading di-hold.
         p('wall_dist', 2.30)         # m jarak pusat->target wall (standoff; hook ~2.4 m)
+        p('hook_dist', 0.30)  # m jarak target di depan hook (lebih dekat dari wall_dist)
         p('nav_tol', 0.15)           # m radius "tiba di wall"
         p('nav_fmax', 22.0)          # N batas gaya navigasi holonomik
         # timeout per state (s)
@@ -89,6 +90,7 @@ class MissionFSM(Node):
         self.depth_surface = float(g('depth_surface'))
         self.depth_tol = float(g('depth_tol'))
         self.hook_depth = float(g('hook_depth'))
+        self.hook_dist = float(g('hook_dist'))
         self.scan_rate = float(g('scan_rate'))
         self.yaw_tol = math.radians(float(g('yaw_tol_deg')))
         self.qr_max_age = float(g('qr_max_age'))
@@ -193,6 +195,15 @@ class MissionFSM(Node):
         """Posisi target XY (dunia) di depan wall A/B/C/D (dari geometri arena)."""
         d = self.wall_dist
         return {'A': (0.0, -d), 'B': (0.0, d), 'C': (d, 0.0), 'D': (-d, 0.0)}[wall]
+    
+    def _hook_xy(self, wall):
+        """Posisi target XY (dunia) di depan hook A/B/C/D (lebih dekat dari wall_dist)."""
+        d = self.hook_dist
+        return {'A': (0.0, -d), 'B': (0.0, d), 'C': (d, 0.0), 'D': (-d, 0.0)}[wall]
+    
+    def _hook_inward(self, wall):
+        """Vektor satuan DUNIA dari pusat menuju hook."""
+        return {'A': (0.0, -1.0), 'B': (0.0, 1.0), 'C': (1.0, 0.0), 'D': (-1.0, 0.0)}[wall]
 
     def _wall_inward(self, wall):
         """Vektor satuan DUNIA dari pusat menuju wall ('maju ke wall')."""
@@ -327,12 +338,18 @@ class MissionFSM(Node):
             self.get_logger().error('DOCK timeout'); self._to(St.ABORT)
 
     def _st_approach_hook(self):
-        # TODO (M3 lanjut): visual servo ArUco di ROS 2 belum ada -> sementara timed.
+         """Navigasi HOLONOMIK ke hook (posisi sebenarnya, bukan timed)."""
+        if self.wall is None: self._to(St.ABORT); return
+        tx, ty = self._hook_xy(self.wall)
         self._set_depth(self.hook_depth)
-        self._set_surge(10.0 if self._elapsed() < 6.0 else 0.0)
-        if self._elapsed() >= 6.0 or self._elapsed() > self.T['approach']:
-            self.get_logger().warn('APPROACH_HOOK timed (visual servo ROS2 belum ada)')
-            self._set_surge(0.0); self._to(St.AUTO_RELEASE)
+        self._set_heading(0.0)
+        dist = self._goto_xy(tx, ty, fmax=self.nav_fmax)
+        if dist < self.nav_tol:
+            self._set_surge(0.0)
+            self.get_logger().info('Tiba di hook %s (dist %.2fm)' % (self.wall, dist))
+            self._to(St.AUTO_RELEASE)
+    elif self._elapsed() > self.T['approach']:
+            self.get_logger().error('APPROACH_HOOK timeout (dist %.2fm)' % dist); self._to(St.ABORT)
 
     def _st_auto_release(self):
         e = self._elapsed()
