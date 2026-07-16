@@ -1,6 +1,16 @@
 # ARENA ROV KKI 2026
 ---
 
+## Instalasi Dependensi
+
+Beberapa node Python pada `hydroships_control` (mis. `qr_detector.py`, `allocation.py`, `stabilizer.py`) memerlukan `opencv` dan `numpy`. Install dependensi sistem dan Python berikut sebelum menjalankan simulasi:
+
+```bash
+sudo apt install python3-opencv python3-numpy
+pip install -r requirements.txt
+```
+---
+
 <img width="535" height="497" alt="Screenshot from 2026-07-04 18-39-12" src="https://github.com/user-attachments/assets/f9793a9f-5241-45bb-a489-960bd04cdac1" />
 
 ---

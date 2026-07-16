@@ -66,6 +66,15 @@ Folder build/ install/ log/ sengaja di-gitignore; regenerasi dgn colcon build.
   Mulai dari state tertentu (lewati DIVE/SCAN):
       ros2 launch hydroships_bringup hydroships_mission.launch.py start_state:=NAV_WALL
 
+  ── 3D. SIM + JEMBATAN GUI TIM (M7, UDP-JSON) ─────────────────────────────────
+  Menyalakan: sim + allocator + gui_bridge (adapter GUI-ROV <-> ROS via UDP).
+  GUI tim (Customize5773/GUI-ROV) memakai UDP-JSON/MAVLink, bukan ROS langsung
+  (lihat docs/GUI-INTEGRATION.md). [VERIFY: belum diuji GUI live.]
+      ros2 launch hydroships_bringup hydroships_gui.launch.py
+  Arahkan telemetri ke laptop GUI (server.js) & set port bila perlu:
+      ros2 launch hydroships_bringup hydroships_gui.launch.py \
+          gui_host:=192.168.2.1 cmd_port:=14550 telem_port:=14551
+
 
 --------------------------------------------------------------------------------
 4. ARGUMEN LAUNCH (opsional, tambahkan di belakang perintah, format arg:=nilai)
@@ -80,6 +89,12 @@ Folder build/ install/ log/ sengaja di-gitignore; regenerasi dgn colcon build.
 
 Contoh gabungan:
   ros2 launch hydroships_bringup hydroships_mission.launch.py headless:=true world:=kki_arena.sdf
+
+Argumen launch (default cocok GUI-ROV: cmd 14550, telem 14551):
+
+ros2 launch hydroships_bringup hydroships_gui.launch.py \
+    gui_host:=192.168.2.1 cmd_port:=14550 telem_port:=14551
+# atau headless:=true / world:=pool_empty.sdf
 
 
 --------------------------------------------------------------------------------
@@ -155,6 +170,37 @@ Contoh gabungan:
       cd ~/ros2_ws
       colcon test --packages-select hydroships_control
       colcon test-result --verbose
+
+
+--------------------------------------------------------------------------------
+9. CONTOH SESI MULTI-TERMINAL (teleop + cek allocator)
+--------------------------------------------------------------------------------
+TERMINAL 1: MAIN SIMULASI
+cd ~/ros2_ws
+source /opt/ros/humble/setup.bash
+colcon build --symlink-install
+source install/setup.bash
+ros2 launch hydroships_bringup hydroships_sim.launch.py #run Simulasi Dasar (Top-Level ROV)
+ros2 launch hydroships_bringup hydroships_mission.launch.py  #run Misi Autonomous (Milestone 6)
+ros2 launch hydroships_bringup hydroships_stabilized.launch.py #run Mode Stabilisasi Manual (Milestone 2)
+
+TERMINAL 2: CONTROL SIMULASI
+cd ~/ros2_ws
+source /opt/ros/humble/setup.bash
+source install/setup.bash
+ros2 run hydroships_control teleop_stabilized
+ -> ros2 run hydroships_control teleop_stabilized --ros-args -r /cmd_vel:=/hydroships/cmd_vel -p use_sim_time:=true
+ -> ros2 run hydroships_control teleop_stabilized --ros-args -r /cmd_vel:=/hydroships/manual/cmd -p use_sim_time:=true
+
+TERMINAL 3: CHECK IF KEYBOARD SEND DATA (LINEAR/ANGULAR)
+~
+ros2 topic echo /hydroships/cmd_vel
+
+TERMINAL 4: CHECK IF PROGRAM ALLOCATOR RESPONS
+~
+ros2 topic echo /hydroships/thruster_1/thrust
+
+---
 
 
 ================================================================================
