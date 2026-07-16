@@ -180,13 +180,30 @@
          Ditempatkan 0.4 m di +X dari tengah & QR menghadap -X (ke arah ROV) agar
          kamera depan ROV membacanya saat SCAN_QR. Isi QR = sisi target (A/B/C/D). -->
     <model name="payload">
-      <static>true</static>
+      <!-- NON-STATIC (rancang ulang M5): payload harus DINAMIS agar bisa
+           di-grasp/diangkat oleh gz-sim DetachableJoint gripper ROV. Diberi
+           massa & collision agar diam di dasar (negatif apung) sampai diangkat.
+           [VERIFY] grasp fisik belum diuji; [OPEN] massa/collision estimasi. -->
       <!-- BERBARING di dasar dgn QR MENGHADAP ATAS (sesuai gambar referensi: QR/payload
            datar di lantai, dibaca kamera BAWAH). QR berada di world (0.4, 0) — target
            APPROACH FSM (payload_x/payload_y). Untuk versi berdiri saat digantung di wall,
            pakai '0.4 0 -0.9 0 0 1.5708'. -->
       <pose>0.4 0.04 -0.894 1.5708 0 0</pose>
       <link name="payload_link">
+        <!-- Inertial: massa kecil (braket-L ~0.3 kg) di CoG link. -->
+        <inertial>
+          <mass>0.3</mass>
+          <inertia>
+            <ixx>3.0e-4</ixx><iyy>3.0e-4</iyy><izz>1.5e-4</izz>
+            <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
+          </inertia>
+        </inertial>
+        <!-- Collision kotak aproksimasi (pelat 5x0.6x10 cm) agar bertumpu di
+             dasar & jadi target sambungan DetachableJoint. Volume kecil ->
+             negatif apung (tenggelam/diam), tak melayang. -->
+        <collision name="body_collision">
+          <geometry><box><size>0.05 0.006 0.10</size></box></geometry>
+        </collision>
         <visual name="body">
           <geometry>
             <mesh><uri>model://hydroships_gazebo/media/payload_body.obj</uri></mesh>
@@ -194,6 +211,23 @@
           <material>
             <ambient>0.75 0.76 0.80 1</ambient>
             <diffuse>0.82 0.83 0.86 1</diffuse>
+          </material>
+        </visual>
+        <!-- SIM_ONLY: MARGIN QUIET-ZONE putih di belakang QR. Plane putih self-lit
+             sedikit lebih besar (0.16 vs QR 0.12) di y sedikit di BELAKANG QR
+             (0.0006 < 0.0012) → memberi zona-tenang bersih di sekeliling QR
+             sehingga finder-pattern QR tak terganggu lantai berfaset/bayangan saat
+             render (fix teringan opsi (a), lihat PROBLEM.md item "QR belum terbaca").
+             Emissive putih agar tak ter-render hitam di kamera Fortress headless
+             (sama alasan dgn emissive_map QR). Hapus bila kembali ke ukuran asli. -->
+        <visual name="qr_quiet_zone">
+          <pose>0 0.0006 0.04 0 0 0</pose>
+          <geometry><plane><normal>0 1 0</normal><size>0.16 0.16</size></plane></geometry>
+          <material>
+            <ambient>1 1 1 1</ambient>
+            <diffuse>1 1 1 1</diffuse>
+            <specular>0 0 0 1</specular>
+            <emissive>1 1 1 1</emissive>
           </material>
         </visual>
         <visual name="qr">
@@ -218,6 +252,24 @@
         </visual>
       </link>
     </model>
+
+    <!-- SIM_ONLY: Lampu lokal di ATAS payload untuk menerangi area QR tanpa
+         mengubah exposure global scene (fix opsi (b), lihat PROBLEM.md item
+         "QR belum terbaca"). Point light ~0.4 m di atas QR (world z payload
+         ~-0.85, QR menghadap +z) menaikkan kontras QR vs lantai berfaset.
+         Range kecil (0.8 m) agar tak membanjiri seluruh kolam. -->
+    <light type="point" name="payload_fill">
+      <cast_shadows>false</cast_shadows>
+      <pose>0.4 0 -0.45 0 0 0</pose>
+      <diffuse>0.8 0.8 0.8 1</diffuse>
+      <specular>0.1 0.1 0.1 1</specular>
+      <attenuation>
+        <range>0.8</range>
+        <constant>0.3</constant>
+        <linear>0.5</linear>
+        <quadratic>1.0</quadratic>
+      </attenuation>
+    </light>
 
     <!-- ============================ Hook / gantungan ============================ -->
     <!--

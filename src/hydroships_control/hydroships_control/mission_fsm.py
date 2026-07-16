@@ -27,9 +27,11 @@ from enum import Enum, auto
 
 import rclpy
 from rclpy.node import Node
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, PointStamped
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64, String
+
+from hydroships_control.hook_logic import HookServoGains, hook_servo
 
 
 def yaw_from_quaternion(q):
@@ -76,19 +78,35 @@ class MissionFSM(Node):
         # NAV_WALL HOLONOMIK (mitigasi yaw lemah — lihat PROBLEM.md): ROV translasi
         # ke posisi wall di dunia TANPA memutar badan (surge+sway), heading di-hold.
         p('wall_dist', 2.30)         # m jarak pusat->target wall (standoff; hook ~2.4 m)
+        p('hook_dist', 0.30)  # m jarak target di depan hook (lebih dekat dari wall_dist)
         p('nav_tol', 0.15)           # m radius "tiba di wall"
         p('nav_fmax', 22.0)          # N batas gaya navigasi holonomik
         # timeout per state (s)
         p('t_dive', 20.0); p('t_scan', 45.0); p('t_grab', 10.0); p('t_nav', 30.0)
         p('t_hang', 15.0); p('t_surface', 20.0); p('t_dock', 12.0)
         p('t_approach', 20.0); p('t_release', 30.0)
+        # APPROACH_HOOK visual servo PD (deteksi hook dari hook_detector; port GUI-ROV).
+        # Holonomik: sway (offset-x) + surge (ukuran-tampak) + koreksi setpoint depth
+        # (offset-y). Ganti servo proporsional-heading lama -> PD penuh (kp*err-kd*vel).
+        p('hook_max_age', 1.0)       # s umur maks hook_offset agar segar
+        p('hook_kp_surge', 40.0)     # N per unit error ukuran-tampak (maju bila jauh)
+        p('hook_kd_surge', 30.0)     # N per (m/s) redaman surge (body vx)
+        p('hook_kp_sway', 45.0)      # N per unit offset-x (koreksi lateral)
+        p('hook_kd_sway', 30.0)      # N per (m/s) redaman sway (body vy)
+        p('hook_kp_depth', 0.25)     # m per unit offset-y (geser setpoint depth)
+        p('hook_fmax', 16.0)         # N batas gaya horizontal servo hook
+        p('hook_depth_range', 0.20)  # m simpangan maks setpoint depth dari hook_depth
+        p('hook_size_stop', 0.35)    # ukuran-tampak hook -> dianggap cukup dekat
+        p('hook_center_tol', 0.15)   # |offset| dianggap "sejajar"
 
         g = lambda n: self.get_parameter(n).value
         self.surge = float(g('surge_force'))
         self.depth_bottom = float(g('depth_bottom'))
         self.depth_surface = float(g('depth_surface'))
         self.depth_tol = float(g('depth_tol'))
+        self.done_hooks = set()
         self.hook_depth = float(g('hook_depth'))
+        self.hook_dist = float(g('hook_dist'))
         self.scan_rate = float(g('scan_rate'))
         self.yaw_tol = math.radians(float(g('yaw_tol_deg')))
         self.qr_max_age = float(g('qr_max_age'))
@@ -105,14 +123,26 @@ class MissionFSM(Node):
         self.T = {k: float(g('t_' + k)) for k in
                   ('dive', 'scan', 'grab', 'nav', 'hang', 'surface', 'dock',
                    'approach', 'release')}
+        self.hook_max_age = float(g('hook_max_age'))
+        self.hook_gains = HookServoGains(
+            kp_surge=float(g('hook_kp_surge')), kd_surge=float(g('hook_kd_surge')),
+            kp_sway=float(g('hook_kp_sway')), kd_sway=float(g('hook_kd_sway')),
+            kp_depth=float(g('hook_kp_depth')),
+            size_stop=float(g('hook_size_stop')), center_tol=float(g('hook_center_tol')),
+            fmax=float(g('hook_fmax')), depth_range=float(g('hook_depth_range')))
 
         # I/O
         self.pub_depth = self.create_publisher(Float64, '/hydroships/setpoint/depth', 10)
         self.pub_head = self.create_publisher(Float64, '/hydroships/setpoint/heading', 10)
         self.pub_manual = self.create_publisher(Twist, '/hydroships/manual/cmd', 10)
+        # Manipulator (rancang ulang M5): perintah semantik open/close ke
+        # gripper_controller (yg memicu gz DetachableJoint attach/detach).
+        self.pub_grip = self.create_publisher(String, '/hydroships/gripper/command', 10)
         self.create_subscription(Float64, '/hydroships/depth', self._on_depth, 10)
         self.create_subscription(Odometry, '/hydroships/odom', self._on_odom, 10)
         self.create_subscription(String, '/hydroships/qr_result', self._on_qr, 10)
+        # hook_offset (visual servo APPROACH_HOOK; dari node hook_detector).
+        self.create_subscription(PointStamped, '/hydroships/hook_offset', self._on_hook, 10)
 
         # State
         self.depth = None
@@ -123,7 +153,10 @@ class MissionFSM(Node):
         self.vy = 0.0
         self.qr_wall = None
         self.qr_time = 0.0
+        self.hook_off = None      # (ex, ey, size)
+        self.hook_time = 0.0
         self.wall = None
+        self.done_hooks = set()
         self.score = {'m1': 0, 'm2': 0, 'm3': 0, 'm4': 0, 'm5': 0}
         self.state = St.IDLE
         self.t_state = self._now()
@@ -162,6 +195,12 @@ class MissionFSM(Node):
         t = Twist(); t.linear.x = float(fx); t.linear.y = float(fy)
         self.pub_manual.publish(t)
 
+    def _grip(self, close):
+        """Kirim perintah manipulator: close=True -> 'close' (attach payload bila
+        di jangkauan), close=False -> 'open' (detach). gripper_controller yg
+        memutuskan attach fisik via DetachableJoint (lihat gripper_logic)."""
+        m = String(); m.data = 'close' if close else 'open'; self.pub_grip.publish(m)
+
     def _goto_xy(self, tx, ty, fmax=None):
         """PD posisi HOLONOMIK: dorong ROV ke (tx,ty) dunia via gaya horizontal
         body-frame (surge+sway), dgn redaman kecepatan agar tak overshoot.
@@ -193,6 +232,15 @@ class MissionFSM(Node):
         """Posisi target XY (dunia) di depan wall A/B/C/D (dari geometri arena)."""
         d = self.wall_dist
         return {'A': (0.0, -d), 'B': (0.0, d), 'C': (d, 0.0), 'D': (-d, 0.0)}[wall]
+    
+    def _hook_xy(self, wall):
+        """Posisi target XY (dunia) di depan hook A/B/C/D (lebih dekat dari wall_dist)."""
+        d = self.hook_dist
+        return {'A': (0.0, -d), 'B': (0.0, d), 'C': (d, 0.0), 'D': (-d, 0.0)}[wall]
+    
+    def _hook_inward(self, wall):
+        """Vektor satuan DUNIA dari pusat menuju hook."""
+        return {'A': (0.0, -1.0), 'B': (0.0, 1.0), 'C': (1.0, 0.0), 'D': (-1.0, 0.0)}[wall]
 
     def _wall_inward(self, wall):
         """Vektor satuan DUNIA dari pusat menuju wall ('maju ke wall')."""
@@ -212,6 +260,18 @@ class MissionFSM(Node):
         w = (msg.data or '').strip().upper()
         if w in WALL_HEADING_DEG:
             self.qr_wall = w; self.qr_time = self._now()
+
+    def _on_hook(self, msg):
+        self.hook_off = (msg.point.x, msg.point.y, msg.point.z)
+        self.hook_time = self._now()
+
+    def _hook_fresh(self):
+        """Kembalikan (ex, ey, size) bila deteksi hook masih segar, else None."""
+        if self.hook_off is None:
+            return None
+        if self._now() - self.hook_time > self.hook_max_age:
+            return None
+        return self.hook_off
 
     # ---- main tick ----
     def _tick(self):
@@ -268,12 +328,16 @@ class MissionFSM(Node):
             self.get_logger().error('SCAN_QR timeout — tak ada QR'); self._to(St.ABORT)
 
     def _st_grab(self):
-        # Manipulasi (jepit) DIHAPUS — placeholder gerakan sampai dirancang ulang.
+        # Grasp via DetachableJoint (rancang ulang M5): kirim 'close' tiap tick →
+        # gripper_controller meng-attach payload begitu ROV di atasnya dalam
+        # jangkauan aman (dinilai dari qr_offset). Datang dari APPROACH_QR yg sudah
+        # memusatkan ROV di atas payload, jadi attach mestinya di tick awal.
         e = self._elapsed()
+        self._grip(True)
         if e < 4.0: self._set_surge(self.surge)
         elif e < 7.0: self._set_surge(0.0)
         else:
-            self.score['m2'] = 15; self.get_logger().info('GRAB selesai (placeholder)')
+            self.score['m2'] = 15; self.get_logger().info('GRAB selesai (attach dikirim)')
             self._to(St.NAV_WALL)
         if e > self.T['grab']: self.get_logger().error('GRAB timeout'); self._to(St.ABORT)
 
@@ -311,10 +375,20 @@ class MissionFSM(Node):
 
     def _st_surface(self):
         self._set_depth(self.depth_surface)
-        if self.depth is not None and self.depth <= self.depth_surface:
-            self._set_surge(0.0); self.get_logger().info('Permukaan tercapai'); self._to(St.DOCK)
+        if self.depth is not None and self.depth <= self.depth_surface + 0.05:
+            self._set_surge(0.0)
+            self.done_hooks.add(self.wall)
+            self.get_logger().info('Permukaan tercapai. Hook %s selesai. Done: %s' % (self.wall, self.done_hooks))
+            if len(self.done_hooks) >= 4:
+                self.score['m5'] = 40
+                self.get_logger().info('Semua hook selesai (+40)!')
+                self._print_score(); self._to(St.DONE)
+            else:
+                self.wall = None
+                self._to(St.DIVE)
         elif self._elapsed() > self.T['surface']:
             self.get_logger().error('SURFACE timeout'); self._to(St.ABORT)
+
 
     def _st_dock(self):
         self._set_depth(self.depth_surface)
@@ -327,27 +401,57 @@ class MissionFSM(Node):
             self.get_logger().error('DOCK timeout'); self._to(St.ABORT)
 
     def _st_approach_hook(self):
-        # TODO (M3 lanjut): visual servo ArUco di ROS 2 belum ada -> sementara timed.
+        # Visual servo PD hook (deteksi contour dari node hook_detector ->
+        # /hydroships/hook_offset). Bila deteksi segar: PD holonomik koreksi
+        # sway (offset-x) + surge (ukuran-tampak) + setpoint depth (offset-y),
+        # dgn redaman kecepatan (mirip _goto_xy), sampai cukup dekat & terpusat
+        # -> AUTO_RELEASE. Bila TAK ada deteksi: fallback timed lama (aman).
+        # Heading di-hold menghadap wall agar kamera depan tetap melihat hook.
+        off = self._hook_fresh()
+        if off is not None:
+            cmd = hook_servo(off, self.vx, self.vy, self.hook_depth, self.hook_gains)
+            self._set_depth(cmd.target_depth)
+            if self.wall in WALL_HEADING_DEG:
+                self._set_heading(math.radians(WALL_HEADING_DEG[self.wall]))
+            if cmd.near and cmd.aligned:
+                self.get_logger().info('APPROACH_HOOK: hook tercapai (PD servo, size %.2f)' % off[2])
+                self._set_surge(0.0, 0.0); self._to(St.AUTO_RELEASE); return
+            # Sudah dekat tapi belum terpusat: berhenti maju, hanya koreksi lateral/vert.
+            surge = 0.0 if cmd.near else cmd.surge
+            self._set_surge(surge, cmd.sway)
+            if self._elapsed() > self.T['approach']:
+                self.get_logger().warn('APPROACH_HOOK timeout (PD servo, size %.2f) -> lanjut' % off[2])
+                self._set_surge(0.0, 0.0); self._to(St.AUTO_RELEASE)
+            return
+        # Fallback timed (tak ada hook_offset — hook_detector mati / tak terdeteksi).
         self._set_depth(self.hook_depth)
         self._set_surge(10.0 if self._elapsed() < 6.0 else 0.0)
         if self._elapsed() >= 6.0 or self._elapsed() > self.T['approach']:
-            self.get_logger().warn('APPROACH_HOOK timed (visual servo ROS2 belum ada)')
-            self._set_surge(0.0); self._to(St.AUTO_RELEASE)
+            self.get_logger().warn('APPROACH_HOOK timed (tak ada deteksi hook)')
+            self._set_surge(0.0, 0.0); self._to(St.AUTO_RELEASE)
 
     def _st_auto_release(self):
         e = self._elapsed()
         self._set_depth(self.hook_depth if e < 15.0 else self.depth_surface)
-        # Manipulasi (jepit/lepas) DIHAPUS — placeholder gerakan sampai dirancang ulang.
-        if e < 11.0: self._set_surge(15.0 if e >= 8.0 else 0.0)
-        elif e < 14.0: self._set_surge(0.0)
-        elif e < 17.0: self._set_surge(-15.0)
+        # Grasp via DetachableJoint (rancang ulang M5): tetap tutup saat mendekati
+        # hook, LEPAS (detach) saat menggantung, lalu mundur.
+        if e < 11.0:
+            self._grip(True); self._set_surge(15.0 if e >= 8.0 else 0.0)  # dekati hook (tetap tutup)
+        elif e < 14.0:
+            self._grip(False); self._set_surge(0.0)                        # LEPAS payload ke hook
+        elif e < 17.0: self._set_surge(-15.0)                              # mundur dari hook
         elif e < 26.0: self._set_surge(0.0)   # naik (depth-hold ke permukaan)
         else:
-            self._set_surge(0.0); self.score['m5'] = 40
-            self.get_logger().info('Misi 5 AUTONOMOUS selesai (+40)!')
-            self._print_score(); self._to(St.DONE)
-        if e > self.T['release'] + 8.0:
-            self.get_logger().error('AUTO_RELEASE timeout'); self._print_score(); self._to(St.DONE)
+            self._set_surge(0.0)
+            self.done_hooks.add(self.wall)
+            self.get_logger().info('Hook %s selesai. Done: %s' % (self.wall, self.done_hooks))
+            if len(self.done_hooks) >= 4:
+                self.score['m5'] = 40
+                self.get_logger().info('Semua hook selesai (+40)!')
+                self._print_score(); self._to(St.DONE)
+            else:
+                self.wall = None
+                self._to(St.DIVE)
 
     def _print_score(self):
         s = self.score; tot = sum(s.values())

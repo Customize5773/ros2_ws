@@ -36,8 +36,16 @@ Stack: **ROS 2 Humble + Gazebo Fortress** (gz-sim 6) + `ros_gz` bridge.
 
 ## Kontrak interface topic (untuk GUI / GCS tim)
 
-GUI tim membaca/menulis topic ROS 2 standar berikut. Milestone 1 baru
-menyediakan blok kendali & odometry; kamera/QR/kedalaman menyusul (M3).
+Node inti membaca/menulis topic ROS 2 standar berikut. Milestone 1 menyediakan
+blok kendali & odometry; kamera/QR/kedalaman (M3), manipulator (M5), integrasi
+GUI (M7) menyusul.
+
+> **Catatan GUI (M7):** repo GUI tim (Customize5773/GUI-ROV) **tidak memakai ROS 2**
+> melainkan UDP-JSON/MAVLink. Jembatan ke topik di bawah dilakukan node adapter
+> `gui_bridge` (bukan remap langsung) — lihat `docs/GUI-INTEGRATION.md`.
+>
+> Legenda status: ✅ jalan & terverifikasi di sim · ⏳ direncanakan/menyusul ·
+> 🧪 **kode ada, belum diverifikasi** end-to-end (mis. dgn GUI live / grasp fisik).
 
 | Topic | Tipe | Arah | Status |
 |-------|------|------|--------|
@@ -51,7 +59,23 @@ menyediakan blok kendali & odometry; kamera/QR/kedalaman menyusul (M3).
 | `/hydroships/depth` | `std_msgs/Float64` | sim → GUI | ⏳ M3 |
 | `/hydroships/camera_front/image_raw` | `sensor_msgs/Image` | sim → GUI | ⏳ M3 |
 | `/hydroships/camera_bottom/image_raw` | `sensor_msgs/Image` | sim → GUI | ⏳ M3 |
+| `/hydroships/camera_front/camera_info` | `sensor_msgs/CameraInfo` | sim → servo/PBVS | 🧪 M3 (intrinsics **sim**, bukan kalibrasi hardware — lihat catatan) |
+| `/hydroships/camera_bottom/camera_info` | `sensor_msgs/CameraInfo` | sim → servo/PBVS | 🧪 M3 (idem) |
 | `/hydroships/qr_result` | `std_msgs/String` | node QR → GUI | ⏳ M3 |
+| `/hydroships/qr_offset` | `geometry_msgs/PointStamped` | qr_detector → FSM/servo | ⏳ M3 (offset piksel ternorm. + ukuran) |
+| `/hydroships/hook_offset` | `geometry_msgs/PointStamped` | hook_detector → FSM | 🧪 M7 (visual servo APPROACH_HOOK; port GUI-ROV) |
+| `/hydroships/gripper/command` | `std_msgs/String` | GUI/FSM → gripper_controller | 🧪 M5 ("open"/"close") |
+| `/hydroships/gripper_jaw/cmd` | `std_msgs/Float64` | gripper_controller → sim | 🧪 M5 (sudut jari kosmetik, rad) |
+| `/hydroships/gripper/attach` | `std_msgs/Empty` | gripper_controller → sim | 🧪 M5 (trigger DetachableJoint attach) |
+| `/hydroships/gripper/detach` | `std_msgs/Empty` | gripper_controller → sim | 🧪 M5 (trigger DetachableJoint detach) |
+
+> **Catatan CameraInfo (intrinsics):** topik `camera_info` dijembatani dari Gazebo
+> (`bridge.yaml`) dan matriks K disimpan oleh `qr_detector`. **PENTING — bedakan dua hal:**
+> (1) *jalur topic camera_info* → **selesai** bila `ros2 topic echo .../camera_info --once`
+> menunjukkan K/D/width/height terisi masuk akal saat sim jalan (masih perlu verifikasi
+> runtime); (2) *kalibrasi ke kamera fisik ROV asli* → **tetap OPEN**: intrinsics ini murni
+> kalkulasi Gazebo dari FOV/resolusi SDF, **bukan** kalibrasi hardware. Jangan pakai K untuk
+> estimasi jarak riil sampai data kalibrasi kamera fisik tersedia (lihat PROBLEM.md).
 
 > Saat integrasi GUI (M7): jika GUI tim mengharapkan nama topic berbeda,
 > cukup remap di launch (`--ros-args -r from:=to`) atau sesuaikan tabel ini —
@@ -63,7 +87,7 @@ menyediakan blok kendali & odometry; kamera/QR/kedalaman menyusul (M3).
 |-------|-----|
 | `hydroships_description` | URDF/xacro model + plugin gz (Thruster, Hydrodynamics, Odometry) |
 | `hydroships_gazebo` | world kolam, `bridge.yaml`, `sim.launch.py` |
-| `hydroships_control` | `thruster_allocator`, `teleop_keyboard` |
+| `hydroships_control` | `thruster_allocator`, `teleop_keyboard`, `stabilizer`, `mission_fsm`, `qr_detector`, `gripper_controller`, `hook_detector`, `gui_bridge` (adapter GUI-ROV) |
 | `hydroships_bringup` | launch top-level `hydroships_sim.launch.py` |
 
 ## Keputusan desain
