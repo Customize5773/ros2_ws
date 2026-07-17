@@ -38,6 +38,10 @@ def _launch_setup(context, *args, **kwargs):
     except ValueError:
         spawn_delay = 3.0
 
+    qr_letter = LaunchConfiguration('qr_letter').perform(context)
+    payload_x = LaunchConfiguration('payload_x').perform(context)
+    payload_y = LaunchConfiguration('payload_y').perform(context)
+
     world_path = os.path.join(pkg_gazebo, 'worlds', world)
 
     # Agar mesh 'package://hydroships_description/...' (di-resolve gz jadi
@@ -133,7 +137,23 @@ def _launch_setup(context, *args, **kwargs):
         parameters=[{'use_sim_time': True}],
     )
 
-    return [gz_sim, bridge, rsp, spawn, depth_pub, qr, gripper, hook]
+    # Spawner payload QR random (A/B/C/D): spawn model payload lewat ros_gz_sim
+    # create + publikasi posisi ke /hydroships/payload_pose. Delay > spawn ROV agar
+    # server gz & model sudah siap. Bila qr_letter/payload_x/y kosong → random.
+    spawner = Node(
+        package='hydroships_gazebo',
+        executable='payload_spawner',
+        output='screen',
+        parameters=[{
+            'use_sim_time': True,
+            'qr_letter': qr_letter,
+            'payload_x': float(payload_x) if payload_x else 0.4,
+            'payload_y': float(payload_y) if payload_y else 0.04,
+            'spawn_delay': spawn_delay + 1.0,
+        }],
+    )
+
+    return [gz_sim, bridge, rsp, spawn, depth_pub, qr, gripper, hook, spawner]
 
 
 def generate_launch_description():
@@ -149,5 +169,11 @@ def generate_launch_description():
         DeclareLaunchArgument('spawn_delay', default_value='3.0',
                               description='Detik menunda spawn ROV agar server gz '
                                           'siap dulu (naikkan bila mesin lambat).'),
+        DeclareLaunchArgument('qr_letter', default_value='',
+                              description='Huruf QR payload (A/B/C/D). Kosong = random.'),
+        DeclareLaunchArgument('payload_x', default_value='0.4',
+                              description='Posisi X payload (m); dipakai bila qr_letter di-set.'),
+        DeclareLaunchArgument('payload_y', default_value='0.04',
+                              description='Posisi Y payload (m); dipakai bila qr_letter di-set.'),
         OpaqueFunction(function=_launch_setup),
     ])

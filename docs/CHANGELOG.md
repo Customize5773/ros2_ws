@@ -172,6 +172,27 @@ Commit hash & tanggal dari `git log` (rentang 2026-07-07 … 2026-07-17).
 
 ---
 
+## 2026-07-18
+
+- **[RESOLVED] Payload QR sekarang di-spawn RANDOM (A/B/C/D) via node `payload_spawner`.**
+  Model `payload` dihapus dari `worlds/kki_arena.sdf` dan diganti spawn dinamis oleh
+  `hydroships_gazebo/scripts/payload_spawner.py` (`ros2 run ros_gz_sim create` + template
+  SDF inline `PAYLOAD_SDF_TEMPLATE`, identik dgn definisi lama: mesh body, collision,
+  quiet-zone, QR pbr, massa 0.3 kg non-static). Huruf QR dipilih random (atau via launch
+  arg `qr_letter:=A/B/C/D`); posisi acak dalam bounds arena (`arena_x/y_min/max`) saat
+  huruf random, atau eksplisit via `payload_x`/`payload_y` bila `qr_letter` di-set.
+  Node publikasi posisi ke `/hydroships/payload_pose` (`PointStamped`); `mission_fsm`
+  `_st_approach_qr` navigasi ke pose tsb (fallback ke param `payload_x/payload_y` bila
+  belum tiba). Argumen diteruskan lewat rantai launch
+  `hydroships_mission → hydroships_stabilized → sim`. `payload_fill` light tetap di SDF.
+  Executable dipasang via CMake `install(PROGRAMS ... RENAME payload_spawner)`.
+  Build + 62 test lolos; SDF/launch tervalidasi headless. **[VERIFY]** spawn & grasp
+  fisik di sim belum diuji runtime (butuh mesin ber-display / gz server).
+  Catatan: DetachableJoint (`child_model=payload`) kini me-resolve payload yg di-spawn
+  belakangan; perlu verifikasi attach tetap bekerja saat payload muncul pasca-load.
+
+---
+
 ## Keputusan yang DIBATALKAN / diganti (arsip)
 
 Disimpan sebagai referensi agar tidak dihidupkan ulang tanpa sadar.

@@ -1,16 +1,16 @@
-# Graph Report - ros2_ws  (2026-07-18)
+# Graph Report - ros2_ws  (2026-07-17)
 
 ## Corpus Check
-- 50 files · ~96,399 words
+- 46 files · ~92,158 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 457 nodes · 678 edges · 32 communities (23 shown, 9 thin omitted)
-- Extraction: 87% EXTRACTED · 13% INFERRED · 0% AMBIGUOUS · INFERRED: 87 edges (avg confidence: 0.78)
+- 411 nodes · 631 edges · 28 communities (20 shown, 8 thin omitted)
+- Extraction: 86% EXTRACTED · 14% INFERRED · 0% AMBIGUOUS · INFERRED: 86 edges (avg confidence: 0.78)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `23773b40`
+- Built from commit: `5928ffe8`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -30,10 +30,7 @@
 - estimate_mass_inertia.py
 - Integrasi GUI-ROV ↔ hydroships (ROS 2) — Analisis Selisih & Adapter
 - DepthPublisher
-- File yang Harus Diperbaiki/Dibuat
-- File yang Harus Diperbaiki
 - sim.launch.py
-- PayloadSpawner
 - hydroships_gui.launch.py
 - hydroships_mission.launch.py
 - hydroships_sim.launch.py
@@ -42,10 +39,9 @@
 - CLAUDE.md
 - README.md
 - ros2-ws
-- prompt-random-qr-payload.md
 
 ## God Nodes (most connected - your core abstractions)
-1. `MissionFSM` - 36 edges
+1. `MissionFSM` - 35 edges
 2. `GripperLogic` - 28 edges
 3. `GuiBridgeLogic` - 18 edges
 4. `hook_servo()` - 15 edges
@@ -71,15 +67,15 @@
 ## Import Cycles
 - None detected.
 
-## Communities (32 total, 9 thin omitted)
+## Communities (28 total, 8 thin omitted)
 
 ### Community 0 - "MissionFSM"
-Cohesion: 0.09
+Cohesion: 0.10
 Nodes (19): Enum, HookServoGains, Gain PD visual-servo APPROACH_HOOK (holonomik: sway+surge+depth-setpoint)., main(), MissionFSM, Node, Kirim perintah manipulator: close=True -> 'close' (attach payload bila         d, PD posisi HOLONOMIK: dorong ROV ke (tx,ty) dunia via gaya horizontal         bod (+11 more)
 
 ### Community 1 - "GuiBridgeLogic"
-Cohesion: 0.06
-Nodes (33): GuiBridge, clamp(), GuiBridgeLogic, _num(), gui_bridge_logic — inti terjemahan GUI-ROV <-> ROS 2 (murni, tanpa ROS/UDP).  Re, yaw REP-103 (rad, CCW dari +x) -> heading GUI (derajat 0..360)., Susun dict telemetri utk GUI (JSON). Nilai None -> 0 agar GUI aman., Terjemahan stateless-ish GUI<->ROS. Simpan axis manual terakhir & status.      G (+25 more)
+Cohesion: 0.07
+Nodes (28): GuiBridge, clamp(), GuiBridgeLogic, _num(), gui_bridge_logic — inti terjemahan GUI-ROV <-> ROS 2 (murni, tanpa ROS/UDP).  Re, yaw REP-103 (rad, CCW dari +x) -> heading GUI (derajat 0..360)., Susun dict telemetri utk GUI (JSON). Nilai None -> 0 agar GUI aman., Terjemahan stateless-ish GUI<->ROS. Simpan axis manual terakhir & status.      G (+20 more)
 
 ### Community 2 - "GripperLogic"
 Cohesion: 0.10
@@ -94,20 +90,20 @@ Cohesion: 0.10
 Nodes (24): allocate(), build_allocation_matrix(), build_damped_pinv(), Kembalikan TAM 6xN: kolom i = [axis_i ; pos_i x axis_i]., Pseudo-inverse teredam (damped least-squares / Tikhonov).          pinv_damped =, Peta wrench body 6-DOF -> gaya per thruster (N), sudah di-clip., main(), Node (+16 more)
 
 ### Community 5 - "QRDetector"
-Cohesion: 0.24
-Nodes (5): GripperController, main(), Node, gripper_controller — node manipulator ROV (rancang ulang M5, DetachableJoint)., String
+Cohesion: 0.10
+Nodes (14): CameraInfo, PointStamped, GripperController, main(), Node, gripper_controller — node manipulator ROV (rancang ulang M5, DetachableJoint)., main(), Image (+6 more)
 
 ### Community 6 - "hook_servo"
-Cohesion: 0.19
-Nodes (16): _clamp(), hook_servo(), hook_logic — helper murni deteksi/servo hook (tanpa ROS/cv2), agar testable.  Di, PD visual servo hook -> perintah gerak (fungsi MURNI, testable).      Args:, Uji hook_servo (PD visual servo APPROACH_HOOK) — fungsi murni, tanpa rclpy.  Ver, test_centered_far_moves_forward_only(), test_convergence_reduces_error_over_iterations(), test_depth_setpoint_clamped() (+8 more)
+Cohesion: 0.14
+Nodes (21): _clamp(), hook_servo(), normalize_hook_offset(), hook_logic — helper murni deteksi/servo hook (tanpa ROS/cv2), agar testable.  Di, (center px, area px^2, ukuran frame) -> (ex, ey, size) ternormalisasi.      Konv, PD visual servo hook -> perintah gerak (fungsi MURNI, testable).      Args:, test_hook_offset_centered(), test_hook_offset_left_up() (+13 more)
 
 ### Community 7 - "test_qr_logic.py"
-Cohesion: 0.07
-Nodes (32): CameraInfo, PointStamped, main(), Image, Node, QRDetector, qr_detector — deteksi QR dari kamera → sisi kolam A/B/C/D + offset piksel (M3)., Reshape buffer Image menghormati msg.step (row stride).          sensor_msgs/Ima (+24 more)
+Cohesion: 0.12
+Nodes (23): _candidates(), offset_from_points(), parse_wall(), qr_logic — logika murni deteksi/decode QR (tanpa rclpy), agar testable headless., Hitung (ex, ey, size) ternormalisasi dari 4 sudut QR (piksel).       ex   : offs, Ekstrak huruf sisi A/B/C/D dari isi QR, atau None bila tak ada., Hasilkan (varian_gambar, skala) untuk dicoba decode, dari yang paling     murah/, Coba decode QR dari `img` lewat beberapa pra-pemrosesan.      Mengembalikan (dat (+15 more)
 
 ### Community 8 - "PROBLEM.md — Catatan Masalah & Verifikasi Tertunda (HYDROships ros2_ws)"
-Cohesion: 0.12
-Nodes (16): 2026-07-07, 2026-07-08, 2026-07-11, 2026-07-12, 2026-07-14, 2026-07-15 … 07-16, 2026-07-17, 2026-07-18 (+8 more)
+Cohesion: 0.13
+Nodes (15): 2026-07-07, 2026-07-08, 2026-07-11, 2026-07-12, 2026-07-14, 2026-07-15 … 07-16, 2026-07-17, CHANGELOG — Riwayat Kronologis HYDROships (KKI 2026) (+7 more)
 
 ### Community 9 - "hook_detector.py"
 Cohesion: 0.22
@@ -133,34 +129,22 @@ Nodes (30): Arsitektur Simulasi HYDROships (KKI 2026), Diagram aliran (Milestone
 Cohesion: 0.29
 Nodes (5): DepthPublisher, main(), Node, Odometry, depth_publisher — turunkan KEDALAMAN ROV dari odometry (Milestone 3).  Di simula
 
-### Community 15 - "File yang Harus Diperbaiki/Dibuat"
-Cohesion: 0.09
-Nodes (22): 1. **BUAT** `src/hydroships_gazebo/scripts/payload_spawner.py`, 2. **MODIFIKASI** `src/hydroships_gazebo/worlds/kki_arena.sdf`, 3. **MODIFIKASI** `src/hydroships_control/hydroships_control/mission_fsm.py`, 4. **MODIFIKASI** `src/hydroships_gazebo/launch/sim.launch.py`, 5. **MODIFIKASI** `src/hydroships_bringup/launch/hydroships_mission.launch.py`, 6. **MODIFIKASI** `docs/HOW-TO-RUN.txt`, 7. **MODIFIKASI** `docs/STATUS.md`, 8. **MODIFIKASI** `docs/CHANGELOG.md` (+14 more)
-
-### Community 16 - "File yang Harus Diperbaiki"
-Cohesion: 0.18
-Nodes (10): 1. `src/hydroships_description/urdf/hydroships.urdf.xacro` — Pindah mount ke depan, 2. `src/hydroships_control/hydroships_control/mission_fsm.py` — Konsistenkan mention gripper, 3. `docs/STATUS.md`, 4. `docs/CHANGELOG.md`, 5. `docs/HOW-TO-RUN.txt`, File yang Harus Diperbaiki, Konfirmasi Status Saat Ini, Plan: Mount Gripper Body on Front Face of ROV (+X forward) (+2 more)
-
 ### Community 17 - "sim.launch.py"
 Cohesion: 0.67
 Nodes (3): generate_launch_description(), _launch_setup(), Launch simulasi Gazebo Fortress + spawn ROV HYDROships + ros_gz_bridge.  Argumen
 
-### Community 18 - "PayloadSpawner"
-Cohesion: 0.39
-Nodes (3): main(), PayloadSpawner, Node
-
 ## Knowledge Gaps
-- **66 isolated node(s):** `ros2-ws`, `Konfirmasi Status Saat Ini`, `Pendekatan: Payload Spawner Node`, `Aliran setelah perbaikan:`, `1. **BUAT** `src/hydroships_gazebo/scripts/payload_spawner.py`` (+61 more)
+- **38 isolated node(s):** `ros2-ws`, `graphify`, `PROBLEM.md — pindah ke docs/`, `Status Milestone`, `Instalasi Dependensi` (+33 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **9 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **8 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `normalize_hook_offset()` connect `GuiBridgeLogic` to `hook_detector.py`, `hook_servo`?**
-  _High betweenness centrality (0.118) - this node is a cross-community bridge._
+- **Why does `normalize_hook_offset()` connect `hook_servo` to `hook_detector.py`?**
+  _High betweenness centrality (0.133) - this node is a cross-community bridge._
 - **Why does `GripperController` connect `QRDetector` to `GripperLogic`?**
-  _High betweenness centrality (0.082) - this node is a cross-community bridge._
+  _High betweenness centrality (0.097) - this node is a cross-community bridge._
 - **Are the 18 inferred relationships involving `GripperLogic` (e.g. with `GripperController` and `.__init__()`) actually correct?**
   _`GripperLogic` has 18 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 11 inferred relationships involving `GuiBridgeLogic` (e.g. with `GuiBridge` and `.__init__()`) actually correct?**
@@ -169,5 +153,5 @@ _Questions this graph is uniquely positioned to answer:_
   _`hook_servo()` has 12 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 9 inferred relationships involving `PID` (e.g. with `Stabilizer` and `.__init__()`) actually correct?**
   _`PID` has 9 INFERRED edges - model-reasoned connections that need verification._
-- **What connects `ros2-ws`, `Konfirmasi Status Saat Ini`, `Pendekatan: Payload Spawner Node` to the rest of the system?**
-  _66 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **What connects `ros2-ws`, `graphify`, `PROBLEM.md — pindah ke docs/` to the rest of the system?**
+  _38 weakly-connected nodes found - possible documentation gaps or missing edges._

@@ -8,6 +8,7 @@ Aliran (lihat docs/ARCHITECTURE.md):
     masuk : /hydroships/depth      (Float64, m >=0)  -> transisi state
             /hydroships/odom       (Odometry)        -> yaw (cek alignment)
             /hydroships/qr_result  (String A/B/C/D)   -> tentukan wall (M1)
+            /hydroships/payload_pose (PointStamped)   -> posisi payload spawn (APPROACH_QR)
     keluar: /hydroships/setpoint/depth   (Float64, negatif = dalam)
             /hydroships/setpoint/heading (Float64, rad)
             /hydroships/manual/cmd       (Twist, Fx/Fy gaya horizontal N)
@@ -153,6 +154,9 @@ class MissionFSM(Node):
         self.create_subscription(String, '/hydroships/qr_result', self._on_qr, 10)
         # hook_offset (visual servo APPROACH_HOOK; dari node hook_detector).
         self.create_subscription(PointStamped, '/hydroships/hook_offset', self._on_hook, 10)
+        # payload_pose (posisi spawn payload QR dari node payload_spawner; APPROACH_QR
+        # navigasi ke sini bila tersedia, jatuh ke payload_x/payload_y bila belum).
+        self.create_subscription(PointStamped, '/hydroships/payload_pose', self._on_payload_pose, 10)
 
         # State
         self.depth = None
@@ -165,6 +169,7 @@ class MissionFSM(Node):
         self.qr_time = 0.0
         self.hook_off = None      # (ex, ey, size)
         self.hook_time = 0.0
+        self.payload_pose = None  # (x, y, z) dari /hydroships/payload_pose (spawner)
         self.wall = None
         self.done_hooks = set()
         self.score = {'m1': 0, 'm2': 0, 'm3': 0, 'm4': 0, 'm5': 0}
@@ -282,6 +287,12 @@ class MissionFSM(Node):
         self.hook_off = (msg.point.x, msg.point.y, msg.point.z)
         self.hook_time = self._now()
 
+    def _on_payload_pose(self, msg):
+        pose = (msg.point.x, msg.point.y, msg.point.z)
+        if pose != self.payload_pose:
+            self.get_logger().info('Payload pose diterima: (%.2f, %.2f, %.2f)' % pose)
+        self.payload_pose = pose
+
     def _hook_fresh(self):
         """Kembalikan (ex, ey, size) bila deteksi hook masih segar, else None."""
         if self.hook_off is None:
@@ -322,7 +333,11 @@ class MissionFSM(Node):
         agar kamera bawah membaca QR. QR terbaca -> tetapkan wall -> GRAB."""
         self._set_depth(self.scan_depth)
         self._set_heading(0.0)                       # heading tetap (QR di bawah, rotasi tak perlu)
-        dist = self._goto_xy(self.payload_x, self.payload_y)
+        # Posisi payload dinamis dari payload_spawner (/hydroships/payload_pose);
+        # fallback ke parameter payload_x/payload_y bila pose belum diterima.
+        tx = self.payload_pose[0] if self.payload_pose is not None else self.payload_x
+        ty = self.payload_pose[1] if self.payload_pose is not None else self.payload_y
+        dist = self._goto_xy(tx, ty)
         # QR terbaca (dari qr_detector via kamera bawah) & segar?
         if self.qr_wall and (self._now() - self.qr_time) <= self.qr_max_age:
             self.wall = self.qr_wall; self.score['m1'] = 15

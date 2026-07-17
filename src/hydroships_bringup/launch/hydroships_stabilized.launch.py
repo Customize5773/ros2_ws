@@ -27,13 +27,18 @@ def generate_launch_description():
 
     headless = LaunchConfiguration('headless')
     world = LaunchConfiguration('world')
+    qr_letter = LaunchConfiguration('qr_letter')
+    payload_x = LaunchConfiguration('payload_x')
+    payload_y = LaunchConfiguration('payload_y')
 
     gains = os.path.join(pkg_control, 'config', 'gains.yaml')
 
     sim = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             PathJoinSubstitution([pkg_gazebo, 'launch', 'sim.launch.py'])),
-        launch_arguments={'headless': headless, 'world': world}.items(),
+        launch_arguments={'headless': headless, 'world': world,
+                          'qr_letter': qr_letter,
+                          'payload_x': payload_x, 'payload_y': payload_y}.items(),
     )
 
     allocator = Node(
@@ -56,6 +61,12 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument('headless', default_value='false'),
         DeclareLaunchArgument('world', default_value='kki_arena.sdf'),
+        DeclareLaunchArgument('qr_letter', default_value='',
+                              description='Huruf QR payload (A/B/C/D). Kosong = random.'),
+        DeclareLaunchArgument('payload_x', default_value='0.4',
+                              description='Posisi X payload (m); dipakai bila qr_letter di-set.'),
+        DeclareLaunchArgument('payload_y', default_value='0.04',
+                              description='Posisi Y payload (m); dipakai bila qr_letter di-set.'),
         sim,
         allocator,
         stabilizer,

@@ -72,6 +72,12 @@ Folder build/ install/ log/ sengaja di-gitignore; regenerasi dgn colcon build.
        ros2 launch hydroships_bringup hydroships_mission.launch.py start_state:=NAV_WALL start_wall:=B
        ros2 launch hydroships_bringup hydroships_mission.launch.py start_state:=NAV_WALL start_wall:=C
        ros2 launch hydroships_bringup hydroships_mission.launch.py start_state:=NAV_WALL start_wall:=D
+   Payload QR di-spawn otomatis RANDOM (A/B/C/D + posisi acak dalam bounds arena)
+   oleh node payload_spawner setiap launch. Pilih huruf/posisi eksplisit:
+       ros2 launch hydroships_bringup hydroships_mission.launch.py qr_letter:=B
+       ros2 launch hydroships_bringup hydroships_mission.launch.py qr_letter:=C payload_x:=0.5 payload_y:=-1.2
+   FSM membaca posisi spawn dari /hydroships/payload_pose (navigasi APPROACH_QR
+   ke payload di posisi manapun; fallback ke default 0.4/0.04 bila pose belum tiba).
 
   ── 3D. SIM + JEMBATAN GUI TIM (M7, UDP-JSON) ─────────────────────────────────
   Menyalakan: sim + allocator + gui_bridge (adapter GUI-ROV <-> ROS via UDP).
@@ -95,6 +101,10 @@ Folder build/ install/ log/ sengaja di-gitignore; regenerasi dgn colcon build.
   x:=0 y:=0 z:=-0.5   -> posisi spawn ROV (default 0 0 -0.5, sedikit di bawah permukaan).
   spawn_delay:=3.0    -> jeda (detik) sebelum spawn ROV; naikkan bila mesin lambat
                          (cegah race: service create belum siap).
+  qr_letter:=B        -> (mission/stabilized/sim) huruf QR payload A/B/C/D.
+                         KOSONG (default) = random + posisi acak dalam bounds arena.
+  payload_x:=0.5      -> posisi X payload (m); dipakai bila qr_letter di-set eksplisit.
+  payload_y:=-1.2     -> posisi Y payload (m); dipakai bila qr_letter di-set eksplisit.
 
 Contoh gabungan:
   ros2 launch hydroships_bringup hydroships_mission.launch.py headless:=true world:=kki_arena.sdf
@@ -113,6 +123,8 @@ ros2 launch hydroships_bringup hydroships_gui.launch.py \
       ros2 topic list
       ros2 topic echo /hydroships/odom          # pose & twist ROV
       ros2 topic echo /hydroships/depth          # kedalaman (m, >=0)
+      ros2 topic echo /hydroships/payload_pose   # posisi spawn payload QR (dari payload_spawner)
+      ros2 topic echo /hydroships/qr_result      # huruf QR terbaca kamera (A/B/C/D)
 
   Kendali langsung (saat mode 3B/3C berjalan):
       # target kedalaman (negatif = menyelam)
