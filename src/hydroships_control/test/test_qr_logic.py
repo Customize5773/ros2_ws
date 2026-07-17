@@ -103,3 +103,24 @@ def test_robust_returns_empty_on_blank():
     det = cv2.QRCodeDetector()
     data, pts = robust_decode(blank, det)
     assert data == ""
+
+
+def test_robust_decodes_real_sim_frame():
+    """Regresi FRAME NYATA (bukan sintetik): frame kamera bottom hasil render
+    Gazebo Fortress saat ROV hover ~25 cm di atas QR payload (fix [RESOLVED] QR
+    detection, scan_depth 0.62->0.46). Mengunci bahwa pipeline decode bekerja pada
+    karakter render sim asli — mis. bila material/emissive QR atau step-stride
+    berubah & merusak keterbacaan, test ini gagal. Frame di-simpan grayscale;
+    qr_detector mengumpankan BGR, jadi kita expand balik ke 3-channel."""
+    import os
+    fx = os.path.join(os.path.dirname(__file__), 'fixtures', 'qr_sim_bottom_A.png')
+    if not os.path.exists(fx):
+        pytest.skip('fixture frame nyata tak ada')
+    gray = cv2.imread(fx, cv2.IMREAD_GRAYSCALE)
+    assert gray is not None
+    bgr = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+    det = cv2.QRCodeDetector()
+    data, pts = robust_decode(bgr, det)
+    assert data == 'A'
+    assert pts is not None and len(pts) == 4
+    assert parse_wall(data) == 'A'

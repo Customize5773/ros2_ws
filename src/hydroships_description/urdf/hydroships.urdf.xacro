@@ -300,6 +300,16 @@
     <child link="gripper_base"/>
   </joint>
 
+  <!-- Cegah sdformat melebur gripper_base ke base_link saat URDF->SDF: DetachableJoint
+       plugin butuh link ini tetap berdiri sendiri di SDF (parent_link). preserveFixedJoint
+       menahan joint fixed jadi joint SDF nyata (kinematika kaku tetap sama). Catatan: di
+       Fortress <disableFixedJointLumping> pada link TIDAK cukup bila base_link punya
+       banyak child fixed-joint lain (imu/kamera) — link tetap ter-lump; preserveFixedJoint
+       pada joint bekerja andal. dontcollapse TIDAK dikenali. Lihat docs/CHANGELOG.md. -->
+  <gazebo reference="gripper_base_joint">
+    <preserveFixedJoint>true</preserveFixedJoint>
+  </gazebo>
+
   <!-- Jari tunggal (1 DOF revolute, sumbu y). Kosmetik: menandai buka/tutup. -->
   <link name="gripper_jaw">
     <inertial>

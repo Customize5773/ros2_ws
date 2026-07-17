@@ -29,6 +29,7 @@ def generate_launch_description():
     headless = LaunchConfiguration('headless')
     world = LaunchConfiguration('world')
     start_state = LaunchConfiguration('start_state')
+    start_wall = LaunchConfiguration('start_wall')
 
     # sim + allocator + stabilizer (M2)
     stabilized = IncludeLaunchDescription(
@@ -41,7 +42,8 @@ def generate_launch_description():
         package='hydroships_control',
         executable='mission_fsm',
         output='screen',
-        parameters=[{'use_sim_time': True, 'start_state': start_state}],
+        parameters=[{'use_sim_time': True, 'start_state': start_state,
+                      'start_wall': start_wall}],
     )
 
     return LaunchDescription([
@@ -49,6 +51,9 @@ def generate_launch_description():
         DeclareLaunchArgument('world', default_value='kki_arena.sdf'),
         DeclareLaunchArgument('start_state', default_value='DIVE',
                               description='State awal FSM (DIVE/GRAB/NAV_WALL/.../AUTO_RELEASE).'),
+        DeclareLaunchArgument('start_wall', default_value='',
+                              description='Seed manual wall A/B/C/D utk testing start_state '
+                                          'mid-FSM (NAV_WALL/HANG/SURFACE/APPROACH_HOOK/AUTO_RELEASE).'),
         stabilized,
         mission,
     ])
