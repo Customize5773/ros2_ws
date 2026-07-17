@@ -85,8 +85,8 @@
     "semantic_hash": ""
   },
   "src/hydroships_control/hydroships_control/mission_fsm.py": {
-    "mtime": 1784308677.5693643,
-    "ast_hash": "7b88e57990d4ecddb8f326131c634ae0",
+    "mtime": 1784310448.5379536,
+    "ast_hash": "9d0795834520736846e7edf284ee616b",
     "semantic_hash": ""
   },
   "src/hydroships_control/hydroships_control/pid.py": {
@@ -315,13 +315,13 @@
     "semantic_hash": ""
   },
   "docs/CHANGELOG.md": {
-    "mtime": 1784308875.954654,
-    "ast_hash": "c1b4bc6800fe8ba18809b9b8878c501d",
+    "mtime": 1784310577.716827,
+    "ast_hash": "8286ddeb01ae0d753a7560f68ec365f2",
     "semantic_hash": ""
   },
   "docs/STATUS.md": {
-    "mtime": 1784308890.2518244,
-    "ast_hash": "b81c53ed3aef5d2a70f5702a49f286e3",
+    "mtime": 1784310587.61983,
+    "ast_hash": "b0b6a6e04c1f117cedfaec19da874b58",
     "semantic_hash": ""
   },
   "docs/VERIFICATION-CHECKLIST.md": {
@@ -355,8 +355,8 @@
     "semantic_hash": ""
   },
   "src/hydroships_gazebo/scripts/payload_spawner.py": {
-    "mtime": 1784308590.9654179,
-    "ast_hash": "6c2a43bed1f3fbe19973a6dab81ac7c7",
+    "mtime": 1784310505.7158573,
+    "ast_hash": "82964cc16d22dbaea46db9412a2ee377",
     "semantic_hash": ""
   },
   ".kilo/plans/1784302420016-random-qr-payload-spawner.md": {

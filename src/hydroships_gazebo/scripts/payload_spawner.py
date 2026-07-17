@@ -15,6 +15,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSDurabilityPolicy, QoSProfile
 from geometry_msgs.msg import PointStamped
+from std_msgs.msg import Empty
 
 
 # Template SDF payload — SAMA PERSIS dgn definisi 'payload' di
@@ -96,6 +97,10 @@ class PayloadSpawner(Node):
         # mission_fsm) tetap menerima pose terakhir walau spawn sudah lewat.
         qos = QoSProfile(depth=1, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL)
         self.pub_pose = self.create_publisher(PointStamped, '/hydroships/payload_pose', qos)
+        # Sinyal "payload sudah muncul di dunia" -> gripper_controller lepas attach
+        # bawaan gz SETELAH ini (urutan benar). Latched agar tak hilang bila terbit
+        # sebelum subscriber terhubung.
+        self.pub_spawned = self.create_publisher(Empty, '/hydroships/payload/spawned', qos)
         self._spawn_delay = float(self.get_parameter('spawn_delay').value)
         self._t0 = self._now()
         self._done = False
@@ -127,8 +132,15 @@ class PayloadSpawner(Node):
             x = random.uniform(float(g('arena_x_min')), float(g('arena_x_max')))
             y = random.uniform(float(g('arena_y_min')), float(g('arena_y_max')))
 
+        # Publikasi pose SEGERA (posisi target sudah diketahui) sebelum subprocess
+        # create yg bisa lambat — FSM butuh pose utk navigasi, tak perlu tunggu model
+        # benar-benar muncul. (Republish periodik + latched di _tick sbg jaring.)
+        self._pose = (float(x), float(y), float(z))
+        self._publish_pose()
+
         sdf = PAYLOAD_SDF_TEMPLATE.format(x=x, y=y, z=z, letter=letter)
         tmp = None
+        spawned_ok = False
         try:
             with tempfile.NamedTemporaryFile(mode='w', suffix='.sdf', delete=False) as f:
                 f.write(sdf)
@@ -147,6 +159,7 @@ class PayloadSpawner(Node):
                 self.get_logger().warn('spawn gagal (FSM pakai default): %s'
                                        % result.stderr.strip())
             else:
+                spawned_ok = True
                 self.get_logger().info('Payload QR=%s spawned OK' % letter)
         except Exception as e:  # noqa: BLE001 — jangan matikan node bila spawn gagal
             self.get_logger().warn('spawn exception (FSM pakai default): %s' % e)
@@ -154,8 +167,14 @@ class PayloadSpawner(Node):
             if tmp and os.path.exists(tmp):
                 os.unlink(tmp)
 
-        # Simpan & publikasi posisi (walau spawn gagal, FSM tetap dapat target).
-        self._pose = (float(x), float(y), float(z))
+        # Beritahu gripper_controller HANYA bila model benar-benar muncul, agar
+        # detach terjadi setelah payload ada (bukan sebelum). Bila create gagal,
+        # tak ada payload -> tak ada auto-attach bawaan -> tak perlu sinyal detach.
+        if spawned_ok:
+            self.pub_spawned.publish(Empty())
+            self.get_logger().info('Sinyal /hydroships/payload/spawned diterbitkan')
+
+        # Pastikan pose ter-publish (idempoten; sudah dipublish di awal _spawn).
         self._publish_pose()
 
     def _publish_pose(self):

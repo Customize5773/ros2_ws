@@ -1,16 +1,16 @@
 # Graph Report - ros2_ws  (2026-07-18)
 
 ## Corpus Check
-- 50 files · ~97,282 words
+- 50 files · ~97,846 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 463 nodes · 690 edges · 32 communities (23 shown, 9 thin omitted)
-- Extraction: 87% EXTRACTED · 13% INFERRED · 0% AMBIGUOUS · INFERRED: 87 edges (avg confidence: 0.78)
+- 466 nodes · 698 edges · 31 communities (22 shown, 9 thin omitted)
+- Extraction: 87% EXTRACTED · 13% INFERRED · 0% AMBIGUOUS · INFERRED: 88 edges (avg confidence: 0.78)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `e9ef3a45`
+- Built from commit: `ac0f3ecc`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -24,7 +24,6 @@
 - hook_servo
 - test_qr_logic.py
 - PROBLEM.md — Catatan Masalah & Verifikasi Tertunda (HYDROships ros2_ws)
-- hook_detector.py
 - TeleopStabilized
 - TeleopKeyboard
 - estimate_mass_inertia.py
@@ -50,10 +49,10 @@
 3. `GuiBridgeLogic` - 18 edges
 4. `hook_servo()` - 15 edges
 5. `PID` - 15 edges
-6. `_fresh()` - 12 edges
-7. `QRDetector` - 11 edges
-8. `build_allocation_matrix()` - 10 edges
-9. `GripperController` - 10 edges
+6. `GripperController` - 12 edges
+7. `_fresh()` - 12 edges
+8. `QRDetector` - 11 edges
+9. `build_allocation_matrix()` - 10 edges
 10. `GuiBridge` - 10 edges
 
 ## Surprising Connections (you probably didn't know these)
@@ -71,7 +70,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (32 total, 9 thin omitted)
+## Communities (31 total, 9 thin omitted)
 
 ### Community 0 - "MissionFSM"
 Cohesion: 0.08
@@ -94,24 +93,20 @@ Cohesion: 0.10
 Nodes (24): allocate(), build_allocation_matrix(), build_damped_pinv(), Kembalikan TAM 6xN: kolom i = [axis_i ; pos_i x axis_i]., Pseudo-inverse teredam (damped least-squares / Tikhonov).          pinv_damped =, Peta wrench body 6-DOF -> gaya per thruster (N), sudah di-clip., main(), Node (+16 more)
 
 ### Community 5 - "QRDetector"
-Cohesion: 0.24
-Nodes (5): GripperController, main(), Node, gripper_controller — node manipulator ROV (rancang ulang M5, DetachableJoint)., String
+Cohesion: 0.22
+Nodes (6): Empty, GripperController, main(), Node, gripper_controller — node manipulator ROV (rancang ulang M5, DetachableJoint)., String
 
 ### Community 6 - "hook_servo"
-Cohesion: 0.14
-Nodes (21): _clamp(), hook_servo(), normalize_hook_offset(), hook_logic — helper murni deteksi/servo hook (tanpa ROS/cv2), agar testable.  Di, (center px, area px^2, ukuran frame) -> (ex, ey, size) ternormalisasi.      Konv, PD visual servo hook -> perintah gerak (fungsi MURNI, testable).      Args:, test_hook_offset_centered(), test_hook_offset_left_up() (+13 more)
+Cohesion: 0.08
+Nodes (32): PointStamped, _best_contour(), detect_hook(), HookDetector, main(), Image, Node, hook_detector — deteksi hook (pipa-U) dari kamera depan -> offset (visual servo) (+24 more)
 
 ### Community 7 - "test_qr_logic.py"
-Cohesion: 0.07
-Nodes (32): CameraInfo, PointStamped, main(), Image, Node, QRDetector, qr_detector — deteksi QR dari kamera → sisi kolam A/B/C/D + offset piksel (M3)., Reshape buffer Image menghormati msg.step (row stride).          sensor_msgs/Ima (+24 more)
+Cohesion: 0.08
+Nodes (31): CameraInfo, main(), Image, Node, QRDetector, qr_detector — deteksi QR dari kamera → sisi kolam A/B/C/D + offset piksel (M3)., Reshape buffer Image menghormati msg.step (row stride).          sensor_msgs/Ima, Jumlah channel per piksel sesuai encoding (untuk hitung row stride). (+23 more)
 
 ### Community 8 - "PROBLEM.md — Catatan Masalah & Verifikasi Tertunda (HYDROships ros2_ws)"
 Cohesion: 0.12
 Nodes (16): 2026-07-07, 2026-07-08, 2026-07-11, 2026-07-12, 2026-07-14, 2026-07-15 … 07-16, 2026-07-17, 2026-07-18 (+8 more)
-
-### Community 9 - "hook_detector.py"
-Cohesion: 0.22
-Nodes (10): _best_contour(), detect_hook(), HookDetector, main(), Image, Node, hook_detector — deteksi hook (pipa-U) dari kamera depan -> offset (visual servo), Deteksi hook -> (center, area) atau None. Jenjang: contour/CLAHE lalu Hough. (+2 more)
 
 ### Community 10 - "TeleopStabilized"
 Cohesion: 0.35
@@ -157,10 +152,8 @@ Nodes (3): main(), PayloadSpawner, Node
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `normalize_hook_offset()` connect `hook_servo` to `hook_detector.py`?**
-  _High betweenness centrality (0.121) - this node is a cross-community bridge._
 - **Why does `GripperController` connect `QRDetector` to `GripperLogic`?**
-  _High betweenness centrality (0.083) - this node is a cross-community bridge._
+  _High betweenness centrality (0.086) - this node is a cross-community bridge._
 - **Are the 18 inferred relationships involving `GripperLogic` (e.g. with `GripperController` and `.__init__()`) actually correct?**
   _`GripperLogic` has 18 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 11 inferred relationships involving `GuiBridgeLogic` (e.g. with `GuiBridge` and `.__init__()`) actually correct?**
@@ -171,3 +164,5 @@ _Questions this graph is uniquely positioned to answer:_
   _`PID` has 9 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `ros2-ws`, `Konfirmasi Status Saat Ini`, `Pendekatan: Payload Spawner Node` to the rest of the system?**
   _66 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Should `MissionFSM` be split into smaller, more focused modules?**
+  _Cohesion score 0.08270676691729323 - nodes in this community are weakly interconnected._

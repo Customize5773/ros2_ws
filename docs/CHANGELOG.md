@@ -174,6 +174,27 @@ Commit hash & tanggal dari `git log` (rentang 2026-07-07 … 2026-07-17).
 
 ## 2026-07-18
 
+- **[RESOLVED] Urutan spawn payload vs auto-detach gripper diperbaiki (payload nempel salah saat spawn).**
+  Gejala: payload spawn LEBIH LAMBAT dari startup-detach gripper (timer 1.5 s), jadi saat
+  model `payload` muncul gz-sim Fortress langsung auto-attach DetachableJoint ke ROV (perilaku
+  default load) dan tak ada detach lagi setelahnya → payload "nempel" ke gripper sejak awal,
+  melanggar alur spawn→QR→GRAB(attach). Fix: **startup-detach kini dipicu topik**
+  `/hydroships/payload/spawned` (`std_msgs/Empty`, QoS latched) yg diterbitkan `payload_spawner`
+  SETELAH `ros_gz_sim create` sukses — detach dijamin terjadi *setelah* payload ada, bukan
+  pada timer buta. `gripper_controller` timer lama (`startup_detach_delay=1.5`) diganti
+  `startup_detach_fallback=8.0` sbg jaring pengaman saja (bila spawner tak jalan); keduanya
+  idempoten (`_do_startup_detach`, guard `_did_startup_detach`). `gripper_logic.startup_detach`
+  (murni) TAK berubah → 62 test tetap lolos. Selain itu `payload_spawner` kini **publish
+  `/hydroships/payload_pose` SEGERA di awal `_spawn`** (sebelum subprocess create yg bisa lambat)
+  agar FSM tak menganggur menunggu pose; sinyal `spawned` hanya terbit bila create benar-benar
+  sukses (create gagal → tak ada payload → tak perlu detach). Launch: delay spawner
+  `spawn_delay+1.0 → +0.5` (payload muncul lebih awal; urutan attach/detach dijaga topik, bukan
+  timing). Diverifikasi smoke-test: gripper TIDAK detach sebelum sinyal `spawned` (0 detach dlm
+  2 s), detach sekali begitu sinyal tiba (latched terkirim ke subscriber). **[VERIFY]** urutan
+  end-to-end di sim: log `Payload QR=… spawned OK` → `payload/spawned diterbitkan` → gripper
+  `auto-detach startup [pemicu: payload spawn terdeteksi]`; payload TIDAK ikut gerak ROV di awal;
+  attach hanya di GRAB saat qr_offset aman.
+
 - **[RESOLVED] ROV susah/lama baca QR di misi 3C (APPROACH_QR) — 3 root cause diperbaiki.**
   Gejala: di misi autonomous penuh ROV masuk APPROACH_QR lalu seakan diam/tak sampai
   di atas payload, `qr_result` tak terbit → timeout `t_scan` (60 s) → ABORT. Penyebab &

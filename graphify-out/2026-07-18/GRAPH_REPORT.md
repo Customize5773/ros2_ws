@@ -1,16 +1,16 @@
 # Graph Report - ros2_ws  (2026-07-18)
 
 ## Corpus Check
-- 50 files · ~96,399 words
+- 50 files · ~97,282 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 457 nodes · 678 edges · 32 communities (23 shown, 9 thin omitted)
+- 463 nodes · 690 edges · 32 communities (23 shown, 9 thin omitted)
 - Extraction: 87% EXTRACTED · 13% INFERRED · 0% AMBIGUOUS · INFERRED: 87 edges (avg confidence: 0.78)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `23773b40`
+- Built from commit: `e9ef3a45`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -45,7 +45,7 @@
 - prompt-random-qr-payload.md
 
 ## God Nodes (most connected - your core abstractions)
-1. `MissionFSM` - 36 edges
+1. `MissionFSM` - 39 edges
 2. `GripperLogic` - 28 edges
 3. `GuiBridgeLogic` - 18 edges
 4. `hook_servo()` - 15 edges
@@ -74,12 +74,12 @@
 ## Communities (32 total, 9 thin omitted)
 
 ### Community 0 - "MissionFSM"
-Cohesion: 0.09
-Nodes (19): Enum, HookServoGains, Gain PD visual-servo APPROACH_HOOK (holonomik: sway+surge+depth-setpoint)., main(), MissionFSM, Node, Kirim perintah manipulator: close=True -> 'close' (attach payload bila         d, PD posisi HOLONOMIK: dorong ROV ke (tx,ty) dunia via gaya horizontal         bod (+11 more)
+Cohesion: 0.08
+Nodes (21): Enum, HookServoGains, Gain PD visual-servo APPROACH_HOOK (holonomik: sway+surge+depth-setpoint)., main(), MissionFSM, Node, Kirim perintah manipulator: close=True -> 'close' (attach payload bila         d, PD posisi HOLONOMIK: dorong ROV ke (tx,ty) dunia via gaya horizontal         bod (+13 more)
 
 ### Community 1 - "GuiBridgeLogic"
-Cohesion: 0.06
-Nodes (33): GuiBridge, clamp(), GuiBridgeLogic, _num(), gui_bridge_logic — inti terjemahan GUI-ROV <-> ROS 2 (murni, tanpa ROS/UDP).  Re, yaw REP-103 (rad, CCW dari +x) -> heading GUI (derajat 0..360)., Susun dict telemetri utk GUI (JSON). Nilai None -> 0 agar GUI aman., Terjemahan stateless-ish GUI<->ROS. Simpan axis manual terakhir & status.      G (+25 more)
+Cohesion: 0.07
+Nodes (28): GuiBridge, clamp(), GuiBridgeLogic, _num(), gui_bridge_logic — inti terjemahan GUI-ROV <-> ROS 2 (murni, tanpa ROS/UDP).  Re, yaw REP-103 (rad, CCW dari +x) -> heading GUI (derajat 0..360)., Susun dict telemetri utk GUI (JSON). Nilai None -> 0 agar GUI aman., Terjemahan stateless-ish GUI<->ROS. Simpan axis manual terakhir & status.      G (+20 more)
 
 ### Community 2 - "GripperLogic"
 Cohesion: 0.10
@@ -98,8 +98,8 @@ Cohesion: 0.24
 Nodes (5): GripperController, main(), Node, gripper_controller — node manipulator ROV (rancang ulang M5, DetachableJoint)., String
 
 ### Community 6 - "hook_servo"
-Cohesion: 0.19
-Nodes (16): _clamp(), hook_servo(), hook_logic — helper murni deteksi/servo hook (tanpa ROS/cv2), agar testable.  Di, PD visual servo hook -> perintah gerak (fungsi MURNI, testable).      Args:, Uji hook_servo (PD visual servo APPROACH_HOOK) — fungsi murni, tanpa rclpy.  Ver, test_centered_far_moves_forward_only(), test_convergence_reduces_error_over_iterations(), test_depth_setpoint_clamped() (+8 more)
+Cohesion: 0.14
+Nodes (21): _clamp(), hook_servo(), normalize_hook_offset(), hook_logic — helper murni deteksi/servo hook (tanpa ROS/cv2), agar testable.  Di, (center px, area px^2, ukuran frame) -> (ex, ey, size) ternormalisasi.      Konv, PD visual servo hook -> perintah gerak (fungsi MURNI, testable).      Args:, test_hook_offset_centered(), test_hook_offset_left_up() (+13 more)
 
 ### Community 7 - "test_qr_logic.py"
 Cohesion: 0.07
@@ -157,10 +157,10 @@ Nodes (3): main(), PayloadSpawner, Node
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `normalize_hook_offset()` connect `GuiBridgeLogic` to `hook_detector.py`, `hook_servo`?**
-  _High betweenness centrality (0.118) - this node is a cross-community bridge._
+- **Why does `normalize_hook_offset()` connect `hook_servo` to `hook_detector.py`?**
+  _High betweenness centrality (0.121) - this node is a cross-community bridge._
 - **Why does `GripperController` connect `QRDetector` to `GripperLogic`?**
-  _High betweenness centrality (0.082) - this node is a cross-community bridge._
+  _High betweenness centrality (0.083) - this node is a cross-community bridge._
 - **Are the 18 inferred relationships involving `GripperLogic` (e.g. with `GripperController` and `.__init__()`) actually correct?**
   _`GripperLogic` has 18 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 11 inferred relationships involving `GuiBridgeLogic` (e.g. with `GuiBridge` and `.__init__()`) actually correct?**

@@ -138,8 +138,11 @@ def _launch_setup(context, *args, **kwargs):
     )
 
     # Spawner payload QR random (A/B/C/D): spawn model payload lewat ros_gz_sim
-    # create + publikasi posisi ke /hydroships/payload_pose. Delay > spawn ROV agar
-    # server gz & model sudah siap. Bila qr_letter/payload_x/y kosong → random.
+    # create + publikasi posisi ke /hydroships/payload_pose + sinyal
+    # /hydroships/payload/spawned (memicu gripper detach SETELAH payload ada).
+    # Delay > spawn ROV (server gz & model ROV siap) tapi kecil agar payload muncul
+    # lebih awal (pose dipublish segera; urutan attach/detach dijaga oleh topik
+    # spawned, bukan timing). Bila qr_letter/payload_x/y kosong → random.
     spawner = Node(
         package='hydroships_gazebo',
         executable='payload_spawner',
@@ -149,7 +152,7 @@ def _launch_setup(context, *args, **kwargs):
             'qr_letter': qr_letter,
             'payload_x': float(payload_x) if payload_x else 0.4,
             'payload_y': float(payload_y) if payload_y else 0.04,
-            'spawn_delay': spawn_delay + 1.0,
+            'spawn_delay': spawn_delay + 0.5,
         }],
     )
 
