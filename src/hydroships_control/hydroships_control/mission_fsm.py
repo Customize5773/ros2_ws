@@ -98,10 +98,16 @@ class MissionFSM(Node):
         p('qr_servo_sign_y', -1.0)   # world dy = sign_y * gain * offset.y
         # NAV_WALL HOLONOMIK (mitigasi yaw lemah — lihat PROBLEM.md): ROV translasi
         # ke posisi wall di dunia TANPA memutar badan (surge+sway), heading di-hold.
-        p('wall_dist', 2.30)         # m jarak pusat->target wall (standoff; hook ~2.4 m)
-        p('hook_dist', 0.30)  # m jarak target di depan hook (lebih dekat dari wall_dist)
-        p('nav_tol', 0.15)           # m radius "tiba di wall"
+        # KEAMANAN DINDING: muka dalam dinding fisik (kki_arena) di x/y = +-2.5 m.
+        # Target NAV_WALL = wall_face - wall_standoff (BUKAN mepet dinding). Sebelumnya
+        # wall_dist=2.30 -> clearance cuma 0.20 m -> ROV overshoot & nabrak keras.
+        p('wall_face', 2.50)         # m jarak pusat -> muka DALAM dinding fisik
+        p('wall_standoff', 0.45)     # m jarak AMAN dari muka dinding (clearance ROV)
+        p('hook_dist', 0.30)  # m jarak target di depan hook (lebih dekat dari wall)
+        p('nav_tol', 0.25)           # m radius "tiba di standoff" (was 0.15; standoff cukup)
+        p('nav_settle_vel', 0.10)    # m/s ambang kecepatan utk dianggap "settle" (berhenti)
         p('nav_fmax', 22.0)          # N batas gaya navigasi holonomik
+        p('hang_hold', 6.0)          # s tahan di standoff (simulasi gantung) sebelum SURFACE
         # timeout per state (s)
         # t_scan 45->60: ROV sering spawn lebih DALAM dari scan_depth (mis. 0.73 vs 0.46)
         # -> DIVE lolos instan (depth>=scan_depth-tol) lalu APPROACH_QR harus NAIK ~0.27 m
@@ -148,7 +154,12 @@ class MissionFSM(Node):
         self.qr_servo_gain = float(g('qr_servo_gain'))
         self.qr_servo_sign_x = float(g('qr_servo_sign_x'))
         self.qr_servo_sign_y = float(g('qr_servo_sign_y'))
-        self.wall_dist = float(g('wall_dist'))
+        self.wall_face = float(g('wall_face'))
+        self.wall_standoff = float(g('wall_standoff'))
+        # Jarak pusat->target NAV_WALL (di depan dinding, aman). Tak pernah negatif.
+        self.wall_target_dist = max(0.0, self.wall_face - self.wall_standoff)
+        self.nav_settle_vel = float(g('nav_settle_vel'))
+        self.hang_hold = float(g('hang_hold'))
         self.nav_tol = float(g('nav_tol'))
         self.nav_fmax = float(g('nav_fmax'))
         self.T = {k: float(g('t_' + k)) for k in
@@ -282,9 +293,19 @@ class MissionFSM(Node):
         self._set_surge(force * (wx * c + wy * s), force * (-wx * s + wy * c))
 
     def _wall_xy(self, wall):
-        """Posisi target XY (dunia) di depan wall A/B/C/D (dari geometri arena)."""
-        d = self.wall_dist
+        """Posisi target XY (dunia) STANDOFF AMAN di depan wall A/B/C/D — di
+        wall_face - wall_standoff dari pusat (bukan mepet muka dinding)."""
+        d = self.wall_target_dist
         return {'A': (0.0, -d), 'B': (0.0, d), 'C': (d, 0.0), 'D': (-d, 0.0)}[wall]
+
+    def _wall_clearance(self):
+        """Sisa jarak (m) ROV ke MUKA dinding fisik sepanjang sumbu menuju wall.
+        Kecil/negatif = terlalu dekat/menembus. None bila odom/wall belum ada."""
+        if self.x is None or self.wall is None:
+            return None
+        ux, uy = self._wall_inward(self.wall)
+        proj = self.x * ux + self.y * uy      # proyeksi posisi ROV ke sumbu inward
+        return self.wall_face - proj
     
     def _hook_xy(self, wall):
         """Posisi target XY (dunia) di depan hook A/B/C/D (lebih dekat dari wall_dist)."""
@@ -459,36 +480,69 @@ class MissionFSM(Node):
         if e > self.T['grab']: self.get_logger().error('GRAB timeout'); self._to(St.ABORT)
 
     def _st_nav_wall(self):
-        """Navigasi HOLONOMIK ke wall (mitigasi yaw lemah): tahan heading, translasi
-        surge+sway ke posisi wall di dunia. Tak perlu memutar badan menghadap wall."""
+        """Navigasi HOLONOMIK ke STANDOFF AMAN di depan wall (mitigasi yaw lemah):
+        tahan heading, translasi surge+sway ke posisi standoff. SOFT-STOP: bila ROV
+        terlalu dekat muka dinding (clearance < wall_standoff), dorong MENJAUH agar
+        tak menabrak. Transisi ke HANG hanya saat dekat standoff DAN sudah settle."""
         if self.wall is None: self._to(St.ABORT); return
-        tx, ty = self._wall_xy(self.wall)
         self._set_depth(self.hook_depth)     # turun ke level hook sambil bergerak
         self._set_heading(0.0)               # HOLD heading (yaw lemah -> jangan slew)
+
+        # SOFT-STOP dinding: terlalu dekat -> dorong menjauh (tak mendekat lagi).
+        clr = self._wall_clearance()
+        if clr is not None and clr < self.wall_standoff:
+            ux, uy = self._wall_inward(self.wall)
+            self._move_world(-ux, -uy, self.nav_fmax * 0.6)   # menjauhi dinding
+            if int(self._elapsed() * 2) % 6 == 0:
+                self.get_logger().warn('NAV_WALL soft-stop: clearance %.2fm < %.2fm '
+                                       '-> mundur dari dinding' % (clr, self.wall_standoff))
+            if self._elapsed() > self.T['nav']:
+                self.get_logger().error('NAV_WALL timeout saat soft-stop (clr %.2fm)' % clr)
+                self._to(St.ABORT)
+            return
+
+        tx, ty = self._wall_xy(self.wall)
         dist = self._goto_xy(tx, ty, fmax=self.nav_fmax)
-        if dist < self.nav_tol:
+        speed = math.hypot(self.vx, self.vy)
+        # Transisi hanya saat dekat standoff DAN kecepatan kecil (settle) -> tak
+        # transisi mid-osilasi.
+        if dist < self.nav_tol and speed < self.nav_settle_vel:
             self._set_surge(0.0)
-            self.get_logger().info('Tiba di wall %s (dist %.2fm)' % (self.wall, dist))
+            self.get_logger().info('Tiba di standoff wall %s (dist %.2fm, v %.2fm/s) -> HANG'
+                                   % (self.wall, dist, speed))
             self._to(St.HANG)
         elif self._elapsed() > self.T['nav']:
             self.get_logger().error('NAV_WALL timeout (dist %.2fm)' % dist); self._to(St.ABORT)
 
     def _st_hang(self):
+        """Tahan di STANDOFF aman depan wall (depth+XY hold lembut) selama hang_hold
+        detik sebagai simulasi 'gantung payload', lalu SURFACE. TIDAK ada gerak
+        agresif ke dinding (placeholder lama yg menabrak sudah dihapus). SOFT-STOP
+        tetap aktif agar drift tak menyeret ROV ke dinding."""
         e = self._elapsed()
-        self._set_depth(self.hook_depth)   # naik/turun ke level hook
+        self._set_depth(self.hook_depth)   # tahan level hook
         self._set_heading(0.0)
-        ux, uy = self._wall_inward(self.wall) if self.wall else (0.0, 0.0)
-        # Manipulasi (jepit/lepas) DIHAPUS — placeholder gerakan WORLD-FRAME sampai
-        # dirancang ulang: dekati wall lalu mundur (arah dunia, tak bergantung heading).
-        if e < 5.0: self._set_surge(0.0)
-        elif e < 8.0: self._move_world(ux, uy, 15.0)      # dekati wall
-        elif e < 11.0: self._set_surge(0.0)
-        elif e < 13.0: self._move_world(-ux, -uy, 15.0)   # mundur dari wall
+        if e < 0.15:
+            self.get_logger().info('HANG: tahan di standoff wall %s (%.1fs)'
+                                   % (self.wall, self.hang_hold))
+        # HOLD posisi: dorong menjauh bila terlalu dekat dinding, else XY-hold lembut
+        # ke standoff (tak overshoot ke dinding).
+        clr = self._wall_clearance()
+        if clr is not None and clr < self.wall_standoff:
+            ux, uy = self._wall_inward(self.wall)
+            self._move_world(-ux, -uy, self.nav_fmax * 0.5)
+        elif self.wall is not None:
+            tx, ty = self._wall_xy(self.wall)
+            self._goto_xy(tx, ty, fmax=self.nav_fmax)
         else:
+            self._set_surge(0.0)
+
+        if e >= self.hang_hold:
             self._set_surge(0.0); self.score['m3'] = 15
             self.get_logger().info('Payload tergantung di wall %s (+15)' % self.wall)
             self._to(St.SURFACE)
-        if e > self.T['hang']: self.get_logger().error('HANG timeout'); self._to(St.ABORT)
+        elif e > self.T['hang']:
+            self.get_logger().error('HANG timeout'); self._to(St.ABORT)
 
     def _st_surface(self):
         self._set_depth(self.depth_surface)

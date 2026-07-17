@@ -174,6 +174,28 @@ Commit hash & tanggal dari `git log` (rentang 2026-07-07 … 2026-07-17).
 
 ## 2026-07-18
 
+- **[RESOLVED] ROV stuck di GRAB→NAV_WALL & menabrak dinding keras — safety standoff + HANG aman.**
+  Gejala: setelah APPROACH_QR→GRAB→NAV_WALL, ROV tiba di dinding lalu "idle" & misi tak
+  lanjut. Dua akar masalah di `mission_fsm.py`: (1) **`_st_hang` menabrak dinding** — fase
+  `e<8.0` memanggil `_move_world(ux,uy,15.0)` (gerak MENUJU dinding) lalu mundur; placeholder
+  "manipulasi dihapus" yg berbahaya (rusak struktur ROV). (2) **NAV_WALL tanpa wall-avoidance**
+  — target `wall_dist=2.30` sedangkan muka dalam dinding fisik di ±2.5 m (`kki_arena.sdf`),
+  clearance cuma 0.20 m → PD (`approach_kp=90`, `nav_fmax=22`) overshoot → ROV mentok, odom
+  loncat, `dist` tak pernah < `nav_tol=0.15` → osilasi/"idle". Fix: **(A)** target NAV_WALL
+  kini `wall_face(2.5) - wall_standoff(0.45) = 2.05 m` (clearance aman 0.45 m); param baru
+  `wall_face`, `wall_standoff` (ganti `wall_dist`). **SOFT-STOP**: helper `_wall_clearance()`
+  hitung sisa jarak ke muka dinding; bila < `wall_standoff` → `_move_world` MENJAUHI dinding
+  (tak pernah didorong lebih dekat), di NAV_WALL & HANG. **(B)** `_st_hang` ditulis ulang:
+  HOLD lembut di standoff (`_goto_xy` ke target standoff + soft-stop) selama `hang_hold=6 s`
+  (simulasi gantung) lalu SURFACE — TANPA gerak agresif ke dinding. **(C)** transisi
+  NAV_WALL→HANG kini butuh `dist < nav_tol(0.25)` **DAN** `|v| < nav_settle_vel(0.10)` (settle,
+  tak transisi mid-osilasi); log jelas "Tiba di standoff wall X -> HANG" & "HANG: tahan di
+  standoff wall X". Timeout NAV_WALL tetap berlaku walau soft-stop aktif. APPROACH_QR/GRAB/
+  SCAN_QR **tak diubah**. Build + 62 test lolos; smoke-test geometri: target wall C = (2.05,0),
+  clearance @x=2.2 = 0.30 m → soft-stop aktif, @x=2.0 = 0.50 m aman. **[VERIFY]** end-to-end
+  di sim: APPROACH_QR→GRAB→NAV_WALL→HANG→SURFACE…→DONE (4 hook) tanpa tabrakan; ROV berhenti
+  ~0.45 m dari dinding (cek GUI Gazebo). Tuning `wall_standoff`/gain bila perlu.
+
 - **[RESOLVED] Urutan spawn payload vs auto-detach gripper diperbaiki (payload nempel salah saat spawn).**
   Gejala: payload spawn LEBIH LAMBAT dari startup-detach gripper (timer 1.5 s), jadi saat
   model `payload` muncul gz-sim Fortress langsung auto-attach DetachableJoint ke ROV (perilaku
