@@ -242,6 +242,9 @@
             <specular>0 0 0 1</specular>
             <pbr>
               <metal>
+                <!-- Uji sisi lain: ganti qr_A.png -> qr_B/C/D.png (aset tersedia di
+                     media/, di-generate scripts/generate_qr.py). qr_detector.parse_wall
+                     membaca huruf A/B/C/D dari isi QR -> /hydroships/qr_result. -->
                 <albedo_map>model://hydroships_gazebo/media/qr_A.png</albedo_map>
                 <emissive_map>model://hydroships_gazebo/media/qr_A.png</emissive_map>
                 <metalness>0.0</metalness>

@@ -71,7 +71,12 @@ class MissionFSM(Node):
         # APPROACH payload (M1): posisikan ROV DI ATAS QR datar di dasar lalu hold
         p('payload_x', 0.4)          # m posisi payload/QR di dunia (x)
         p('payload_y', 0.0)          # m posisi payload/QR di dunia (y)
-        p('scan_depth', 0.62)        # m kedalaman scan (kamera bawah ~9cm di atas QR)
+        # [RESOLVED] QR detection: scan_depth 0.62 -> 0.46. Di 0.62 kamera bawah hanya
+        # ~9cm di atas QR (world z=-0.893) -> QR 12cm MEMENUHI/melebihi frame, finder
+        # bawah TER-CROP + gripper menutupi atas frame -> cv2.QRCodeDetector gagal
+        # (pts=None). Di 0.46 kamera ~25cm di atas QR -> QR utuh + quiet-zone di frame,
+        # terbaca 'A'..'D' (dibuktikan runtime: frame kamera bottom -> decode 'A').
+        p('scan_depth', 0.46)        # m kedalaman scan (kamera bawah ~25cm di atas QR)
         p('approach_kp', 90.0)       # N/m gain posisi XY -> gaya horizontal
         p('approach_kd', 70.0)       # N/(m/s) redaman kecepatan (cegah overshoot)
         p('approach_fmax', 16.0)     # N batas gaya approach
@@ -83,7 +88,11 @@ class MissionFSM(Node):
         p('nav_tol', 0.15)           # m radius "tiba di wall"
         p('nav_fmax', 22.0)          # N batas gaya navigasi holonomik
         # timeout per state (s)
-        p('t_dive', 20.0); p('t_scan', 45.0); p('t_grab', 10.0); p('t_nav', 30.0)
+        # t_scan 45->60: ROV sering spawn lebih DALAM dari scan_depth (mis. 0.73 vs 0.46)
+        # -> DIVE lolos instan (depth>=scan_depth-tol) lalu APPROACH_QR harus NAIK ~0.27 m
+        # sambil memusatkan; naik pelan memakan ~40 s (runtime), 45 s terlalu mepet. Beri
+        # margin agar QR sempat terbaca sebelum timeout. Lihat docs/CHANGELOG.md [RESOLVED].
+        p('t_dive', 20.0); p('t_scan', 60.0); p('t_grab', 10.0); p('t_nav', 30.0)
         p('t_hang', 15.0); p('t_surface', 20.0); p('t_dock', 12.0)
         p('t_approach', 20.0); p('t_release', 30.0)
         # APPROACH_HOOK visual servo PD (deteksi hook dari hook_detector; port GUI-ROV).

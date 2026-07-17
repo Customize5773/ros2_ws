@@ -25,8 +25,8 @@
     "semantic_hash": ""
   },
   "src/hydroships_bringup/launch/hydroships_mission.launch.py": {
-    "mtime": 1783394592.0975132,
-    "ast_hash": "4a30cac8f9aad1a7f0a63b6a99afacdc",
+    "mtime": 1784245612.7301455,
+    "ast_hash": "22330f993ef2941a9e517bbf354cdc71",
     "semantic_hash": ""
   },
   "src/hydroships_bringup/launch/hydroships_sim.launch.py": {
@@ -315,8 +315,8 @@
     "semantic_hash": ""
   },
   "docs/CHANGELOG.md": {
-    "mtime": 1784245287.4339995,
-    "ast_hash": "ecaa2aaf157d7feff6511a454663b9c3",
+    "mtime": 1784245630.5861745,
+    "ast_hash": "d83384e1fac16475ba761825b4efb0a9",
     "semantic_hash": ""
   },
   "docs/STATUS.md": {

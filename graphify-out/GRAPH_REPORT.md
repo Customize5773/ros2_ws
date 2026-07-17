@@ -1,16 +1,16 @@
 # Graph Report - ros2_ws  (2026-07-17)
 
 ## Corpus Check
-- 46 files · ~89,243 words
+- 46 files · ~92,158 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 409 nodes · 627 edges · 28 communities (20 shown, 8 thin omitted)
-- Extraction: 87% EXTRACTED · 13% INFERRED · 0% AMBIGUOUS · INFERRED: 84 edges (avg confidence: 0.78)
+- 411 nodes · 631 edges · 28 communities (20 shown, 8 thin omitted)
+- Extraction: 86% EXTRACTED · 14% INFERRED · 0% AMBIGUOUS · INFERRED: 86 edges (avg confidence: 0.78)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `74573726`
+- Built from commit: `5928ffe8`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -98,8 +98,8 @@ Cohesion: 0.14
 Nodes (21): _clamp(), hook_servo(), normalize_hook_offset(), hook_logic — helper murni deteksi/servo hook (tanpa ROS/cv2), agar testable.  Di, (center px, area px^2, ukuran frame) -> (ex, ey, size) ternormalisasi.      Konv, PD visual servo hook -> perintah gerak (fungsi MURNI, testable).      Args:, test_hook_offset_centered(), test_hook_offset_left_up() (+13 more)
 
 ### Community 7 - "test_qr_logic.py"
-Cohesion: 0.13
-Nodes (21): _candidates(), offset_from_points(), parse_wall(), qr_logic — logika murni deteksi/decode QR (tanpa rclpy), agar testable headless., Hitung (ex, ey, size) ternormalisasi dari 4 sudut QR (piksel).       ex   : offs, Ekstrak huruf sisi A/B/C/D dari isi QR, atau None bila tak ada., Hasilkan (varian_gambar, skala) untuk dicoba decode, dari yang paling     murah/, Coba decode QR dari `img` lewat beberapa pra-pemrosesan.      Mengembalikan (dat (+13 more)
+Cohesion: 0.12
+Nodes (23): _candidates(), offset_from_points(), parse_wall(), qr_logic — logika murni deteksi/decode QR (tanpa rclpy), agar testable headless., Hitung (ex, ey, size) ternormalisasi dari 4 sudut QR (piksel).       ex   : offs, Ekstrak huruf sisi A/B/C/D dari isi QR, atau None bila tak ada., Hasilkan (varian_gambar, skala) untuk dicoba decode, dari yang paling     murah/, Coba decode QR dari `img` lewat beberapa pra-pemrosesan.      Mengembalikan (dat (+15 more)
 
 ### Community 8 - "PROBLEM.md — Catatan Masalah & Verifikasi Tertunda (HYDROships ros2_ws)"
 Cohesion: 0.13
@@ -142,11 +142,9 @@ Nodes (3): generate_launch_description(), _launch_setup(), Launch simulasi Gazeb
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `normalize_hook_offset()` connect `hook_servo` to `hook_detector.py`?**
-  _High betweenness centrality (0.132) - this node is a cross-community bridge._
+  _High betweenness centrality (0.133) - this node is a cross-community bridge._
 - **Why does `GripperController` connect `QRDetector` to `GripperLogic`?**
   _High betweenness centrality (0.097) - this node is a cross-community bridge._
-- **Why does `GripperLogic` connect `GripperLogic` to `QRDetector`?**
-  _High betweenness centrality (0.082) - this node is a cross-community bridge._
 - **Are the 18 inferred relationships involving `GripperLogic` (e.g. with `GripperController` and `.__init__()`) actually correct?**
   _`GripperLogic` has 18 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 11 inferred relationships involving `GuiBridgeLogic` (e.g. with `GuiBridge` and `.__init__()`) actually correct?**
@@ -155,3 +153,5 @@ _Questions this graph is uniquely positioned to answer:_
   _`hook_servo()` has 12 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 9 inferred relationships involving `PID` (e.g. with `Stabilizer` and `.__init__()`) actually correct?**
   _`PID` has 9 INFERRED edges - model-reasoned connections that need verification._
+- **What connects `ros2-ws`, `graphify`, `PROBLEM.md — pindah ke docs/` to the rest of the system?**
+  _38 weakly-connected nodes found - possible documentation gaps or missing edges._

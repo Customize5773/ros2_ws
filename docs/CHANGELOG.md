@@ -133,6 +133,28 @@ Commit hash & tanggal dari `git log` (rentang 2026-07-07 … 2026-07-17).
   dites langsung dgn `start_wall` yg sama. Catatan: `hydroships_mission.launch.py`
   juga di-update untuk mendeklarasikan & meneruskan arg `start_wall` ke node —
   tanpa ini arg CLI diabaikan diam-diam & node tetap pakai default `''` (ABORT).
+- **[RESOLVED] QR detection akhirnya TERBUKTI runtime — root cause = FRAMING, bukan
+  render/decode.** Diverifikasi di mesin dgn ROS 2 Humble + Gazebo Fortress + GPU/EGL
+  (sebelumnya selalu [VERIFY], mesin dev lama tak punya sim). Diagnosis berurutan:
+  (1) image MENGALIR (`FRAME PERTAMA` bottom & front, `rgb8` 640x480 `step=1920` = tanpa
+  padding) → render/bridge OK. (2) Simpan frame mentah kamera bottom → QR ter-render
+  TAJAM & kontras tinggi (std ~88, range 0–255) → material/emissive/PBR OK, decode-logic
+  OK. (3) TAPI QR ter-CROP di tepi bawah frame (finder-pattern bawah keluar frame) +
+  gripper ROV menutupi ~1/3 atas frame → `cv2.QRCodeDetector` gagal (`pts=None`). Sebab:
+  di `scan_depth=0.62` kamera bawah cuma ~9 cm di atas QR (world z=-0.893) → QR 12 cm
+  memenuhi/melebihi frame. **Bukan** orientasi (dihitung: normal plane QR = +Z dunia,
+  searah pandang `camera_bottom_link` — sudah benar), **bukan** kontras/ukuran, **bukan**
+  quiet-zone. Fix: `scan_depth 0.62 → 0.46` (`mission_fsm.py`) → kamera ~25 cm di atas QR
+  → QR utuh + quiet-zone di frame. Dibuktikan: frame nyata decode `'A'` (raw & robust),
+  DAN misi penuh headless: `qr_detector: QR terbaca "A" -> sisi A` → `mission_fsm:
+  QR -> wall A (+15) [dist 0.01m]` → `APPROACH_QR -> GRAB -> NAV_WALL`. Tambahan:
+  `t_scan 45→60` (ROV spawn lebih dalam dari scan_depth → APPROACH_QR harus NAIK ~0.27 m
+  dulu, makan ~40 s; 45 s terlalu mepet). Centering kamera (offset +0.02 m) TIDAK perlu —
+  standoff lebih tinggi memberi margin cukup (diuji uncentered tetap decode `'A'`).
+  Aset: `qr_B/C/D.png` di-generate (`generate_qr.py`, isi = huruf tunggal spy QR versi
+  rendah/modul besar; menyamakan konvensi qr_A.png ter-commit; parse_wall tetap terima
+  string panjang). Regresi frame-nyata ditambah ke `test_qr_logic.py`
+  (`test_robust_decodes_real_sim_frame`, fixture `qr_sim_bottom_A.png`).
 
 ---
 

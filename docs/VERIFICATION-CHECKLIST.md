@@ -13,15 +13,18 @@ Format: `[ ]` deskripsi — cara verifikasi — file/commit terkait.
 
 ## Prioritas 1 — Persepsi dasar (banyak state FSM bergantung)
 
-- [ ] **`camera_info` mengalir & masuk akal** — `ros2 topic echo /hydroships/camera_front/camera_info --once`
-  dan `.../camera_bottom/camera_info` saat sim jalan; cek `k`/`d`/`width`/`height` terisi
-  (bukan nol) & nama topik gz cocok (`gz topic -l`). — `bridge.yaml`, `qr_detector.py`, commit `b8b0623`/`a143306`.
-- [ ] **Render kamera headless jalan di GPU/EGL** — `ros2 topic hz /hydroships/camera_bottom/image_raw`
-  (harap ~20 Hz, bukan 0); pada mesin/CI tanpa GPU sensor kamera bisa gagal render. — `gz-sim-sensors-system` (ogre2).
-- [ ] **QR terbaca otomatis di render sim** (BUKAN inject manual) — jalankan misi ke
-  `APPROACH_QR`/`SCAN_QR`, amati `ros2 topic echo /hydroships/qr_result` berisi A/B/C/D;
-  perhatikan log diagnosis `qr_detector` ("FRAME PERTAMA" & "DECODE GAGAL" throttled yang
-  membedakan pts=None vs decode kosong). Bila gagal: naikkan ukuran QR sim / debug pencahayaan. — `qr_detector.py`, `qr_logic.robust_decode`, commit `fa4dc69`/`a143306`/`e84b619`.
+- [x] **`camera_info` mengalir & masuk akal** — TERBUKTI: `qr_detector` menerima
+  `camera_bottom/front/camera_info` (`fx=fy=381.4 cx=320 cy=240 640x480`), bridge nyambung. — `bridge.yaml`, `qr_detector.py`, commit `b8b0623`/`a143306`.
+- [x] **Render kamera headless jalan di GPU/EGL** — TERBUKTI: `camera_bottom/front/image_raw`
+  mengalir (`rgb8` 640x480, `step=1920` = tanpa padding), frame ter-render tajam. — `gz-sim-sensors-system` (ogre2).
+- [x] **QR terbaca otomatis di render sim** (BUKAN inject manual) — TERBUKTI runtime (Fortress+GPU):
+  misi penuh `qr_detector: QR terbaca "A" -> sisi A [camera_bottom]` → `mission_fsm: QR -> wall A (+15)`
+  → lanjut `GRAB`. Root cause bug lama = FRAMING (kamera ~9 cm di atas QR → finder bawah ter-crop +
+  gripper menutupi atas frame), diperbaiki `scan_depth 0.62→0.46` (kamera ~25 cm). BUKAN kontras/
+  ukuran/orientasi. — `mission_fsm.py`, `qr_detector.py`, `qr_logic.robust_decode`, lihat [CHANGELOG](CHANGELOG.md).
+- [ ] **QR sisi B/C/D terbaca** (VERIFY) — aset `qr_B/C/D.png` sudah ada; ganti `<albedo_map>/<emissive_map>`
+  di `kki_arena.sdf` (payload visual `qr`) ke huruf lain lalu ulangi misi; `parse_wall` sudah teruji
+  A/B/C/D di `test_qr_logic.py`. — `generate_qr.py`, `kki_arena.sdf`.
 - [ ] **`qr_offset` valid** — `ros2 topic echo /hydroships/qr_offset` saat ROV di atas
   payload; offset piksel ternormalisasi + ukuran-tampak masuk akal (dipakai gate attach gripper). — `qr_detector.py`.
 

@@ -85,8 +85,8 @@
     "semantic_hash": ""
   },
   "src/hydroships_control/hydroships_control/mission_fsm.py": {
-    "mtime": 1784245274.020013,
-    "ast_hash": "29d5496da2a89856e3f710271f8d04dd",
+    "mtime": 1784247780.7790828,
+    "ast_hash": "6dcc6af1c5b9559c6a99149f3317a535",
     "semantic_hash": ""
   },
   "src/hydroships_control/hydroships_control/pid.py": {
@@ -160,8 +160,8 @@
     "semantic_hash": ""
   },
   "src/hydroships_control/test/test_qr_logic.py": {
-    "mtime": 1784218698.583873,
-    "ast_hash": "3acd51b51db9bd0267f0e1329efa08f3",
+    "mtime": 1784248070.9255342,
+    "ast_hash": "a61f8371caf4752d19a94e41cdcddfaf",
     "semantic_hash": ""
   },
   "src/hydroships_description/scripts/estimate_mass_inertia.py": {
@@ -175,8 +175,8 @@
     "semantic_hash": ""
   },
   "src/hydroships_gazebo/scripts/generate_qr.py": {
-    "mtime": 1783703919.5612051,
-    "ast_hash": "bb364d8e7b90cfe53ff74a038242996a",
+    "mtime": 1784247574.1847203,
+    "ast_hash": "49731eac49859254ff77784181eafe46",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
@@ -315,23 +315,43 @@
     "semantic_hash": ""
   },
   "docs/CHANGELOG.md": {
-    "mtime": 1784245630.5861745,
-    "ast_hash": "d83384e1fac16475ba761825b4efb0a9",
+    "mtime": 1784248122.929309,
+    "ast_hash": "e79e243caa794c5fd2a9fbf10dfc0667",
     "semantic_hash": ""
   },
   "docs/STATUS.md": {
-    "mtime": 1784225690.060123,
-    "ast_hash": "457f8c5716a7e3d67d3150bbf7313bbe",
+    "mtime": 1784248137.9365315,
+    "ast_hash": "8de4761b1c03ff2d3ec93682286cda22",
     "semantic_hash": ""
   },
   "docs/VERIFICATION-CHECKLIST.md": {
-    "mtime": 1784226018.2725122,
-    "ast_hash": "bb0487d55d867c27c80dba6fbf2e2b16",
+    "mtime": 1784248169.7950025,
+    "ast_hash": "cfae0d1bfaf52d99140727918779ba90",
     "semantic_hash": ""
   },
   "docs/HYDRO-ROV-Hull+ThrusterLayout.png": {
     "mtime": 1784241317.8278778,
     "ast_hash": "1512275b60b2d9fd1e08c03a98af4763",
+    "semantic_hash": ""
+  },
+  "src/hydroships_control/test/fixtures/qr_sim_bottom_A.png": {
+    "mtime": 1784248057.4463325,
+    "ast_hash": "41390f87f9e29640d62c629fab9fd068",
+    "semantic_hash": ""
+  },
+  "src/hydroships_gazebo/media/qr_B.png": {
+    "mtime": 1784247584.8608994,
+    "ast_hash": "eb60b5a88bce77a011fa278dbec07914",
+    "semantic_hash": ""
+  },
+  "src/hydroships_gazebo/media/qr_C.png": {
+    "mtime": 1784247584.8658996,
+    "ast_hash": "32709e1da2c6d4546ca68e1fbdd57aa3",
+    "semantic_hash": ""
+  },
+  "src/hydroships_gazebo/media/qr_D.png": {
+    "mtime": 1784247584.8708994,
+    "ast_hash": "44d3a81caa404a917d1b6e8d7570f07a",
     "semantic_hash": ""
   }
 }
