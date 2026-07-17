@@ -53,9 +53,9 @@ Folder build/ install/ log/ sengaja di-gitignore; regenerasi dgn colcon build.
   Menyalakan: Gazebo + spawn ROV + bridge + depth_publisher + qr_detector.
        ros2 launch hydroships_gazebo sim.launch.py world:=kki_arena.sdf
   (default world sim.launch.py = pool_empty.sdf; pakai kki_arena.sdf utk arena lomba.)
-  Setelah spawn, verifikasi visual: body gripper (kotak kuning 0.08×0.08×0.10 m)
-  harus terlihat menjorok ke bawah dari perut depan ROV. Jari gripper juga terlihat
-  sebagai persegi panjang kuning di bawah base.
+  Setelah spawn, verifikasi visual: body gripper (kotak kuning 0.10×0.10×0.06 m)
+  harus terlihat di muka depan ROV (x≈0.18 m). Jari gripper menjorok ke depan
+  (+X) sebagai persegi panjang kuning 0.12 m.
 
   ── 3B. SIM + STABILISASI + KENDALI MANUAL (teleop) (SIMULASI AIR KOLAM TIDAK ADA)───────────────────────────
   Menyalakan: sim + thruster_allocator + stabilizer (depth-hold & heading-hold).
@@ -151,8 +151,8 @@ ros2 launch hydroships_bringup hydroships_gui.launch.py \
      ke wall A tanpa harus memutar badan (navigasi holonomik).
 
   e) GRIPPER BODY (mode 3A/3C): verifikasi body gripper terlihat di Gazebo
-     (kotak kuning 0.08×0.08×0.10 m menjorok ke bawah dari perut depan ROV).
-     Jari gripper juga terlihat sebagai persegi panjang kuning.
+     di muka depan ROV (kotak kuning 0.10×0.10×0.06 m di x≈0.18 m).
+     Jari gripper menjorok ke depan (+X) sebagai persegi panjang kuning 0.12 m.
 
   f) GRIPPER MECHANISME (mode 3C): selama misi, di state GRAB periksa:
        ros2 topic echo /hydroships/gripper/attach
