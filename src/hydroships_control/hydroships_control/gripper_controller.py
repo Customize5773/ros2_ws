@@ -19,6 +19,7 @@ Kontrak topic (lihat docs/ARCHITECTURE.md — tak mengubah interface lama yg dip
 
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import QoSDurabilityPolicy, QoSProfile
 from std_msgs.msg import String, Float64, Empty
 from geometry_msgs.msg import PointStamped
 
@@ -34,9 +35,13 @@ class GripperController(Node):
         p('offset_timeout', 1.5)    # umur maks qr_offset (s)
         p('jaw_open', 0.6)          # sudut jari terbuka (rad)
         p('jaw_close', 0.0)         # sudut jari menutup (rad)
-        # Delay auto-detach startup: beri waktu model ROV & payload ter-spawn di
-        # dunia gz sebelum memaksa lepas attach bawaan Fortress (lihat _startup_detach).
-        p('startup_detach_delay', 1.5)   # s
+        # Auto-detach startup kini DIPICU TOPIK /hydroships/payload/spawned (dari
+        # payload_spawner) — detach terjadi SETELAH payload muncul di dunia, bukan
+        # timer buta. startup_detach_fallback = jaring pengaman bila spawner tak ada
+        # / topik hilang: detach paksa setelah delay ini (dibuat cukup PANJANG agar
+        # tak mendahului spawn payload; sebelumnya 1.5s memicu detach sebelum payload
+        # ada -> Fortress lalu auto-attach payload saat load -> payload nempel salah).
+        p('startup_detach_fallback', 8.0)   # s (was startup_detach_delay=1.5)
         g = lambda n: self.get_parameter(n).value
 
         self.logic = GripperLogic(
@@ -55,13 +60,19 @@ class GripperController(Node):
         self._timer = self.create_timer(0.5, self._apply_jaw)
 
         # AUTO-DETACH STARTUP: gz-sim Fortress selalu attach DetachableJoint saat
-        # load (payload nge-lock ke ROV sejak awal). Timer satu-kali menerbitkan
-        # detach setelah delay singkat (model sudah ter-spawn), sebelum command apa
-        # pun dari FSM. Lihat gripper_logic.startup_detach & PROBLEM.md.
+        # model 'payload' LOAD (payload nge-lock ke ROV begitu spawn). Detach harus
+        # terjadi SETELAH payload ada — dipicu topik /hydroships/payload/spawned yg
+        # diterbitkan payload_spawner sesudah `ros_gz_sim create` sukses. QoS latched
+        # (transient_local) agar sinyal tetap tertangkap walau terbit sebelum sub ini
+        # terhubung. Timer fallback (delay panjang) hanya jaring pengaman bila spawner
+        # tak jalan. Lihat gripper_logic.startup_detach & PROBLEM.md.
         self._did_startup_detach = False
+        latched = QoSProfile(depth=1, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL)
+        self.create_subscription(
+            Empty, '/hydroships/payload/spawned', self._on_payload_spawned, latched)
         self._startup_timer = self.create_timer(
-            float(g('startup_detach_delay')), self._startup_detach)
-        self.get_logger().info('gripper_controller siap (DetachableJoint; perintah open/close)')
+            float(g('startup_detach_fallback')), self._startup_detach_fallback)
+        self.get_logger().info('gripper_controller siap (DetachableJoint; detach saat payload spawn)')
 
     def _now(self):
         return self.get_clock().now().nanoseconds * 1e-9
@@ -77,16 +88,31 @@ class GripperController(Node):
         m = Float64(); m.data = float(self.logic.jaw_target)
         self.pub_jaw.publish(m)
 
-    def _startup_detach(self):
-        # Satu-kali: batalkan timer & paksa lepas kondisi attached bawaan gz.
+    def _on_payload_spawned(self, _msg: Empty):
+        # Payload sudah muncul di dunia (dari payload_spawner) -> lepas attach bawaan
+        # gz sekarang, dgn urutan benar (payload ada dulu, baru detach).
+        self._do_startup_detach('payload spawn terdeteksi')
+
+    def _startup_detach_fallback(self):
+        # Jaring pengaman: bila topik spawned tak pernah tiba (spawner tak jalan),
+        # tetap lepas attach bawaan agar payload tak nempel salah.
         self._startup_timer.cancel()
+        self._do_startup_detach('fallback timer (topik spawned tak tiba)')
+
+    def _do_startup_detach(self, trigger):
+        # Idempoten: hanya sekali. Batalkan timer fallback bila masih aktif.
         if self._did_startup_detach:
             return
         self._did_startup_detach = True
+        try:
+            self._startup_timer.cancel()
+        except Exception:
+            pass
         action = self.logic.startup_detach()
         self._apply_jaw()
         self.pub_detach.publish(Empty())
-        self.get_logger().info('gripper %s: %s' % (action['state'], action['reason']))
+        self.get_logger().info('gripper %s: %s [pemicu: %s]'
+                               % (action['state'], action['reason'], trigger))
 
     def _on_cmd(self, msg: String):
         action = self.logic.on_command(msg.data, self._now())
