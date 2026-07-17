@@ -30,15 +30,19 @@ def generate_launch_description():
     qr_letter = LaunchConfiguration('qr_letter')
     payload_x = LaunchConfiguration('payload_x')
     payload_y = LaunchConfiguration('payload_y')
+    # Diteruskan apa adanya ke sim.launch.py (spawn ROV acak dekat dinding / manual).
+    rov_args = ('rov_random_spawn', 'rov_x', 'rov_y', 'rov_z',
+                'rov_wall_margin', 'rov_arena_half')
 
     gains = os.path.join(pkg_control, 'config', 'gains.yaml')
 
+    sim_args = {'headless': headless, 'world': world, 'qr_letter': qr_letter,
+                'payload_x': payload_x, 'payload_y': payload_y}
+    sim_args.update({a: LaunchConfiguration(a) for a in rov_args})
     sim = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             PathJoinSubstitution([pkg_gazebo, 'launch', 'sim.launch.py'])),
-        launch_arguments={'headless': headless, 'world': world,
-                          'qr_letter': qr_letter,
-                          'payload_x': payload_x, 'payload_y': payload_y}.items(),
+        launch_arguments=sim_args.items(),
     )
 
     allocator = Node(
@@ -67,6 +71,13 @@ def generate_launch_description():
                               description='Posisi X payload (m); dipakai bila qr_letter di-set.'),
         DeclareLaunchArgument('payload_y', default_value='0.04',
                               description='Posisi Y payload (m); dipakai bila qr_letter di-set.'),
+        DeclareLaunchArgument('rov_random_spawn', default_value='true',
+                              description='true = spawn ROV acak dekat dinding kolam (kontes).'),
+        DeclareLaunchArgument('rov_x', default_value='0.0'),
+        DeclareLaunchArgument('rov_y', default_value='0.0'),
+        DeclareLaunchArgument('rov_z', default_value='-0.5'),
+        DeclareLaunchArgument('rov_wall_margin', default_value='0.5'),
+        DeclareLaunchArgument('rov_arena_half', default_value='2.55'),
         sim,
         allocator,
         stabilizer,

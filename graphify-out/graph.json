@@ -1223,8 +1223,8 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "src_hydroships_control_hydroships_control_hook_logic_normalize_hook_offset",
-      "community": 6,
-      "community_name": "hook_servo",
+      "community": 1,
+      "community_name": "GuiBridgeLogic",
       "norm_label": "normalize_hook_offset()"
     },
     {
@@ -1234,8 +1234,8 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "src_hydroships_control_hydroships_control_hook_logic_hookservogains",
-      "community": 0,
-      "community_name": "MissionFSM",
+      "community": 6,
+      "community_name": "hook_servo",
       "norm_label": "hookservogains"
     },
     {
@@ -1267,8 +1267,8 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "src_hydroships_control_hydroships_control_hook_logic_rationale_15",
-      "community": 6,
-      "community_name": "hook_servo",
+      "community": 1,
+      "community_name": "GuiBridgeLogic",
       "norm_label": "(center px, area px^2, ukuran frame) -> (ex, ey, size) ternormalisasi.      konv"
     },
     {
@@ -1278,8 +1278,8 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "src_hydroships_control_hydroships_control_hook_logic_rationale_31",
-      "community": 0,
-      "community_name": "MissionFSM",
+      "community": 6,
+      "community_name": "hook_servo",
       "norm_label": "gain pd visual-servo approach_hook (holonomik: sway+surge+depth-setpoint)."
     },
     {
@@ -1300,8 +1300,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_hydroships_control_hydroships_control_mission_fsm",
-      "community": 0,
-      "community_name": "MissionFSM",
+      "community": 6,
+      "community_name": "hook_servo",
       "norm_label": "mission_fsm.py"
     },
     {
@@ -1311,8 +1311,8 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "src_hydroships_control_hydroships_control_mission_fsm_yaw_from_quaternion",
-      "community": 0,
-      "community_name": "MissionFSM",
+      "community": 6,
+      "community_name": "hook_servo",
       "norm_label": "yaw_from_quaternion()"
     },
     {
@@ -1322,8 +1322,8 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "src_hydroships_control_hydroships_control_mission_fsm_wrap_to_pi",
-      "community": 0,
-      "community_name": "MissionFSM",
+      "community": 6,
+      "community_name": "hook_servo",
       "norm_label": "wrap_to_pi()"
     },
     {
@@ -1333,8 +1333,8 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "src_hydroships_control_hydroships_control_mission_fsm_st",
-      "community": 0,
-      "community_name": "MissionFSM",
+      "community": 6,
+      "community_name": "hook_servo",
       "norm_label": "st"
     },
     {
@@ -1344,8 +1344,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "enum",
-      "community": 0,
-      "community_name": "MissionFSM",
+      "community": 6,
+      "community_name": "hook_servo",
       "norm_label": "enum"
     },
     {
@@ -1553,8 +1553,8 @@
       "source_location": "L326",
       "_origin": "ast",
       "id": "src_hydroships_control_hydroships_control_mission_fsm_missionfsm_on_odom",
-      "community": 0,
-      "community_name": "MissionFSM",
+      "community": 6,
+      "community_name": "hook_servo",
       "norm_label": "._on_odom()"
     },
     {
@@ -1773,8 +1773,8 @@
       "source_location": "L633",
       "_origin": "ast",
       "id": "src_hydroships_control_hydroships_control_mission_fsm_main",
-      "community": 0,
-      "community_name": "MissionFSM",
+      "community": 6,
+      "community_name": "hook_servo",
       "norm_label": "main()"
     },
     {
@@ -3401,8 +3401,8 @@
       "source_location": "L93",
       "_origin": "ast",
       "id": "src_hydroships_control_test_test_gui_bridge_test_hook_offset_centered",
-      "community": 6,
-      "community_name": "hook_servo",
+      "community": 1,
+      "community_name": "GuiBridgeLogic",
       "norm_label": "test_hook_offset_centered()"
     },
     {
@@ -3412,8 +3412,8 @@
       "source_location": "L99",
       "_origin": "ast",
       "id": "src_hydroships_control_test_test_gui_bridge_test_hook_offset_right_and_down",
-      "community": 6,
-      "community_name": "hook_servo",
+      "community": 1,
+      "community_name": "GuiBridgeLogic",
       "norm_label": "test_hook_offset_right_and_down()"
     },
     {
@@ -3423,8 +3423,8 @@
       "source_location": "L104",
       "_origin": "ast",
       "id": "src_hydroships_control_test_test_gui_bridge_test_hook_offset_left_up",
-      "community": 6,
-      "community_name": "hook_servo",
+      "community": 1,
+      "community_name": "GuiBridgeLogic",
       "norm_label": "test_hook_offset_left_up()"
     },
     {
@@ -3978,10 +3978,32 @@
       "norm_label": "sim.launch.py"
     },
     {
+      "label": "_f()",
+      "file_type": "code",
+      "source_file": "src/hydroships_gazebo/launch/sim.launch.py",
+      "source_location": "L32",
+      "_origin": "ast",
+      "id": "src_hydroships_gazebo_launch_sim_launch_f",
+      "community": 17,
+      "community_name": "sim.launch.py",
+      "norm_label": "_f()"
+    },
+    {
+      "label": "_rov_spawn_xyz()",
+      "file_type": "code",
+      "source_file": "src/hydroships_gazebo/launch/sim.launch.py",
+      "source_location": "L41",
+      "_origin": "ast",
+      "id": "src_hydroships_gazebo_launch_sim_launch_rov_spawn_xyz",
+      "community": 17,
+      "community_name": "sim.launch.py",
+      "norm_label": "_rov_spawn_xyz()"
+    },
+    {
       "label": "_launch_setup()",
       "file_type": "code",
       "source_file": "src/hydroships_gazebo/launch/sim.launch.py",
-      "source_location": "L27",
+      "source_location": "L66",
       "_origin": "ast",
       "id": "src_hydroships_gazebo_launch_sim_launch_launch_setup",
       "community": 17,
@@ -3992,7 +4014,7 @@
       "label": "generate_launch_description()",
       "file_type": "code",
       "source_file": "src/hydroships_gazebo/launch/sim.launch.py",
-      "source_location": "L162",
+      "source_location": "L203",
       "_origin": "ast",
       "id": "src_hydroships_gazebo_launch_sim_launch_generate_launch_description",
       "community": 17,
@@ -4009,6 +4031,28 @@
       "community": 17,
       "community_name": "sim.launch.py",
       "norm_label": "launch simulasi gazebo fortress + spawn rov hydroships + ros_gz_bridge.  argumen"
+    },
+    {
+      "label": "Ambil LaunchConfiguration sbg float; fallback ke default bila kosong/invalid.",
+      "file_type": "rationale",
+      "source_file": "src/hydroships_gazebo/launch/sim.launch.py",
+      "source_location": "L33",
+      "_origin": "ast",
+      "id": "src_hydroships_gazebo_launch_sim_launch_rationale_33",
+      "community": 17,
+      "community_name": "sim.launch.py",
+      "norm_label": "ambil launchconfiguration sbg float; fallback ke default bila kosong/invalid."
+    },
+    {
+      "label": "Kembalikan (x, y, z) string utk spawn ROV.      rov_random_spawn=true -> acak DE",
+      "file_type": "rationale",
+      "source_file": "src/hydroships_gazebo/launch/sim.launch.py",
+      "source_location": "L42",
+      "_origin": "ast",
+      "id": "src_hydroships_gazebo_launch_sim_launch_rationale_42",
+      "community": 17,
+      "community_name": "sim.launch.py",
+      "norm_label": "kembalikan (x, y, z) string utk spawn rov.      rov_random_spawn=true -> acak de"
     },
     {
       "label": "generate_qr.py",
@@ -4828,7 +4872,7 @@
       "label": "Keputusan yang DIBATALKAN / diganti (arsip)",
       "file_type": "document",
       "source_file": "docs/CHANGELOG.md",
-      "source_location": "L262",
+      "source_location": "L279",
       "_origin": "ast",
       "id": "docs_changelog_keputusan_yang_dibatalkan_diganti_arsip",
       "community": 8,
@@ -4839,7 +4883,7 @@
       "label": "Gripper 2-jari (dibatalkan \u2192 diganti DetachableJoint)",
       "file_type": "document",
       "source_file": "docs/CHANGELOG.md",
-      "source_location": "L266",
+      "source_location": "L283",
       "_origin": "ast",
       "id": "docs_changelog_gripper_2_jari_dibatalkan_diganti_detachablejoint",
       "community": 8,
@@ -4850,7 +4894,7 @@
       "label": "Mesh berat FBX/STL (dibatalkan \u2192 primitif)",
       "file_type": "document",
       "source_file": "docs/CHANGELOG.md",
-      "source_location": "L274",
+      "source_location": "L291",
       "_origin": "ast",
       "id": "docs_changelog_mesh_berat_fbx_stl_dibatalkan_primitif",
       "community": 8,
@@ -4861,7 +4905,7 @@
       "label": "`<suppress_initial_attach>` (tidak valid di Fortress)",
       "file_type": "document",
       "source_file": "docs/CHANGELOG.md",
-      "source_location": "L281",
+      "source_location": "L298",
       "_origin": "ast",
       "id": "docs_changelog_suppress_initial_attach_tidak_valid_di_fortress",
       "community": 8,
@@ -4872,7 +4916,7 @@
       "label": "Opsi ditunda",
       "file_type": "document",
       "source_file": "docs/CHANGELOG.md",
-      "source_location": "L285",
+      "source_location": "L302",
       "_origin": "ast",
       "id": "docs_changelog_opsi_ditunda",
       "community": 8,
@@ -12003,7 +12047,18 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/hydroships_gazebo/launch/sim.launch.py",
-      "source_location": "L162",
+      "source_location": "L32",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_gazebo_launch_sim_launch",
+      "target": "src_hydroships_gazebo_launch_sim_launch_f",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_gazebo/launch/sim.launch.py",
+      "source_location": "L203",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_hydroships_gazebo_launch_sim_launch",
@@ -12014,11 +12069,22 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/hydroships_gazebo/launch/sim.launch.py",
-      "source_location": "L27",
+      "source_location": "L66",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_hydroships_gazebo_launch_sim_launch",
       "target": "src_hydroships_gazebo_launch_sim_launch_launch_setup",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_gazebo/launch/sim.launch.py",
+      "source_location": "L41",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_gazebo_launch_sim_launch",
+      "target": "src_hydroships_gazebo_launch_sim_launch_rov_spawn_xyz",
       "confidence_score": 1.0
     },
     {
@@ -12033,11 +12099,57 @@
       "confidence_score": 1.0
     },
     {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_gazebo/launch/sim.launch.py",
+      "source_location": "L33",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_gazebo_launch_sim_launch_rationale_33",
+      "target": "src_hydroships_gazebo_launch_sim_launch_f",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_gazebo/launch/sim.launch.py",
+      "source_location": "L48",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_gazebo_launch_sim_launch_rov_spawn_xyz",
+      "target": "src_hydroships_gazebo_launch_sim_launch_f",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_gazebo/launch/sim.launch.py",
+      "source_location": "L78",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_gazebo_launch_sim_launch_launch_setup",
+      "target": "src_hydroships_gazebo_launch_sim_launch_rov_spawn_xyz",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_gazebo/launch/sim.launch.py",
+      "source_location": "L42",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_gazebo_launch_sim_launch_rationale_42",
+      "target": "src_hydroships_gazebo_launch_sim_launch_rov_spawn_xyz",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "indirect_call",
       "context": "argument",
       "confidence": "INFERRED",
       "source_file": "src/hydroships_gazebo/launch/sim.launch.py",
-      "source_location": "L181",
+      "source_location": "L232",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_hydroships_gazebo_launch_sim_launch_generate_launch_description",
@@ -12912,7 +13024,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/CHANGELOG.md",
-      "source_location": "L262",
+      "source_location": "L279",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_changelog_changelog_riwayat_kronologis_hydroships_kki_2026",
@@ -12945,7 +13057,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/CHANGELOG.md",
-      "source_location": "L266",
+      "source_location": "L283",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_changelog_keputusan_yang_dibatalkan_diganti_arsip",
@@ -12956,7 +13068,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/CHANGELOG.md",
-      "source_location": "L274",
+      "source_location": "L291",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_changelog_keputusan_yang_dibatalkan_diganti_arsip",
@@ -12967,7 +13079,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/CHANGELOG.md",
-      "source_location": "L285",
+      "source_location": "L302",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_changelog_keputusan_yang_dibatalkan_diganti_arsip",
@@ -12978,7 +13090,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/CHANGELOG.md",
-      "source_location": "L281",
+      "source_location": "L298",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_changelog_keputusan_yang_dibatalkan_diganti_arsip",
@@ -13240,5 +13352,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "0b6822a1a989bc95c3295972bbce3f92aa782854"
+  "built_at_commit": "cd95799abc708ca2d06bce529604b329b30a8ca2"
 }

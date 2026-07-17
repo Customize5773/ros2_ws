@@ -78,6 +78,10 @@ Folder build/ install/ log/ sengaja di-gitignore; regenerasi dgn colcon build.
        ros2 launch hydroships_bringup hydroships_mission.launch.py qr_letter:=C payload_x:=0.5 payload_y:=-1.2
    FSM membaca posisi spawn dari /hydroships/payload_pose (navigasi APPROACH_QR
    ke payload di posisi manapun; fallback ke default 0.4/0.04 bila pose belum tiba).
+   ROV di-spawn RANDOM dekat salah satu dinding kolam tiap run (default kontes).
+   Lihat posisi di log "[sim.launch] ROV spawn (random=True) di (x, y, z)". Override
+   posisi manual:
+       ros2 launch hydroships_bringup hydroships_mission.launch.py rov_random_spawn:=false rov_x:=1.0 rov_y:=-1.0
 
   ── 3D. SIM + JEMBATAN GUI TIM (M7, UDP-JSON) ─────────────────────────────────
   Menyalakan: sim + allocator + gui_bridge (adapter GUI-ROV <-> ROS via UDP).
@@ -98,7 +102,12 @@ Folder build/ install/ log/ sengaja di-gitignore; regenerasi dgn colcon build.
                          NAV_WALL/HANG/SURFACE/DOCK/APPROACH_HOOK/AUTO_RELEASE.
   start_wall:=A       -> (mission) seed wall target A/B/C/D utk testing mid-state
                          (NAV_WALL/HANG/SURFACE/APPROACH_HOOK/AUTO_RELEASE).
-  x:=0 y:=0 z:=-0.5   -> posisi spawn ROV (default 0 0 -0.5, sedikit di bawah permukaan).
+  rov_random_spawn:=true -> (default) spawn ROV ACAK dekat salah satu dinding kolam
+                         (posisi kontes, beda tiap run). false = pakai rov_x/rov_y/rov_z.
+  rov_x:=1.0 rov_y:=-1.0 rov_z:=-0.5 -> posisi manual spawn ROV (dipakai bila
+                         rov_random_spawn:=false). rov_z default -0.5 (di bawah permukaan).
+  rov_wall_margin:=0.5 -> jarak aman ROV dari dinding fisik (+-rov_arena_half).
+  rov_arena_half:=2.55 -> setengah lebar kolam (dinding di +-nilai ini).
   spawn_delay:=3.0    -> jeda (detik) sebelum spawn ROV; naikkan bila mesin lambat
                          (cegah race: service create belum siap).
   qr_letter:=B        -> (mission/stabilized/sim) huruf QR payload A/B/C/D.

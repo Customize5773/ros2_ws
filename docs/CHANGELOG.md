@@ -174,6 +174,23 @@ Commit hash & tanggal dari `git log` (rentang 2026-07-07 … 2026-07-17).
 
 ## 2026-07-18
 
+- **[RESOLVED] ROV kini di-spawn RANDOM dekat dinding kolam (posisi kontes) via launch arg.**
+  Sebelumnya ROV selalu spawn di tengah (0,0,-0.5). Kontes mendeploy ROV dekat dinding lalu
+  jalankan misi autonomous, jadi spawn perlu acak & realistis. `sim.launch.py` dapat helper
+  `_rov_spawn_xyz`: `rov_random_spawn=true` (default) → pilih acak 1 dari 4 dinding (konvensi
+  `mission_fsm._wall_inward`: A=-Y, B=+Y, C=+X, D=-X), koordinat mepet dinding di
+  `±(rov_arena_half - rov_wall_margin) = ±2.05 m`, koordinat lain tersebar acak sepanjang
+  dinding dalam rentang aman sama; `false` → pakai `rov_x/rov_y/rov_z`. Param baru:
+  `rov_random_spawn`, `rov_x/y/z`, `rov_wall_margin` (0.5), `rov_arena_half` (2.55) — mengganti
+  arg lama `x/y/z`. Diteruskan konsisten lewat rantai launch `hydroships_mission →
+  hydroships_stabilized → sim`. Log `[sim.launch] ROV spawn (random=…) di (x,y,z)`. `z` selalu
+  dari `rov_z` (kedalaman aman −0.5, di bawah permukaan); clearance dari dinding fisik ±2.55 =
+  0.50 m (≥ 0.4 m aman). `payload_spawner` TAK diubah (payload tetap acak terpisah). Build OK;
+  unit-test helper: 2000 sampel semua on-wall & in-bounds, 4 dinding tersebar merata, override
+  manual `(1.0,-1.0,-0.5)` tepat; ketiga launch expose semua `rov_*` (`--show-args`).
+  **[VERIFY]** runtime di sim: ROV muncul di posisi beda dekat dinding tiap run tanpa nabrak,
+  misi autonomous tetap jalan (DIVE dari posisi mana pun) sampai DONE/ABORT wajar.
+
 - **[RESOLVED] ROV stuck di GRAB→NAV_WALL & menabrak dinding keras — safety standoff + HANG aman.**
   Gejala: setelah APPROACH_QR→GRAB→NAV_WALL, ROV tiba di dinding lalu "idle" & misi tak
   lanjut. Dua akar masalah di `mission_fsm.py`: (1) **`_st_hang` menabrak dinding** — fase

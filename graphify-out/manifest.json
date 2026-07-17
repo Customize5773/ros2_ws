@@ -25,8 +25,8 @@
     "semantic_hash": ""
   },
   "src/hydroships_bringup/launch/hydroships_mission.launch.py": {
-    "mtime": 1784308752.9442163,
-    "ast_hash": "2a8264f0063416a861a1ff5421cd4160",
+    "mtime": 1784314783.8888118,
+    "ast_hash": "52e37c8297f4f71726164b7c7fd46525",
     "semantic_hash": ""
   },
   "src/hydroships_bringup/launch/hydroships_sim.launch.py": {
@@ -35,8 +35,8 @@
     "semantic_hash": ""
   },
   "src/hydroships_bringup/launch/hydroships_stabilized.launch.py": {
-    "mtime": 1784308737.4100387,
-    "ast_hash": "243f29f054bcc6d6e8113a4d7e61cbc6",
+    "mtime": 1784314758.1346388,
+    "ast_hash": "f6860e876f6a08486dbd3def1418f781",
     "semantic_hash": ""
   },
   "src/hydroships_control/hydroships_control/__init__.py": {
@@ -170,8 +170,8 @@
     "semantic_hash": ""
   },
   "src/hydroships_gazebo/launch/sim.launch.py": {
-    "mtime": 1784311227.4504495,
-    "ast_hash": "c9cbd2c0a58aa0af1a0353db4b65a086",
+    "mtime": 1784314724.6374795,
+    "ast_hash": "43920afc3a9235651897aa39497fa004",
     "semantic_hash": ""
   },
   "src/hydroships_gazebo/scripts/generate_qr.py": {
@@ -205,8 +205,8 @@
     "semantic_hash": ""
   },
   "docs/HOW-TO-RUN.txt": {
-    "mtime": 1784308842.6992602,
-    "ast_hash": "cc3611bfb7c235849fd2b428cae04ea8",
+    "mtime": 1784314858.9181468,
+    "ast_hash": "62bd12da3bc489b4302b907ed43031a2",
     "semantic_hash": ""
   },
   "docs/thruster_config.md": {
@@ -315,8 +315,8 @@
     "semantic_hash": ""
   },
   "docs/CHANGELOG.md": {
-    "mtime": 1784313711.435558,
-    "ast_hash": "baae5b740a4bcee9077135492e736b2e",
+    "mtime": 1784314877.2433944,
+    "ast_hash": "548dc521b78f4dd88c11a51aed29ba72",
     "semantic_hash": ""
   },
   "docs/STATUS.md": {

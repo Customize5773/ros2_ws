@@ -8,6 +8,7 @@
   "6": "hook_servo",
   "7": "test_qr_logic.py",
   "8": "PROBLEM.md — Catatan Masalah & Verifikasi Tertunda (HYDROships ros2_ws)",
+  "9": "hook_detector.py",
   "10": "TeleopStabilized",
   "11": "TeleopKeyboard",
   "12": "estimate_mass_inertia.py",
