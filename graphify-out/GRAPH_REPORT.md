@@ -1,16 +1,16 @@
 # Graph Report - ros2_ws  (2026-07-18)
 
 ## Corpus Check
-- 50 files · ~99,151 words
+- 50 files · ~99,242 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 473 nodes · 714 edges · 32 communities (23 shown, 9 thin omitted)
+- 473 nodes · 716 edges · 32 communities (23 shown, 9 thin omitted)
 - Extraction: 88% EXTRACTED · 12% INFERRED · 0% AMBIGUOUS · INFERRED: 88 edges (avg confidence: 0.78)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `cd95799a`
+- Built from commit: `f322a6fa`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 

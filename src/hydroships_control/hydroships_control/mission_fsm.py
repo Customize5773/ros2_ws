@@ -109,12 +109,12 @@ class MissionFSM(Node):
         p('nav_fmax', 22.0)          # N batas gaya navigasi holonomik
         p('hang_hold', 6.0)          # s tahan di standoff (simulasi gantung) sebelum SURFACE
         # timeout per state (s)
-        p('t_dive', 20.0); p('t_scan', 45.0); p('t_grab', 10.0); p('t_nav', 40.0)
         # t_scan 45->60: ROV sering spawn lebih DALAM dari scan_depth (mis. 0.73 vs 0.46)
         # -> DIVE lolos instan (depth>=scan_depth-tol) lalu APPROACH_QR harus NAIK ~0.27 m
         # sambil memusatkan; naik pelan memakan ~40 s (runtime), 45 s terlalu mepet. Beri
         # margin agar QR sempat terbaca sebelum timeout. Lihat docs/CHANGELOG.md [RESOLVED].
-        p('t_dive', 20.0); p('t_scan', 60.0); p('t_grab', 10.0); p('t_nav', 30.0)
+        # t_nav 40: NAV_WALL dgn standoff + soft-stop + settle bisa makan waktu lebih lama.
+        p('t_dive', 20.0); p('t_scan', 60.0); p('t_grab', 10.0); p('t_nav', 40.0)
         p('t_hang', 15.0); p('t_surface', 20.0); p('t_dock', 12.0)
         p('t_approach', 20.0); p('t_release', 30.0)
         # APPROACH_HOOK visual servo PD (deteksi hook dari hook_detector; port GUI-ROV).
@@ -412,19 +412,6 @@ class MissionFSM(Node):
 
     def _st_approach_qr(self):
         """Misi 1a: posisikan ROV DI ATAS payload/QR datar & tahan (depth+XY hold)
-        agar kamera bawah membaca QR. QR terbaca -> tetapkan wall -> GRAB."""
-        self._set_depth(self.scan_depth)
-        self._set_heading(0.0)
-
-        yaw_err = abs(wrap_to_pi(0.0 - self.yaw)) if self.yaw is not None else math.pi
-        if yaw_err > self.yaw_tol:
-            self._set_surge(0.0, 0.0)
-            if self._elapsed() > self.T['scan']:
-                self.get_logger().error('APPROACH_QR timeout (masih align, yaw_err=%.1f°)' % math.degrees(yaw_err))
-                self._to(St.ABORT)
-            return
-
-        dist = self._goto_xy(self.payload_x, self.payload_y)
         agar kamera bawah membaca QR. QR terbaca -> tetapkan wall -> GRAB.
         Navigasi ke posisi payload dinamis (/hydroships/payload_pose); visual servo
         centering dari /hydroships/qr_offset; timeout nav + recovery bila tak sampai."""
@@ -502,19 +489,6 @@ class MissionFSM(Node):
         if e > self.T['grab']: self.get_logger().error('GRAB timeout'); self._to(St.ABORT)
 
     def _st_nav_wall(self):
-        if self.wall is None: self._to(St.ABORT); return
-        tx, ty = self._wall_xy(self.wall)
-        target_heading = math.radians(WALL_HEADING_DEG[self.wall])
-        self._set_depth(self.hook_depth)
-        self._set_heading(target_heading)
-        yaw_err = abs(wrap_to_pi(target_heading - self.yaw)) if self.yaw is not None else math.pi
-        if yaw_err > self.yaw_tol:
-            # Belum sejajar: tahan posisi, jangan translasi dulu.
-            self._set_surge(0.0, 0.0)
-            if self._elapsed() > self.T['nav']:
-                self.get_logger().error('NAV_WALL timeout (masih align, yaw_err=%.1f°)' % math.degrees(yaw_err))
-                self._to(St.ABORT)
-            return
         """Navigasi HOLONOMIK ke STANDOFF AMAN di depan wall (mitigasi yaw lemah):
         tahan heading, translasi surge+sway ke posisi standoff. SOFT-STOP: bila ROV
         terlalu dekat muka dinding (clearance < wall_standoff), dorong MENJAUH agar
@@ -555,15 +529,6 @@ class MissionFSM(Node):
         agresif ke dinding (placeholder lama yg menabrak sudah dihapus). SOFT-STOP
         tetap aktif agar drift tak menyeret ROV ke dinding."""
         e = self._elapsed()
-        self._set_depth(self.hook_depth)   # naik/turun ke level hook
-        self._set_heading(math.radians(WALL_HEADING_DEG[self.wall]))
-        ux, uy = self._wall_inward(self.wall) if self.wall else (0.0, 0.0)
-        # Manipulasi (jepit/lepas) DIHAPUS — placeholder gerakan WORLD-FRAME sampai
-        # dirancang ulang: dekati wall lalu mundur (arah dunia, tak bergantung heading).
-        if e < 5.0: self._set_surge(0.0)
-        elif e < 8.0: self._move_world(ux, uy, 15.0)      # dekati wall
-        elif e < 11.0: self._set_surge(0.0)
-        elif e < 13.0: self._move_world(-ux, -uy, 15.0)   # mundur dari wall
         self._set_depth(self.hook_depth)   # tahan level hook
         self._set_heading(0.0)
         if e < 0.15:
@@ -589,17 +554,7 @@ class MissionFSM(Node):
             self.get_logger().error('HANG timeout'); self._to(St.ABORT)
 
     def _st_surface(self):
-        self._set_heading(0.0)   # putar balik menghadap depan sebelum naik
-
-        yaw_err = abs(wrap_to_pi(0.0 - self.yaw)) if self.yaw is not None else math.pi
-        if yaw_err > self.yaw_tol:
-            self._set_surge(0.0, 0.0)
-            self._set_depth(self.hook_depth)   # tahan kedalaman dulu, jangan naik saat masih align
-            if self._elapsed() > self.T['surface']:
-                self.get_logger().error('SURFACE timeout (masih align, yaw_err=%.1f°)' % math.degrees(yaw_err))
-                self._to(St.ABORT)
-            return
-
+        self._set_heading(0.0)   # hold heading (holonomik; tak perlu putar badan)
         self._set_depth(self.depth_surface)
         if self.depth is not None and self.depth <= self.depth_surface + 0.05:
             self._set_surge(0.0)
@@ -651,14 +606,8 @@ class MissionFSM(Node):
             return
         # Fallback timed (tak ada hook_offset — hook_detector mati / tak terdeteksi).
         self._set_depth(self.hook_depth)
-        self._set_heading(math.radians(WALL_HEADING_DEG[self.wall]))
-        dist = self._goto_xy(tx, ty, fmax=self.nav_fmax)
-        if dist < self.nav_tol:
-            self._set_surge(0.0)
-            self.get_logger().info('Tiba di hook %s (dist %.2fm)' % (self.wall, dist))
-            self._to(St.AUTO_RELEASE)
-        elif self._elapsed() > self.T['approach']:
-            self.get_logger().error('APPROACH_HOOK timeout (dist %.2fm)' % dist); self._to(St.ABORT)
+        if self.wall in WALL_HEADING_DEG:
+            self._set_heading(math.radians(WALL_HEADING_DEG[self.wall]))
         self._set_surge(10.0 if self._elapsed() < 6.0 else 0.0)
         if self._elapsed() >= 6.0 or self._elapsed() > self.T['approach']:
             self.get_logger().warn('APPROACH_HOOK timed (tak ada deteksi hook)')
