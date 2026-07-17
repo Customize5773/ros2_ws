@@ -174,6 +174,29 @@ Commit hash & tanggal dari `git log` (rentang 2026-07-07 … 2026-07-17).
 
 ## 2026-07-18
 
+- **[RESOLVED] ROV susah/lama baca QR di misi 3C (APPROACH_QR) — 3 root cause diperbaiki.**
+  Gejala: di misi autonomous penuh ROV masuk APPROACH_QR lalu seakan diam/tak sampai
+  di atas payload, `qr_result` tak terbit → timeout `t_scan` (60 s) → ABORT. Penyebab &
+  fix: (1) **Lampu payload gelap di posisi random.** `payload_fill` di `kki_arena.sdf`
+  hardcode di (0.4,0,-0.45) range 0.8 m, sedangkan `payload_spawner` me-random payload
+  ke x∈[0.2,0.6] y∈[-1.5,1.5] → payload sering di luar radius lampu → QR kontras rendah.
+  Range 0.8→3.0 m, atenuasi dilandaikan (constant 0.3→0.6, linear 0.5→0.15, quad 1.0→0.08),
+  diffuse 0.8→0.9 → menutupi seluruh area spawn. (2) **`_st_approach_qr` tanpa guard odom
+  & timeout navigasi.** `_goto_xy` return 999 tanpa publish gaya bila `self.x/self.yaw`
+  belum ada, & state hanya menunggu `qr_result`. Ditambah: guard odom (log sekali, reset
+  baseline timeout, tak dianggap "sampai"), timeout navigasi `t_nav_qr` (30 s) dgn recovery
+  (naik 0.10 m perluas FOV kamera bawah), pesan ABORT jelas "gagal capai payload [dist]".
+  (3) **Tak ada centering.** FSM kini subscribe `/hydroships/qr_offset` (ternormalisasi
+  [-1..1]) & lakukan visual servo halus: bila QR di pinggir frame (|offset|>`qr_center_tol`
+  0.12), geser target hold sebesar `qr_servo_gain` (0.15 m) agar QR ke tengah (sign x/y via
+  param, perlu **[VERIFY]** runtime mounting kamera). Param baru: `t_nav_qr`, `qr_off_max_age`,
+  `qr_center_tol`, `qr_servo_gain`, `qr_servo_sign_x/y`. `scan_depth` (0.46) TAK diubah.
+  Reliabilitas pose: `payload_spawner` publish `/hydroships/payload_pose` kini **latched**
+  (QoS transient_local) + republish periodik 2 Hz → subscriber late-join (FSM) selalu dapat.
+  Build + 62 test lolos; node FSM smoke-test konstruksi OK (subscription qr_offset/payload_pose
+  terdaftar, nudge logic benar). **[VERIFY]** perilaku end-to-end di sim (gerak ke payload,
+  QR terbaca <~10 s di posisi random, tanpa ABORT gelap) belum diuji runtime.
+
 - **[RESOLVED] Payload QR sekarang di-spawn RANDOM (A/B/C/D) via node `payload_spawner`.**
   Model `payload` dihapus dari `worlds/kki_arena.sdf` dan diganti spawn dinamis oleh
   `hydroships_gazebo/scripts/payload_spawner.py` (`ros2 run ros_gz_sim create` + template

@@ -14,7 +14,10 @@
   "12": "estimate_mass_inertia.py",
   "13": "Integrasi GUI-ROV ↔ hydroships (ROS 2) — Analisis Selisih & Adapter",
   "14": "DepthPublisher",
+  "15": "File yang Harus Diperbaiki/Dibuat",
+  "16": "File yang Harus Diperbaiki",
   "17": "sim.launch.py",
+  "18": "PayloadSpawner",
   "19": "hydroships_gui.launch.py",
   "20": "hydroships_mission.launch.py",
   "21": "hydroships_sim.launch.py",
@@ -26,5 +29,6 @@
   "27": "generate_qr.py",
   "28": "ros2-ws",
   "29": "__init__.py",
-  "30": "setup.py"
+  "30": "setup.py",
+  "31": "prompt-random-qr-payload.md"
 }

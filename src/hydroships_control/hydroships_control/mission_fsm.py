@@ -8,6 +8,7 @@ Aliran (lihat docs/ARCHITECTURE.md):
     masuk : /hydroships/depth      (Float64, m >=0)  -> transisi state
             /hydroships/odom       (Odometry)        -> yaw (cek alignment)
             /hydroships/qr_result  (String A/B/C/D)   -> tentukan wall (M1)
+            /hydroships/qr_offset  (PointStamped)     -> centering visual servo (APPROACH_QR)
             /hydroships/payload_pose (PointStamped)   -> posisi payload spawn (APPROACH_QR)
     keluar: /hydroships/setpoint/depth   (Float64, negatif = dalam)
             /hydroships/setpoint/heading (Float64, rad)
@@ -82,6 +83,19 @@ class MissionFSM(Node):
         p('approach_kd', 70.0)       # N/(m/s) redaman kecepatan (cegah overshoot)
         p('approach_fmax', 16.0)     # N batas gaya approach
         p('approach_tol', 0.06)      # m radius "sudah di atas payload"
+        # APPROACH_QR: timeout NAVIGASI internal (capai payload) sblm t_scan penuh;
+        # bila lewat & masih jauh -> recovery (naik sedikit perluas FOV) lalu ABORT.
+        p('t_nav_qr', 30.0)          # s batas navigasi ke atas payload
+        # Visual servo centering QR (dari /hydroships/qr_offset, ternormalisasi
+        # [-1..1]): saat QR terlihat tapi di pinggir frame, geser target hold agar
+        # QR ke tengah -> decoder lebih mudah membaca. Gain kecil (nudge halus).
+        p('qr_off_max_age', 1.0)     # s umur maks qr_offset agar segar
+        p('qr_center_tol', 0.12)     # |offset| dianggap "cukup tengah" (tak koreksi)
+        p('qr_servo_gain', 0.15)     # m nudge target per unit offset (kecil = halus)
+        # Peta arah kamera-bawah -> dunia (image +x/+y ke world dx/dy). Tanda perlu
+        # DIVERIFIKASI runtime (mounting kamera); default konservatif, ubah via param.
+        p('qr_servo_sign_x', -1.0)   # world dx = sign_x * gain * offset.x
+        p('qr_servo_sign_y', -1.0)   # world dy = sign_y * gain * offset.y
         # NAV_WALL HOLONOMIK (mitigasi yaw lemah — lihat PROBLEM.md): ROV translasi
         # ke posisi wall di dunia TANPA memutar badan (surge+sway), heading di-hold.
         p('wall_dist', 2.30)         # m jarak pusat->target wall (standoff; hook ~2.4 m)
@@ -128,6 +142,12 @@ class MissionFSM(Node):
         self.approach_kd = float(g('approach_kd'))
         self.approach_fmax = float(g('approach_fmax'))
         self.approach_tol = float(g('approach_tol'))
+        self.t_nav_qr = float(g('t_nav_qr'))
+        self.qr_off_max_age = float(g('qr_off_max_age'))
+        self.qr_center_tol = float(g('qr_center_tol'))
+        self.qr_servo_gain = float(g('qr_servo_gain'))
+        self.qr_servo_sign_x = float(g('qr_servo_sign_x'))
+        self.qr_servo_sign_y = float(g('qr_servo_sign_y'))
         self.wall_dist = float(g('wall_dist'))
         self.nav_tol = float(g('nav_tol'))
         self.nav_fmax = float(g('nav_fmax'))
@@ -152,6 +172,8 @@ class MissionFSM(Node):
         self.create_subscription(Float64, '/hydroships/depth', self._on_depth, 10)
         self.create_subscription(Odometry, '/hydroships/odom', self._on_odom, 10)
         self.create_subscription(String, '/hydroships/qr_result', self._on_qr, 10)
+        # qr_offset (visual servo centering APPROACH_QR; dari node qr_detector).
+        self.create_subscription(PointStamped, '/hydroships/qr_offset', self._on_qr_offset, 10)
         # hook_offset (visual servo APPROACH_HOOK; dari node hook_detector).
         self.create_subscription(PointStamped, '/hydroships/hook_offset', self._on_hook, 10)
         # payload_pose (posisi spawn payload QR dari node payload_spawner; APPROACH_QR
@@ -167,6 +189,10 @@ class MissionFSM(Node):
         self.vy = 0.0
         self.qr_wall = None
         self.qr_time = 0.0
+        self.qr_off = None        # (ex, ey, size) ternormalisasi dari qr_offset
+        self.qr_off_time = 0.0
+        self._warned_no_odom = False
+        self._approach_move_t0 = self._now()  # baseline timeout nav APPROACH_QR
         self.hook_off = None      # (ex, ey, size)
         self.hook_time = 0.0
         self.payload_pose = None  # (x, y, z) dari /hydroships/payload_pose (spawner)
@@ -206,6 +232,11 @@ class MissionFSM(Node):
         self.get_logger().info('[FSM] %s -> %s' % (self.state.name, s.name))
         self.state = s
         self.t_state = self._now()
+        if s == St.APPROACH_QR:
+            # Reset baseline timeout navigasi & flag warning odom tiap kali masuk
+            # APPROACH_QR (mis. loop kembali dari recovery/DIVE).
+            self._approach_move_t0 = self._now()
+            self._warned_no_odom = False
 
     def _set_depth(self, d_pos):
         m = Float64(); m.data = -abs(d_pos); self.pub_depth.publish(m)
@@ -283,6 +314,27 @@ class MissionFSM(Node):
         if w in WALL_HEADING_DEG:
             self.qr_wall = w; self.qr_time = self._now()
 
+    def _on_qr_offset(self, msg):
+        # ex/ey ternormalisasi [-1..1] (+x=QR di kanan, +y=QR di bawah), z=ukuran.
+        self.qr_off = (msg.point.x, msg.point.y, msg.point.z)
+        self.qr_off_time = self._now()
+
+    def _qr_offset_fresh(self):
+        """(ex, ey, size) bila qr_offset masih segar, else None."""
+        if self.qr_off is None:
+            return None
+        if self._now() - self.qr_off_time > self.qr_off_max_age:
+            return None
+        return self.qr_off
+
+    def _qr_center_nudge(self, off):
+        """Geseran world (dx, dy) kecil utk memusatkan QR di frame kamera bawah.
+        Nol bila QR sudah cukup tengah (|offset| <= qr_center_tol)."""
+        ex, ey = off[0], off[1]
+        dx = 0.0 if abs(ex) <= self.qr_center_tol else self.qr_servo_sign_x * self.qr_servo_gain * ex
+        dy = 0.0 if abs(ey) <= self.qr_center_tol else self.qr_servo_sign_y * self.qr_servo_gain * ey
+        return dx, dy
+
     def _on_hook(self, msg):
         self.hook_off = (msg.point.x, msg.point.y, msg.point.z)
         self.hook_time = self._now()
@@ -330,23 +382,56 @@ class MissionFSM(Node):
 
     def _st_approach_qr(self):
         """Misi 1a: posisikan ROV DI ATAS payload/QR datar & tahan (depth+XY hold)
-        agar kamera bawah membaca QR. QR terbaca -> tetapkan wall -> GRAB."""
-        self._set_depth(self.scan_depth)
+        agar kamera bawah membaca QR. QR terbaca -> tetapkan wall -> GRAB.
+        Navigasi ke posisi payload dinamis (/hydroships/payload_pose); visual servo
+        centering dari /hydroships/qr_offset; timeout nav + recovery bila tak sampai."""
         self._set_heading(0.0)                       # heading tetap (QR di bawah, rotasi tak perlu)
-        # Posisi payload dinamis dari payload_spawner (/hydroships/payload_pose);
-        # fallback ke parameter payload_x/payload_y bila pose belum diterima.
+        # GUARD odom: tanpa pose ROV tak bisa navigasi. Tunggu (log sekali), JANGAN
+        # anggap "sudah sampai" & reset baseline timeout nav agar tak keburu ABORT.
+        if self.x is None or self.yaw is None:
+            self._set_depth(self.scan_depth)
+            if not self._warned_no_odom:
+                self.get_logger().warn('APPROACH_QR: menunggu odom (pose ROV belum ada)')
+                self._warned_no_odom = True
+            self._set_surge(0.0, 0.0)
+            self._approach_move_t0 = self._now()
+            return
+
+        # Posisi payload dinamis dari payload_spawner; fallback ke param default.
         tx = self.payload_pose[0] if self.payload_pose is not None else self.payload_x
         ty = self.payload_pose[1] if self.payload_pose is not None else self.payload_y
+        # Visual servo: bila QR terlihat tapi di pinggir frame, geser target hold
+        # sedikit agar QR menuju tengah (decoder lebih andal).
+        off = self._qr_offset_fresh()
+        if off is not None:
+            dx, dy = self._qr_center_nudge(off)
+            tx += dx; ty += dy
         dist = self._goto_xy(tx, ty)
+
         # QR terbaca (dari qr_detector via kamera bawah) & segar?
         if self.qr_wall and (self._now() - self.qr_time) <= self.qr_max_age:
             self.wall = self.qr_wall; self.score['m1'] = 15
-            self.get_logger().info('QR -> wall %s (+15) [dist %.2fm]' % (self.wall, dist))
+            self.get_logger().info('QR terbaca -> wall %s (+15) [dist %.2fm]' % (self.wall, dist))
             self._set_surge(0.0); self._to(St.GRAB); return
+
         if int(self._elapsed() * 2) % 4 == 0:
-            self.get_logger().debug('APPROACH_QR dist=%.2fm' % dist)
+            self.get_logger().debug('APPROACH_QR dist=%.2fm off=%s' % (dist, off))
+
+        # Timeout NAVIGASI: bila masih jauh dari payload setelah t_nav_qr, recovery
+        # naik sedikit (perluas FOV kamera bawah) sambil tetap koreksi XY.
+        stuck = dist > self.approach_tol and (self._now() - self._approach_move_t0) > self.t_nav_qr
+        if stuck:
+            self.get_logger().warn('APPROACH_QR: belum capai payload (dist %.2fm > tol %.2fm) '
+                                   'setelah %.0fs — recovery naik sedikit'
+                                   % (dist, self.approach_tol, self.t_nav_qr))
+            self._set_depth(self.scan_depth - 0.10)
+        else:
+            self._set_depth(self.scan_depth)
+
         if self._elapsed() > self.T['scan']:
-            self.get_logger().error('APPROACH_QR timeout — QR tak terbaca'); self._to(St.ABORT)
+            self.get_logger().error('APPROACH_QR gagal capai payload / QR tak terbaca — ABORT '
+                                    '[dist %.2fm]' % dist)
+            self._to(St.ABORT)
 
     def _st_scan_qr(self):
         # QR segar?

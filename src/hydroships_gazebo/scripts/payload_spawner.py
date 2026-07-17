@@ -13,6 +13,7 @@ import tempfile
 
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import QoSDurabilityPolicy, QoSProfile
 from geometry_msgs.msg import PointStamped
 
 
@@ -91,10 +92,14 @@ class PayloadSpawner(Node):
         p('arena_y_min', -1.5)
         p('arena_y_max', 1.5)
 
-        self.pub_pose = self.create_publisher(PointStamped, '/hydroships/payload_pose', 10)
+        # QoS transient_local (latched): subscriber yg join belakangan (mis.
+        # mission_fsm) tetap menerima pose terakhir walau spawn sudah lewat.
+        qos = QoSProfile(depth=1, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL)
+        self.pub_pose = self.create_publisher(PointStamped, '/hydroships/payload_pose', qos)
         self._spawn_delay = float(self.get_parameter('spawn_delay').value)
         self._t0 = self._now()
         self._done = False
+        self._pose = None           # (x, y, z) hasil spawn utk republish periodik
         self.create_timer(0.5, self._tick)
         self.get_logger().info('payload_spawner siap (spawn dalam %.1fs)' % self._spawn_delay)
 
@@ -149,18 +154,26 @@ class PayloadSpawner(Node):
             if tmp and os.path.exists(tmp):
                 os.unlink(tmp)
 
-        # Publikasi posisi (walau spawn gagal, FSM tetap dapat target eksplisit).
+        # Simpan & publikasi posisi (walau spawn gagal, FSM tetap dapat target).
+        self._pose = (float(x), float(y), float(z))
+        self._publish_pose()
+
+    def _publish_pose(self):
+        if self._pose is None:
+            return
         ps = PointStamped()
         ps.header.stamp = self.get_clock().now().to_msg()
         ps.header.frame_id = 'world'
-        ps.point.x = float(x)
-        ps.point.y = float(y)
-        ps.point.z = float(z)
+        ps.point.x, ps.point.y, ps.point.z = self._pose
         self.pub_pose.publish(ps)
 
     def _tick(self):
-        if not self._done and (self._now() - self._t0) >= self._spawn_delay:
-            self._spawn()
+        if not self._done:
+            if (self._now() - self._t0) >= self._spawn_delay:
+                self._spawn()
+        else:
+            # Republish periodik (di atas latching) sbg jaring pengaman late-join.
+            self._publish_pose()
 
 
 def main(args=None):

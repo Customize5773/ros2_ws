@@ -183,21 +183,24 @@
          (PAYLOAD_SDF_TEMPLATE). Posisi spawn dipublikasikan ke
          /hydroships/payload_pose agar mission_fsm APPROACH_QR navigasi dinamis. -->
 
-    <!-- SIM_ONLY: Lampu lokal di ATAS payload untuk menerangi area QR tanpa
-         mengubah exposure global scene (fix opsi (b), lihat PROBLEM.md item
-         "QR belum terbaca"). Point light ~0.4 m di atas QR (world z payload
-         ~-0.85, QR menghadap +z) menaikkan kontras QR vs lantai berfaset.
-         Range kecil (0.8 m) agar tak membanjiri seluruh kolam. -->
+    <!-- SIM_ONLY: Lampu lokal untuk menerangi area QR tanpa mengubah exposure
+         global scene (fix opsi (b), lihat PROBLEM.md item "QR belum terbaca").
+         Payload kini di-spawn RANDOM oleh payload_spawner di x∈[0.2,0.6],
+         y∈[-1.5,1.5] (lihat scripts/payload_spawner.py). Range lampu diperbesar
+         0.8 -> 3.0 m + atenuasi lebih landai agar QR tetap kontras di SELURUH
+         area spawn (bukan hanya posisi 0.4,0 lama). Ditaruh di TENGAH area
+         (0.4, 0) ~0.45 m di atas dasar; jarak ke sudut terjauh (y=±1.5) ~1.6 m
+         < range. Bila payload tampak gelap di posisi ekstrem, naikkan range/diffuse. -->
     <light type="point" name="payload_fill">
       <cast_shadows>false</cast_shadows>
       <pose>0.4 0 -0.45 0 0 0</pose>
-      <diffuse>0.8 0.8 0.8 1</diffuse>
+      <diffuse>0.9 0.9 0.9 1</diffuse>
       <specular>0.1 0.1 0.1 1</specular>
       <attenuation>
-        <range>0.8</range>
-        <constant>0.3</constant>
-        <linear>0.5</linear>
-        <quadratic>1.0</quadratic>
+        <range>3.0</range>
+        <constant>0.6</constant>
+        <linear>0.15</linear>
+        <quadratic>0.08</quadratic>
       </attenuation>
     </light>
 
