@@ -163,6 +163,12 @@ Commit hash & tanggal dari `git log` (rentang 2026-07-07 … 2026-07-17).
   `_st_auto_release`, serta loop kembali DIVE bila <4 hook. Semua itu di-restore dari
   `4fbc6f8` sambil mempertahankan QR fixes (`scan_depth=0.46`, `t_scan=60`,
   `start_wall`). Test headless 62 tetes lolos.
+- **[RESOLVED] Bangun body gripper yang terlihat di Gazebo.**
+  Body gripper sebelumnya hanya box 0.05×0.05×0.03 m (5 cm³) sehingga hampir tidak
+  terlihat di sim. Diperbesar menjadi box 0.08×0.08×0.10 m, massa 0.12 kg,
+  posisi joint turun ke `xyz="0.08 0 -0.22"`, material jadi kuning kontras
+  (`rgba="0.85 0.7 0.1 1.0"`). Jari `gripper_jaw` juga diperbesar
+  (0.016×0.04×0.10 m). Mekanisme DetachableJoint + plugin tidak diubah.
 
 ---
 

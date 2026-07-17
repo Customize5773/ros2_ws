@@ -275,27 +275,29 @@
        kaku ROV<->payload), BUKAN gesekan jari. Jari tunggal di sini KOSMETIK
        (indikator visual buka/tutup). Reach ke BAWAH dari perut ROV karena
        payload di-approach dari atas (kamera bawah). Lihat PROBLEM.md. -->
-  <xacro:property name="grip_mass" value="0.05"/>
+  <!-- Pangkal gripper: menempel kaku di perut depan ROV, menghadap ke bawah.
+       Body gripper diperbesar agar terlihat di Gazebo dan memiliki massa yang masuk akal
+       untuk interaksi DetachableJoint dengan payload. -->
+  <xacro:property name="grip_mass" value="0.12"/>
 
-  <!-- Pangkal gripper: menempel kaku di perut depan ROV, menghadap ke bawah. -->
   <link name="gripper_base">
     <inertial>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <mass value="${grip_mass}"/>
-      <inertia ixx="1e-4" ixy="0.0" ixz="0.0" iyy="1e-4" iyz="0.0" izz="1e-4"/>
+      <inertia ixx="2.6e-4" ixy="0.0" ixz="0.0" iyy="2.6e-4" iyz="0.0" izz="3.3e-4"/>
     </inertial>
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><box size="0.05 0.05 0.03"/></geometry>
-      <material name="hydro_grip"><color rgba="0.2 0.2 0.22 1.0"/></material>
+      <geometry><box size="0.08 0.08 0.10"/></geometry>
+      <material name="hydro_grip"><color rgba="0.85 0.7 0.1 1.0"/></material>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><box size="0.05 0.05 0.03"/></geometry>
+      <geometry><box size="0.08 0.08 0.10"/></geometry>
     </collision>
   </link>
   <joint name="gripper_base_joint" type="fixed">
-    <origin xyz="0.06 0 -0.16" rpy="0 0 0"/>
+    <origin xyz="0.08 0 -0.22" rpy="0 0 0"/>
     <parent link="base_link"/>
     <child link="gripper_base"/>
   </joint>
@@ -310,21 +312,26 @@
     <preserveFixedJoint>true</preserveFixedJoint>
   </gazebo>
 
-  <!-- Jari tunggal (1 DOF revolute, sumbu y). Kosmetik: menandai buka/tutup. -->
+  <!-- Jari tunggal (1 DOF revolute, sumbu y). Kosmetik: menandai buka/tutup.
+       Diperbesar agar posisi buka/tutup terlihat jelas di Gazebo. -->
   <link name="gripper_jaw">
     <inertial>
-      <origin xyz="0 0 -0.03" rpy="0 0 0"/>
+      <origin xyz="0 0 -0.05" rpy="0 0 0"/>
       <mass value="${grip_mass}"/>
-      <inertia ixx="1e-4" ixy="0.0" ixz="0.0" iyy="1e-4" iyz="0.0" izz="1e-4"/>
+      <inertia ixx="2.0e-5" ixy="0.0" ixz="0.0" iyy="2.0e-5" iyz="0.0" izz="2.5e-5"/>
     </inertial>
     <visual>
-      <origin xyz="0 0 -0.03" rpy="0 0 0"/>
-      <geometry><box size="0.012 0.03 0.06"/></geometry>
-      <material name="hydro_jaw"><color rgba="0.85 0.7 0.1 1.0"/></material>
+      <origin xyz="0 0 -0.05" rpy="0 0 0"/>
+      <geometry><box size="0.016 0.04 0.10"/></geometry>
+      <material name="hydro_jaw"><color rgba="0.95 0.8 0.2 1.0"/></material>
     </visual>
+    <collision>
+      <origin xyz="0 0 -0.05" rpy="0 0 0"/>
+      <geometry><box size="0.016 0.04 0.10"/></geometry>
+    </collision>
   </link>
   <joint name="gripper_jaw_joint" type="revolute">
-    <origin xyz="0.02 0 -0.015" rpy="0 0 0"/>
+    <origin xyz="0.04 0 -0.04" rpy="0 0 0"/>
     <parent link="gripper_base"/>
     <child link="gripper_jaw"/>
     <axis xyz="0 1 0"/>
