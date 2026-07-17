@@ -70,7 +70,7 @@ class MissionFSM(Node):
         p('payload_y', 0.0)          # m posisi payload/QR di dunia (y)
         p('scan_depth', 0.62)        # m kedalaman scan (kamera bawah ~9cm di atas QR)
         p('approach_kp', 90.0)       # N/m gain posisi XY -> gaya horizontal
-        p('approach_kd', 70.0)       # N/(m/s) redaman kecepatan (cegah overshoot)
+        p('approach_kd', 140.0)       # N/(m/s) redaman kecepatan (cegah overshoot)
         p('approach_fmax', 16.0)     # N batas gaya approach
         p('approach_tol', 0.06)      # m radius "sudah di atas payload"
         # NAV_WALL HOLONOMIK (mitigasi yaw lemah — lihat PROBLEM.md): ROV translasi
@@ -80,7 +80,7 @@ class MissionFSM(Node):
         p('nav_tol', 0.15)           # m radius "tiba di wall"
         p('nav_fmax', 22.0)          # N batas gaya navigasi holonomik
         # timeout per state (s)
-        p('t_dive', 20.0); p('t_scan', 45.0); p('t_grab', 10.0); p('t_nav', 30.0)
+        p('t_dive', 20.0); p('t_scan', 45.0); p('t_grab', 10.0); p('t_nav', 40.0)
         p('t_hang', 15.0); p('t_surface', 20.0); p('t_dock', 12.0)
         p('t_approach', 20.0); p('t_release', 30.0)
 
@@ -175,6 +175,13 @@ class MissionFSM(Node):
             return 999.0
         fm = self.approach_fmax if fmax is None else fmax
         ex, ey = tx - self.x, ty - self.y
+        dist = math.hypot(ex, ey)
+        # Taper gaya maks saat mendekati target (slow-down radius) -> cegah slam.
+        slow_radius = 1.0  # m, mulai perlambat dalam radius ini
+        min_fmax_frac = 0.05  # jangan sampai gaya nol total (masih perlu lawan drag/arus)
+        if dist < slow_radius:
+            frac = max(min_fmax_frac, dist / slow_radius)
+            fm = fm * frac
         c, s = math.cos(self.yaw), math.sin(self.yaw)
         bx = ex * c + ey * s      # error posisi di body +x (surge)
         by = -ex * s + ey * c     # error posisi di body +y (sway)
@@ -183,7 +190,7 @@ class MissionFSM(Node):
         surge = self.approach_kp * bx - self.approach_kd * self.vx
         sway = self.approach_kp * by - self.approach_kd * self.vy
         self._set_surge(cl(surge), cl(sway))
-        return math.hypot(ex, ey)
+        return dist
 
     def _move_world(self, wx, wy, force):
         """Set gaya horizontal menuju arah DUNIA (wx,wy) unit, kompensasi yaw
@@ -246,6 +253,7 @@ class MissionFSM(Node):
     def _st_dive(self):
         # menyelam ke KEDALAMAN SCAN (kamera bawah cukup tinggi utk lihat QR utuh)
         self._set_depth(self.scan_depth)
+        self._set_heading(0.0)   # mulai putar balik menghadap QR sambil menyelam
         if self.depth is not None and self.depth >= self.scan_depth - self.depth_tol:
             self._set_surge(0.0)
             self.get_logger().info('Kedalaman scan tercapai (%.2fm)' % self.depth)
@@ -257,7 +265,16 @@ class MissionFSM(Node):
         """Misi 1a: posisikan ROV DI ATAS payload/QR datar & tahan (depth+XY hold)
         agar kamera bawah membaca QR. QR terbaca -> tetapkan wall -> GRAB."""
         self._set_depth(self.scan_depth)
-        self._set_heading(0.0)                       # heading tetap (QR di bawah, rotasi tak perlu)
+        self._set_heading(0.0)
+
+        yaw_err = abs(wrap_to_pi(0.0 - self.yaw)) if self.yaw is not None else math.pi
+        if yaw_err > self.yaw_tol:
+            self._set_surge(0.0, 0.0)
+            if self._elapsed() > self.T['scan']:
+                self.get_logger().error('APPROACH_QR timeout (masih align, yaw_err=%.1f°)' % math.degrees(yaw_err))
+                self._to(St.ABORT)
+            return
+
         dist = self._goto_xy(self.payload_x, self.payload_y)
         # QR terbaca (dari qr_detector via kamera bawah) & segar?
         if self.qr_wall and (self._now() - self.qr_time) <= self.qr_max_age:
@@ -288,12 +305,19 @@ class MissionFSM(Node):
         self._to(St.NAV_WALL)
 
     def _st_nav_wall(self):
-        """Navigasi HOLONOMIK ke wall (mitigasi yaw lemah): tahan heading, translasi
-        surge+sway ke posisi wall di dunia. Tak perlu memutar badan menghadap wall."""
         if self.wall is None: self._to(St.ABORT); return
         tx, ty = self._wall_xy(self.wall)
-        self._set_depth(self.hook_depth)     # turun ke level hook sambil bergerak
-        self._set_heading(0.0)               # HOLD heading (yaw lemah -> jangan slew)
+        target_heading = math.radians(WALL_HEADING_DEG[self.wall])
+        self._set_depth(self.hook_depth)
+        self._set_heading(target_heading)
+        yaw_err = abs(wrap_to_pi(target_heading - self.yaw)) if self.yaw is not None else math.pi
+        if yaw_err > self.yaw_tol:
+            # Belum sejajar: tahan posisi, jangan translasi dulu.
+            self._set_surge(0.0, 0.0)
+            if self._elapsed() > self.T['nav']:
+                self.get_logger().error('NAV_WALL timeout (masih align, yaw_err=%.1f°)' % math.degrees(yaw_err))
+                self._to(St.ABORT)
+            return
         dist = self._goto_xy(tx, ty, fmax=self.nav_fmax)
         if dist < self.nav_tol:
             self._set_surge(0.0)
@@ -305,7 +329,7 @@ class MissionFSM(Node):
     def _st_hang(self):
         e = self._elapsed()
         self._set_depth(self.hook_depth)   # naik/turun ke level hook
-        self._set_heading(0.0)
+        self._set_heading(math.radians(WALL_HEADING_DEG[self.wall]))
         ux, uy = self._wall_inward(self.wall) if self.wall else (0.0, 0.0)
         # Manipulasi (jepit/lepas) DIHAPUS — placeholder gerakan WORLD-FRAME sampai
         # dirancang ulang: dekati wall lalu mundur (arah dunia, tak bergantung heading).
@@ -320,6 +344,17 @@ class MissionFSM(Node):
         if e > self.T['hang']: self.get_logger().error('HANG timeout'); self._to(St.ABORT)
 
     def _st_surface(self):
+        self._set_heading(0.0)   # putar balik menghadap depan sebelum naik
+
+        yaw_err = abs(wrap_to_pi(0.0 - self.yaw)) if self.yaw is not None else math.pi
+        if yaw_err > self.yaw_tol:
+            self._set_surge(0.0, 0.0)
+            self._set_depth(self.hook_depth)   # tahan kedalaman dulu, jangan naik saat masih align
+            if self._elapsed() > self.T['surface']:
+                self.get_logger().error('SURFACE timeout (masih align, yaw_err=%.1f°)' % math.degrees(yaw_err))
+                self._to(St.ABORT)
+            return
+
         self._set_depth(self.depth_surface)
         if self.depth is not None and self.depth <= self.depth_surface + 0.05:
             self._set_surge(0.0)
@@ -351,7 +386,7 @@ class MissionFSM(Node):
         if self.wall is None: self._to(St.ABORT); return
         tx, ty = self._hook_xy(self.wall)
         self._set_depth(self.hook_depth)
-        self._set_heading(0.0)
+        self._set_heading(math.radians(WALL_HEADING_DEG[self.wall]))
         dist = self._goto_xy(tx, ty, fmax=self.nav_fmax)
         if dist < self.nav_tol:
             self._set_surge(0.0)
