@@ -33,7 +33,7 @@ Untuk menghindari kebingungan dari riwayat lama (gripper 2-jari → dihapus → 
 ulang), berikut **satu-satunya desain yang aktif sekarang**:
 
 - **Grasp sesungguhnya** = plugin gz-sim **`DetachableJoint`** yang menyambung kaku
-  `gripper_base` (di perut ROV) ↔ model `payload`. Attach/detach via topik
+  `gripper_base` (di muka depan ROV, +X) ↔ model `payload`. Attach/detach via topik
   `/hydroships/gripper/attach` & `/hydroships/gripper/detach` (`std_msgs/Empty`).
 - **Jari `gripper_jaw`** = revolute 1-DOF **kosmetik** (indikator visual buka-tutup saja),
   dikendalikan lewat `/hydroships/gripper_jaw/cmd` (`Float64`).
