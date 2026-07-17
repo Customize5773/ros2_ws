@@ -3,10 +3,15 @@
 Argumen:
   headless (default: false)  -> jalankan gz sim tanpa GUI (server saja) untuk CI/cloud.
   world    (default: pool_empty.sdf)
-  x,y,z    (default: 0 0 -0.5) -> posisi spawn ROV (sedikit di bawah permukaan).
+  rov_random_spawn (default: true) -> spawn ROV acak DEKAT salah satu dinding kolam
+      (posisi kontes realistis & bervariasi tiap run). false = pakai rov_x/y/z.
+  rov_x,rov_y,rov_z (default: 0 0 -0.5) -> posisi manual bila rov_random_spawn=false.
+  rov_wall_margin (default: 0.5) -> jarak aman ROV dari dinding fisik (+-rov_arena_half).
+  rov_arena_half  (default: 2.55) -> setengah lebar kolam (dinding di +-nilai ini).
 """
 
 import os
+import random
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
@@ -24,19 +29,59 @@ from launch_ros.substitutions import FindPackageShare
 import xacro
 
 
+def _f(context, name, default):
+    """Ambil LaunchConfiguration sbg float; fallback ke default bila kosong/invalid."""
+    v = LaunchConfiguration(name).perform(context).strip()
+    try:
+        return float(v)
+    except (ValueError, AttributeError):
+        return default
+
+
+def _rov_spawn_xyz(context):
+    """Kembalikan (x, y, z) string utk spawn ROV.
+
+    rov_random_spawn=true -> acak DEKAT salah satu dari 4 dinding (A/B/C/D): axis
+    yg menempel dinding di +-(arena_half - margin), koordinat lain tersebar acak
+    sepanjang dinding dalam rentang aman yg sama. false -> pakai rov_x/rov_y/rov_z.
+    z selalu dari rov_z (kedalaman aman, default -0.5, di bawah permukaan)."""
+    z = _f(context, 'rov_z', -0.5)
+    random_spawn = LaunchConfiguration('rov_random_spawn').perform(context).strip().lower() == 'true'
+    if not random_spawn:
+        return (str(_f(context, 'rov_x', 0.0)), str(_f(context, 'rov_y', 0.0)), str(z))
+
+    arena_half = _f(context, 'rov_arena_half', 2.55)
+    margin = _f(context, 'rov_wall_margin', 0.5)
+    lim = max(0.0, arena_half - margin)          # koordinat aman maks (mepet dinding)
+    along = random.uniform(-lim, lim)            # sebaran sepanjang dinding
+    wall = random.choice(('A', 'B', 'C', 'D'))
+    # Konvensi sama dgn mission_fsm._wall_inward: A=-Y, B=+Y, C=+X, D=-X.
+    if wall == 'A':      x, y = along, -lim
+    elif wall == 'B':    x, y = along, lim
+    elif wall == 'C':    x, y = lim, along
+    else:                x, y = -lim, along      # D
+    return (str(round(x, 3)), str(round(y, 3)), str(z))
+
+
 def _launch_setup(context, *args, **kwargs):
     pkg_gazebo = get_package_share_directory('hydroships_gazebo')
     pkg_description = get_package_share_directory('hydroships_description')
 
     world = LaunchConfiguration('world').perform(context)
     headless = LaunchConfiguration('headless').perform(context).lower() == 'true'
-    x = LaunchConfiguration('x').perform(context)
-    y = LaunchConfiguration('y').perform(context)
-    z = LaunchConfiguration('z').perform(context)
     try:
         spawn_delay = float(LaunchConfiguration('spawn_delay').perform(context))
     except ValueError:
         spawn_delay = 3.0
+
+    # Posisi spawn ROV: acak DEKAT dinding (kontes) atau manual via rov_x/y/z.
+    x, y, z = _rov_spawn_xyz(context)
+    _random = LaunchConfiguration('rov_random_spawn').perform(context).strip().lower() == 'true'
+    print('[sim.launch] ROV spawn (random=%s) di (%s, %s, %s)' % (_random, x, y, z))
+
+    qr_letter = LaunchConfiguration('qr_letter').perform(context)
+    payload_x = LaunchConfiguration('payload_x').perform(context)
+    payload_y = LaunchConfiguration('payload_y').perform(context)
 
     world_path = os.path.join(pkg_gazebo, 'worlds', world)
 
@@ -117,7 +162,42 @@ def _launch_setup(context, *args, **kwargs):
         parameters=[{'use_sim_time': True}],
     )
 
-    return [gz_sim, bridge, rsp, spawn, depth_pub, qr]
+    # Manipulator (M5 rancang ulang): open/close -> gz DetachableJoint attach/detach.
+    gripper = Node(
+        package='hydroships_control',
+        executable='gripper_controller',
+        output='screen',
+        parameters=[{'use_sim_time': True}],
+    )
+
+    # Deteksi hook (port GUI-ROV) -> /hydroships/hook_offset (visual servo APPROACH_HOOK).
+    hook = Node(
+        package='hydroships_control',
+        executable='hook_detector',
+        output='screen',
+        parameters=[{'use_sim_time': True}],
+    )
+
+    # Spawner payload QR random (A/B/C/D): spawn model payload lewat ros_gz_sim
+    # create + publikasi posisi ke /hydroships/payload_pose + sinyal
+    # /hydroships/payload/spawned (memicu gripper detach SETELAH payload ada).
+    # Delay > spawn ROV (server gz & model ROV siap) tapi kecil agar payload muncul
+    # lebih awal (pose dipublish segera; urutan attach/detach dijaga oleh topik
+    # spawned, bukan timing). Bila qr_letter/payload_x/y kosong → random.
+    spawner = Node(
+        package='hydroships_gazebo',
+        executable='payload_spawner',
+        output='screen',
+        parameters=[{
+            'use_sim_time': True,
+            'qr_letter': qr_letter,
+            'payload_x': float(payload_x) if payload_x else 0.4,
+            'payload_y': float(payload_y) if payload_y else 0.04,
+            'spawn_delay': spawn_delay + 0.5,
+        }],
+    )
+
+    return [gz_sim, bridge, rsp, spawn, depth_pub, qr, gripper, hook, spawner]
 
 
 def generate_launch_description():
@@ -127,11 +207,27 @@ def generate_launch_description():
                                           '(kki_arena.sdf = arena lomba; pool_empty.sdf = kolam kosong).'),
         DeclareLaunchArgument('headless', default_value='false',
                               description='true = server saja tanpa GUI (cloud/CI).'),
-        DeclareLaunchArgument('x', default_value='0.0'),
-        DeclareLaunchArgument('y', default_value='0.0'),
-        DeclareLaunchArgument('z', default_value='-0.5'),
+        DeclareLaunchArgument('rov_random_spawn', default_value='true',
+                              description='true = spawn ROV acak dekat salah satu '
+                                          'dinding kolam (kontes); false = pakai rov_x/y/z.'),
+        DeclareLaunchArgument('rov_x', default_value='0.0',
+                              description='Posisi X spawn ROV (m) bila rov_random_spawn=false.'),
+        DeclareLaunchArgument('rov_y', default_value='0.0',
+                              description='Posisi Y spawn ROV (m) bila rov_random_spawn=false.'),
+        DeclareLaunchArgument('rov_z', default_value='-0.5',
+                              description='Kedalaman spawn ROV (m, negatif = di bawah permukaan).'),
+        DeclareLaunchArgument('rov_wall_margin', default_value='0.5',
+                              description='Jarak aman ROV dari dinding fisik (+-rov_arena_half).'),
+        DeclareLaunchArgument('rov_arena_half', default_value='2.55',
+                              description='Setengah lebar kolam (dinding di +-nilai ini).'),
         DeclareLaunchArgument('spawn_delay', default_value='3.0',
                               description='Detik menunda spawn ROV agar server gz '
                                           'siap dulu (naikkan bila mesin lambat).'),
+        DeclareLaunchArgument('qr_letter', default_value='',
+                              description='Huruf QR payload (A/B/C/D). Kosong = random.'),
+        DeclareLaunchArgument('payload_x', default_value='0.4',
+                              description='Posisi X payload (m); dipakai bila qr_letter di-set.'),
+        DeclareLaunchArgument('payload_y', default_value='0.04',
+                              description='Posisi Y payload (m); dipakai bila qr_letter di-set.'),
         OpaqueFunction(function=_launch_setup),
     ])
