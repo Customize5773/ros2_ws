@@ -155,6 +155,14 @@ Commit hash & tanggal dari `git log` (rentang 2026-07-07 … 2026-07-17).
   rendah/modul besar; menyamakan konvensi qr_A.png ter-commit; parse_wall tetap terima
   string panjang). Regresi frame-nyata ditambah ke `test_qr_logic.py`
   (`test_robust_decodes_real_sim_frame`, fixture `qr_sim_bottom_A.png`).
+- **[RESOLVED] Restore gripper + hook-servo integration yang hilang di merge PR #14.**
+  PR #14 (`76dae05`) mengambil sisi `3f50a69` (revert lengkap gripper oleh `lockkers844-web`
+  yang menghapus 103 baris) sambil hanya menarum QR fixes dari branch `rasya/dev2`
+  (`4fbc6f8`). Hasilnya: `mission_fsm.py` HEAD kehilangan integrasi gripper (`_grip`),
+  hook visual servo PD (`APPROACH_HOOK`), `done_hooks` tracking di `_st_surface` +
+  `_st_auto_release`, serta loop kembali DIVE bila <4 hook. Semua itu di-restore dari
+  `4fbc6f8` sambil mempertahankan QR fixes (`scan_depth=0.46`, `t_scan=60`,
+  `start_wall`). Test headless 62 tetes lolos.
 
 ---
 
