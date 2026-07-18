@@ -292,6 +292,8 @@ class MissionFSM(Node):
         self._set_surge(cl(surge), cl(sway))
         return dist
 
+asd
+
     def _move_world(self, wx, wy, force):
         """Set gaya horizontal menuju arah DUNIA (wx,wy) unit, kompensasi yaw
         (gerak tak bergantung heading — mitigasi yaw lemah)."""
