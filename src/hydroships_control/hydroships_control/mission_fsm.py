@@ -185,8 +185,6 @@ class MissionFSM(Node):
         self._set_surge(cl(surge), cl(sway))
         return math.hypot(ex, ey)
 
-asd
-
     def _move_world(self, wx, wy, force):
         """Set gaya horizontal menuju arah DUNIA (wx,wy) unit, kompensasi yaw
         (gerak tak bergantung heading — mitigasi yaw lemah)."""
@@ -248,6 +246,7 @@ asd
     def _st_dive(self):
         # menyelam ke KEDALAMAN SCAN (kamera bawah cukup tinggi utk lihat QR utuh)
         self._set_depth(self.scan_depth)
+        self._set_heading(0.0)   # mulai putar balik menghadap QR sambil menyelam
         if self.depth is not None and self.depth >= self.scan_depth - self.depth_tol:
             self._set_surge(0.0)
             self.get_logger().info('Kedalaman scan tercapai (%.2fm)' % self.depth)
@@ -259,7 +258,16 @@ asd
         """Misi 1a: posisikan ROV DI ATAS payload/QR datar & tahan (depth+XY hold)
         agar kamera bawah membaca QR. QR terbaca -> tetapkan wall -> GRAB."""
         self._set_depth(self.scan_depth)
-        self._set_heading(0.0)                       # heading tetap (QR di bawah, rotasi tak perlu)
+        self._set_heading(0.0)
+
+        yaw_err = abs(wrap_to_pi(0.0 - self.yaw)) if self.yaw is not None else math.pi
+        if yaw_err > self.yaw_tol:
+            self._set_surge(0.0, 0.0)
+            if self._elapsed() > self.T['scan']:
+                self.get_logger().error('APPROACH_QR timeout (masih align, yaw_err=%.1f°)' % math.degrees(yaw_err))
+                self._to(St.ABORT)
+            return
+
         dist = self._goto_xy(self.payload_x, self.payload_y)
         # QR terbaca (dari qr_detector via kamera bawah) & segar?
         if self.qr_wall and (self._now() - self.qr_time) <= self.qr_max_age:
@@ -322,6 +330,23 @@ asd
         if e > self.T['hang']: self.get_logger().error('HANG timeout'); self._to(St.ABORT)
 
     def _st_surface(self):
+        self._set_heading(0.0)   # putar balik menghadap depan sebelum naik
+
+        yaw_err = abs(wrap_to_pi(0.0 - self.yaw)) if self.yaw is not None else math.pi
+        if yaw_err > self.yaw_tol:
+            # Aktif ngerem sisa kecepatan (bukan cuma commit gaya nol) supaya
+            # ROV benar-benar diam saat berputar, bukan drift sisa momentum HANG.
+            brake_kd = 40.0
+            bx = -brake_kd * self.vx
+            by = -brake_kd * self.vy
+            cl = lambda v: max(-20.0, min(20.0, v))
+            self._set_surge(cl(bx), cl(by))
+            self._set_depth(self.hook_depth)   # tahan kedalaman dulu, jangan naik saat masih align
+            if self._elapsed() > self.T['surface']:
+                self.get_logger().error('SURFACE timeout (masih align, yaw_err=%.1f°)' % math.degrees(yaw_err))
+                self._to(St.ABORT)
+            return
+
         self._set_depth(self.depth_surface)
         if self.depth is not None and self.depth <= self.depth_surface + 0.05:
             self._set_surge(0.0)
