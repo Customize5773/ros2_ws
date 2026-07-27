@@ -3,10 +3,15 @@
 Argumen:
   headless (default: false)  -> jalankan gz sim tanpa GUI (server saja) untuk CI/cloud.
   world    (default: pool_empty.sdf)
-  x,y,z    (default: 0 0 -0.5) -> posisi spawn ROV (sedikit di bawah permukaan).
+  x,y,z    (default: 0 0 -0.5) -> posisi spawn ROV (dipakai kalau randomize_spawn:=false).
+  randomize_spawn (default: true) -> pose spawn acak (x,y,yaw) tiap launch.
+  spawn_radius    (default: 0.8)  -> radius acak (m) dari pusat kolam.
+  spawn_seed      (default: '')   -> isi utk fix seed (replay/debug), kosong = acak penuh.
 """
 
+import math
 import os
+import random
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
@@ -37,6 +42,23 @@ def _launch_setup(context, *args, **kwargs):
         spawn_delay = float(LaunchConfiguration('spawn_delay').perform(context))
     except ValueError:
         spawn_delay = 3.0
+
+    # Pose spawn ACAK (x,y,yaw) tiap launch, biar pilot latihan dari titik
+    # berbeda-beda. Dibatasi radius aman dari tengah kolam (jauh dari 4
+    # dinding/hook). seed bisa di-fix via arg spawn_seed utk replay run
+    # tertentu (debug/testing); default kosong = benar-benar acak.
+    randomize = LaunchConfiguration('randomize_spawn').perform(context).lower() == 'true'
+    if randomize:
+        seed_str = LaunchConfiguration('spawn_seed').perform(context)
+        rng = random.Random(int(seed_str)) if seed_str else random.Random()
+        half = float(LaunchConfiguration('spawn_radius').perform(context))
+        x = str(rng.uniform(-half, half))
+        y = str(rng.uniform(-half, half))
+        yaw = rng.uniform(-math.pi, math.pi)
+        print('[sim.launch.py] spawn acak: x=%s y=%s z=%s yaw=%.2f rad'
+              % (x, y, z, yaw))
+    else:
+        yaw = 0.0
 
     world_path = os.path.join(pkg_gazebo, 'worlds', world)
 
@@ -86,6 +108,33 @@ def _launch_setup(context, *args, **kwargs):
                     '-name', 'hydroships',
                     '-string', robot_desc,
                     '-x', x, '-y', y, '-z', z,
+                    '-Y', str(yaw),
+                ],
+            ),
+        ],
+    )
+
+    payload_model_path = os.path.join(
+        get_package_share_directory('hydroships_gazebo'),
+        'models', 'payload', 'model.sdf')
+
+    bottom_offset = 0.3   # m, turun dari center ROV (sesuaikan sampai pas)
+    px = float(x)
+    py = float(y)
+    pz = float(z) - bottom_offset
+
+    payload_spawn = TimerAction(
+        period=spawn_delay + 2.0,   # setelah ROV ada, biar DetachableJoint nemu gripper_link
+        actions=[
+            Node(
+                package='ros_gz_sim',
+                executable='create',
+                output='screen',
+                arguments=[
+                    '-name', 'payload',
+                    '-file', payload_model_path,
+                    '-x', str(px), '-y', str(py), '-z', str(pz),
+                    '-R', '1.5708', '-P', '0.0', '-Y', str(yaw),
                 ],
             ),
         ],
@@ -117,7 +166,7 @@ def _launch_setup(context, *args, **kwargs):
         parameters=[{'use_sim_time': True}],
     )
 
-    return [gz_sim, bridge, rsp, spawn, depth_pub, qr]
+    return [gz_sim, bridge, rsp, spawn, payload_spawn, depth_pub, qr]
 
 
 def generate_launch_description():
@@ -127,11 +176,20 @@ def generate_launch_description():
                                           '(kki_arena.sdf = arena lomba; pool_empty.sdf = kolam kosong).'),
         DeclareLaunchArgument('headless', default_value='false',
                               description='true = server saja tanpa GUI (cloud/CI).'),
-        DeclareLaunchArgument('x', default_value='0.0'),
-        DeclareLaunchArgument('y', default_value='0.0'),
+        DeclareLaunchArgument('x', default_value='0.0',
+                              description='Dipakai kalau randomize_spawn:=false.'),
+        DeclareLaunchArgument('y', default_value='0.0',
+                              description='Dipakai kalau randomize_spawn:=false.'),
         DeclareLaunchArgument('z', default_value='-0.5'),
         DeclareLaunchArgument('spawn_delay', default_value='3.0',
                               description='Detik menunda spawn ROV agar server gz '
                                           'siap dulu (naikkan bila mesin lambat).'),
+        DeclareLaunchArgument('randomize_spawn', default_value='true',
+                              description='true = pose spawn (x,y,yaw) acak tiap launch.'),
+        DeclareLaunchArgument('spawn_radius', default_value='2.0',
+                              description='Radius acak (m) dari pusat kolam.'),
+        DeclareLaunchArgument('spawn_seed', default_value='',
+                              description='Isi utk fix seed random (replay/debug); '
+                                          'kosong = acak penuh tiap launch.'),
         OpaqueFunction(function=_launch_setup),
     ])
