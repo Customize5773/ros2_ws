@@ -1,16 +1,16 @@
 # Graph Report - ros2_ws  (2026-07-28)
 
 ## Corpus Check
-- 48 files · ~97,997 words
+- 48 files · ~99,057 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 436 nodes · 665 edges · 30 communities (22 shown, 8 thin omitted)
+- 440 nodes · 670 edges · 30 communities (22 shown, 8 thin omitted)
 - Extraction: 87% EXTRACTED · 13% INFERRED · 0% AMBIGUOUS · INFERRED: 88 edges (avg confidence: 0.78)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `8657b0a5`
+- Built from commit: `24dd3495`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -43,8 +43,8 @@
 - 4.7 Sub-Kategori Remotely Operated Underwater Vehicle (ROV)
 
 ## God Nodes (most connected - your core abstractions)
-1. `GripperLogic` - 29 edges
-2. `MissionFSM` - 29 edges
+1. `MissionFSM` - 31 edges
+2. `GripperLogic` - 29 edges
 3. `GuiBridgeLogic` - 18 edges
 4. `PID` - 15 edges
 5. `hook_servo()` - 14 edges
@@ -72,8 +72,8 @@
 ## Communities (30 total, 8 thin omitted)
 
 ### Community 0 - "MissionFSM"
-Cohesion: 0.12
-Nodes (18): Enum, HookServoGains, Gain PD visual-servo APPROACH_HOOK (holonomik: sway+surge+depth-setpoint)., main(), MissionFSM, Node, Non-holonomik: putar dulu menghadap target, baru maju (surge saja,         tanpa, PD posisi HOLONOMIK: dorong ROV ke (tx,ty) dunia via gaya horizontal         bod (+10 more)
+Cohesion: 0.10
+Nodes (20): Enum, HookServoGains, Gain PD visual-servo APPROACH_HOOK (holonomik: sway+surge+depth-setpoint)., main(), MissionFSM, Node, Non-holonomik: putar dulu menghadap target, baru maju (surge saja,         tanpa, PD posisi HOLONOMIK: dorong ROV ke (tx,ty) dunia via gaya horizontal         bod (+12 more)
 
 ### Community 1 - "GuiBridgeLogic"
 Cohesion: 0.07
@@ -152,9 +152,9 @@ Nodes (10): 4.7.1 Deskripsi dan Misi, 4.7.2 Ketentuan Teknis Prototipe ROV, 4.7.
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `GripperController` connect `QRDetector` to `GripperLogic`?**
-  _High betweenness centrality (0.089) - this node is a cross-community bridge._
+  _High betweenness centrality (0.090) - this node is a cross-community bridge._
 - **Why does `normalize_hook_offset()` connect `hook_servo` to `hook_detector.py`?**
-  _High betweenness centrality (0.082) - this node is a cross-community bridge._
+  _High betweenness centrality (0.081) - this node is a cross-community bridge._
 - **Why does `GripperLogic` connect `GripperLogic` to `QRDetector`?**
   _High betweenness centrality (0.077) - this node is a cross-community bridge._
 - **Are the 19 inferred relationships involving `GripperLogic` (e.g. with `GripperController` and `.__init__()`) actually correct?**

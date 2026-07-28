@@ -27,6 +27,7 @@ from sensor_msgs.msg import Image
 from geometry_msgs.msg import PointStamped
 
 from hydroships_control.hook_logic import normalize_hook_offset
+from hydroships_control.image_util import image_msg_to_bgr
 
 try:
     import cv2
@@ -118,27 +119,33 @@ class HookDetector(Node):
         self.pub = self.create_publisher(PointStamped, '/hydroships/hook_offset', 10)
         self.create_subscription(Image, topic, self._on_image, 5)
         self._last_t = 0.0
+        self._topic = topic
+        self._seen_frame = False      # utk log "FRAME PERTAMA" sekali saja
+        self._detected = False        # utk log transisi hilang->ketemu saja
         if not CV2_OK:
             self.get_logger().warn('opencv tak tersedia — hook_detector nonaktif')
         self.get_logger().info('hook_detector siap (subscribe %s)' % topic)
 
     def _to_cv(self, msg: Image):
+        # Decode (termasuk penanganan row-stride msg.step) ada di image_util,
+        # dipakai bersama qr_detector. Sebelumnya di sini reshape polos ke
+        # (h, w, 3) -> padding baris ros_gz ikut terbaca, frame ter-shear
+        # diagonal, dan deteksi hook gagal DIAM-DIAM.
         try:
-            buf = np.frombuffer(msg.data, dtype=np.uint8)
-            h, w, enc = msg.height, msg.width, msg.encoding
-            if enc in ('rgb8', 'bgr8'):
-                img = buf.reshape(h, w, 3)
-                if enc == 'rgb8':
-                    img = img[:, :, ::-1]
-                return np.ascontiguousarray(img)
-            if enc in ('mono8', '8UC1'):
-                return buf.reshape(h, w)
-            return buf.reshape(h, w, -1)[:, :, :3]
+            return image_msg_to_bgr(msg)
         except Exception as e:
             self.get_logger().warn('decode image gagal: %s' % e, throttle_duration_sec=5.0)
             return None
 
     def _on_image(self, msg: Image):
+        # Bukti subscriber DAPAT data: log SEKALI saat frame pertama tiba
+        # (sebelum rate-limit), sejajar qr_detector.
+        if not self._seen_frame:
+            self._seen_frame = True
+            self.get_logger().info(
+                'FRAME PERTAMA dari %s (%dx%d enc=%s step=%d)'
+                % (self._topic, msg.width, msg.height, msg.encoding, msg.step))
+
         now = self.get_clock().now().nanoseconds * 1e-9
         period = 1.0 / max(0.1, float(self.get_parameter('max_rate').value))
         if now - self._last_t < period:
@@ -149,8 +156,19 @@ class HookDetector(Node):
             return
         det = detect_hook(img, min_area=float(self.get_parameter('min_area').value))
         if det is None:
+            # Sebelumnya return senyap -> kegagalan deteksi tak terlihat sama
+            # sekali di log. Throttle agar tak spam saat hook memang di luar frame.
+            self.get_logger().warn(
+                'HOOK TAK TERDETEKSI (kontur & Hough gagal / area < min_area=%.0f) '
+                'shape=%s' % (float(self.get_parameter('min_area').value), img.shape),
+                throttle_duration_sec=5.0)
+            self._detected = False
             return
         center, area = det
+        if not self._detected:
+            self._detected = True
+            self.get_logger().info('hook terdeteksi: center=(%.0f,%.0f) area=%.0f'
+                                   % (center[0], center[1], area))
         ex, ey, size = normalize_hook_offset(center, area, img.shape[1], img.shape[0])
         ps = PointStamped()
         ps.header.stamp = self.get_clock().now().to_msg()

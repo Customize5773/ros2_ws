@@ -52,6 +52,32 @@ def wrap_to_pi(a):
     return math.atan2(math.sin(a), math.cos(a))
 
 
+def qr_ey_target(depth, cam_gripper_dx, qr_floor_z, cam_bottom_dz,
+                 vfov_half_tan, ey_max):
+    """Offset vertikal ternormalisasi tempat QR HARUS tampak di kamera bawah.
+
+    Gripper berada `cam_gripper_dx` meter DI DEPAN kamera bawah (sumbu x body).
+    Kalau servo memusatkan QR di kamera (ey=0), gripper meleset sejauh itu. Jadi
+    QR harus dibiarkan tampak di DEPAN pusat frame supaya gripper-lah yang tepat
+    di atas QR.
+
+    Konvensi `qr_logic.offset_from_points`: ey > 0 = QR di BAWAH pusat frame =
+    payload di BELAKANG ROV. Maka "QR di depan" berarti ey NEGATIF.
+
+    Geometri: kamera berada `h_cam` di atas bidang QR, dan setengah-tinggi
+    petak pandang di bidang itu = h_cam * tan(½ FOV vertikal). Offset metrik
+    dinormalkan terhadap setengah-tinggi tsb.
+
+    Dikembalikan sudah ter-clamp ke ±ey_max agar QR tak terdorong keluar frame
+    (|ey| = 1.0 tepat di tepi). Clamp yang AKTIF adalah tanda bahwa `depth`
+    terlalu dalam untuk offset gripper sebesar ini — lihat catatan `scan_depth`.
+    """
+    h_cam = max(0.05, abs(qr_floor_z) - depth - cam_bottom_dz)
+    half_h = max(1e-3, h_cam * vfov_half_tan)
+    ey = -cam_gripper_dx / half_h
+    return max(-ey_max, min(ey_max, ey))
+
+
 WALL_HEADING_DEG = {'A': 270.0, 'B': 90.0, 'C': 0.0, 'D': 180.0}
 
 
@@ -83,7 +109,16 @@ class MissionFSM(Node):
         # bawah TER-CROP + gripper menutupi atas frame -> cv2.QRCodeDetector gagal
         # (pts=None). Di 0.46 kamera ~25cm di atas QR -> QR utuh + quiet-zone di frame,
         # terbaca 'A'..'D' (dibuktikan runtime: frame kamera bottom -> decode 'A').
-        p('scan_depth', 0.46)        # m kedalaman scan (kamera bawah ~25cm di atas QR)
+        # [REVISI] 0.46 -> 0.30. Alasan: gripper 0.16 m di depan kamera bawah
+        # (lihat cam_gripper_dx). Setengah-tinggi footprint kamera di lantai =
+        # h_cam * 0.6293, dengan h_cam = |qr_floor_z| - depth - cam_bottom_dz.
+        #   depth 0.46 -> h_cam 0.254 -> ½-tinggi 0.160 m -> ey_target = -1.00 (TEPI
+        #     frame) => MUSTAHIL memusatkan gripper di atas QR sambil QR terlihat.
+        #   depth 0.30 -> h_cam 0.414 -> ½-tinggi 0.261 m -> ey_target = -0.61 (aman),
+        #     QR 12cm masih ~17% lebar frame (~111 px, jauh di atas ambang decode).
+        # Arah perubahan ini MENJAUH dari QR (QR mengecil), jadi tidak mengulang
+        # bug lama 0.62 di mana QR terlalu besar/ter-crop.
+        p('scan_depth', 0.30)        # m kedalaman scan (kamera bawah ~41cm di atas QR)
         p('approach_kp', 90.0)       # N/m gain posisi XY -> gaya horizontal
         p('approach_kd', 140.0)       # N/(m/s) redaman kecepatan (cegah overshoot)
         p('approach_fmax', 16.0)     # N batas gaya approach
@@ -107,6 +142,20 @@ class MissionFSM(Node):
         # Arah koreksi servo. Salah tanda = umpan balik POSITIF (ROV menjauh dari
         # payload). Bila |ex|,|ey| membesar saat uji, balik ke -1.0 (lihat plan H2).
         p('qr_servo_sign', 1.0)
+        # --- Koreksi offset kamera bawah -> gripper ---
+        # camera_bottom_link ada di x=+0.02 sedangkan gripper_base di x=+0.18
+        # (hydroships.urdf.xacro), jadi GRIPPER 0.16 m DI DEPAN kamera. Servo lama
+        # memusatkan QR di KAMERA -> gripper selalu melewati payload ~0.16 m.
+        # Sekarang servo menargetkan QR muncul di ey_target (bukan 0) supaya
+        # GRIPPER yang berada tepat di atas QR.
+        p('cam_gripper_dx', 0.16)    # m, jarak gripper di depan kamera bawah (x body)
+        p('gripper_base_dx', 0.18)   # m, gripper_base.x vs base_link (utk fallback XY)
+        p('qr_floor_z', -0.894)      # m, tinggi bidang QR di dunia (payload_spawner.py)
+        p('cam_bottom_dz', 0.18)     # m, kamera bawah di bawah base_link
+        # tan(setengah-FOV vertikal). hFOV 80° @ 4:3 -> atan(0.75*tan40°) = 32.2°.
+        p('cam_vfov_half_tan', 0.6293)
+        # Batas |ey_target| supaya QR tetap di dalam frame (1.0 = tepat di tepi).
+        p('ey_target_max', 0.8)
 
         g = lambda n: self.get_parameter(n).value
         self.surge = float(g('surge_force'))
@@ -133,6 +182,12 @@ class MissionFSM(Node):
         self.qr_center_tol = float(g('qr_center_tol'))
         self.qr_servo_gain = float(g('qr_servo_gain'))
         self.qr_servo_sign = float(g('qr_servo_sign'))
+        self.cam_gripper_dx = float(g('cam_gripper_dx'))
+        self.gripper_base_dx = float(g('gripper_base_dx'))
+        self.qr_floor_z = float(g('qr_floor_z'))
+        self.cam_bottom_dz = float(g('cam_bottom_dz'))
+        self.cam_vfov_half_tan = float(g('cam_vfov_half_tan'))
+        self.ey_target_max = float(g('ey_target_max'))
         self.T = {k: float(g('t_' + k)) for k in
                   ('dive', 'scan', 'grab', 'nav', 'hang', 'surface',
                    'wait_trigger', 'release')}
@@ -378,6 +433,23 @@ class MissionFSM(Node):
         elif self._elapsed() > self.T['dive']:
             self.get_logger().error('DIVE timeout'); self._to(St.ABORT)
 
+    def _gripper_align_txt(self):
+        """Metrik alignment sesungguhnya: jarak XY GRIPPER (bukan base_link) ke QR.
+
+        Inilah angka yang menentukan apakah jepitan kena. Sebelum koreksi
+        cam_gripper_dx nilainya ~0.18 m (base_link yang dipusatkan, gripper
+        melewati payload); setelah koreksi harus < approach_tol.
+        """
+        if self.x is None or self.yaw is None:
+            return 'gripper_err=n/a'
+        gx = self.x + self.gripper_base_dx * math.cos(self.yaw)
+        gy = self.y + self.gripper_base_dx * math.sin(self.yaw)
+        err = math.hypot(self.payload_x - gx, self.payload_y - gy)
+        base_err = math.hypot(self.payload_x - self.x, self.payload_y - self.y)
+        return ('gripper_err=%.3f m base_err=%.3f m (gripper@%.2f,%.2f '
+                'payload@%.2f,%.2f)'
+                % (err, base_err, gx, gy, self.payload_x, self.payload_y))
+
     def _st_approach_qr(self):
         """Misi 1: dekati payload holonomik (tanpa terikat heading, cegah
         osilasi saat mendekati target), lalu PUSATKAN QR di frame kamera bawah
@@ -406,10 +478,26 @@ class MissionFSM(Node):
             self._approach_recovered = False
         self._set_depth(depth_target)
 
-        # Visual servo: geser target XY supaya QR bergerak ke tengah frame.
+        # Offset kamera->gripper: QR tidak dipusatkan di kamera melainkan di
+        # ey_target, supaya GRIPPER (0.16 m di depan kamera) yang tepat di atas QR.
+        # Dihitung dari depth_target FINAL, jadi otomatis ikut menyesuaikan saat
+        # recovery menaikkan kedalaman.
+        ey_target = qr_ey_target(depth_target, self.cam_gripper_dx, self.qr_floor_z,
+                                 self.cam_bottom_dz, self.cam_vfov_half_tan,
+                                 self.ey_target_max)
+
+        # Visual servo: geser target XY supaya QR bergerak ke ey_target di frame.
         # ex,ey ternormalisasi di sumbu CITRA -> putar ke sumbu DUNIA lewat yaw
         # (yaw berubah terus; pemetaan tetap akan salah arah saat ROV berputar).
+        #
+        # Target dasar juga digeser MUNDUR sejauh gripper_base_dx di sumbu x body:
+        # payload_x/y adalah posisi QR, dan yang harus berada di situ adalah
+        # gripper, bukan base_link. Tanpa ini fallback "dist < approach_tol"
+        # menempatkan base_link di atas QR -> gripper meleset 0.18 m.
         tx, ty = self.payload_x, self.payload_y
+        if self.yaw is not None:
+            tx -= self.gripper_base_dx * math.cos(self.yaw)
+            ty -= self.gripper_base_dx * math.sin(self.yaw)
         off_fresh = (self.qr_off is not None
                      and (self._now() - self.qr_off_time) < self.qr_max_age)
         dist_raw = math.hypot((self.x or 0.0) - tx, (self.y or 0.0) - ty)
@@ -417,8 +505,9 @@ class MissionFSM(Node):
         if servoing:
             ex, ey, _size = self.qr_off
             k = self.qr_servo_gain * self.qr_servo_sign
-            body_dx = -ey * k     # ey>0: QR di bawah pusat -> payload di belakang
-            body_dy = -ex * k     # ex>0: QR di kanan pusat  -> payload di kanan
+            # Error diukur terhadap ey_target, bukan terhadap 0.
+            body_dx = -(ey - ey_target) * k   # ey>ey_target: QR terlalu ke belakang
+            body_dy = -ex * k                 # ex>0: QR di kanan pusat -> geser kanan
             c, s = math.cos(self.yaw), math.sin(self.yaw)
             tx += body_dx * c - body_dy * s
             ty += body_dx * s + body_dy * c
@@ -427,12 +516,13 @@ class MissionFSM(Node):
         if int(self._elapsed() * 2) % 6 == 0:
             off_txt = ('ex=%+.2f ey=%+.2f' % (self.qr_off[0], self.qr_off[1])
                        if self.qr_off is not None else 'ex=-- ey=--')
+            h_cam = max(0.05, abs(self.qr_floor_z) - depth_target - self.cam_bottom_dz)
             self.get_logger().info(
                 'APPROACH_QR dbg: dist=%.3f x=%.2f y=%.2f yaw=%.1f target=(%.2f,%.2f) '
-                '%s servo=%d qr=%s'
+                '%s ey_target=%+.2f h_cam=%.2f servo=%d qr=%s'
                 % (dist, self.x or -99, self.y or -99,
                    math.degrees(self.yaw or 0), tx, ty,
-                   off_txt, int(servoing), self.qr_wall or '-'))
+                   off_txt, ey_target, h_cam, int(servoing), self.qr_wall or '-'))
 
         # QR terbaca -> kunci wall, TAPI jangan langsung GRAB: pusatkan dulu.
         if qr_seen and not self._wall_scored:
@@ -444,13 +534,16 @@ class MissionFSM(Node):
                                    % (self.qr_wall, self.wall))
 
         if self._wall_scored:
+            # Dibandingkan terhadap ey_target (bukan 0) — kalau tetap terhadap 0,
+            # |ey| konvergen ke ~0.61 dan transisi GRAB tak pernah terpicu.
             centered = (off_fresh
                         and abs(self.qr_off[0]) < self.qr_center_tol
-                        and abs(self.qr_off[1]) < self.qr_center_tol)
+                        and abs(self.qr_off[1] - ey_target) < self.qr_center_tol)
             if centered or dist < self.approach_tol:
                 self.get_logger().info(
-                    'QR terpusat (%s) -> GRAB'
-                    % ('visual servo' if centered else 'jarak XY'))
+                    'QR terpusat (%s) -> GRAB (%s)'
+                    % ('visual servo' if centered else 'jarak XY',
+                       self._gripper_align_txt()))
                 self._set_surge(0.0); self._to(St.GRAB); return
 
         elif dist < self.approach_tol:
@@ -462,8 +555,9 @@ class MissionFSM(Node):
             self._wall_idx += 1
             self.score['m1'] = 15
             self._wall_scored = True
-            self.get_logger().info('Wall %s dipilih (+15) [urutan ke-%d]'
-                                   % (self.wall, self._wall_idx))
+            self.get_logger().info('Wall %s dipilih (+15) [urutan ke-%d] (%s)'
+                                   % (self.wall, self._wall_idx,
+                                      self._gripper_align_txt()))
             self._set_surge(0.0); self._to(St.GRAB); return
 
         if self._elapsed() > self.T['scan']:

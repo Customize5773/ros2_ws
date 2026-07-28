@@ -21,6 +21,7 @@ from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 
 
 def generate_launch_description():
@@ -53,7 +54,11 @@ def generate_launch_description():
         executable='mission_fsm',
         output='screen',
         parameters=[{'use_sim_time': True, 'start_state': start_state,
-                      'start_wall': start_wall}],
+                      'start_wall': start_wall,
+                      'scan_depth': ParameterValue(LaunchConfiguration('scan_depth'),
+                                                   value_type=float),
+                      'cam_gripper_dx': ParameterValue(
+                          LaunchConfiguration('cam_gripper_dx'), value_type=float)}],
     )
 
     return LaunchDescription([
@@ -78,6 +83,18 @@ def generate_launch_description():
         DeclareLaunchArgument('rov_z', default_value='-0.5'),
         DeclareLaunchArgument('rov_wall_margin', default_value='0.5'),
         DeclareLaunchArgument('rov_arena_half', default_value='2.55'),
+        # Tuning kamera bawah: kedalaman scan menentukan lebar petak pandang
+        # (h_cam = 0.714 - scan_depth), jadi menentukan pula seberapa besar QR di
+        # frame DAN apakah offset gripper masih muat. Lihat komentar scan_depth
+        # di mission_fsm.py. cam_gripper_dx=0.0 mengembalikan perilaku lama
+        # (QR dipusatkan di kamera, bukan di gripper) untuk pembanding A/B.
+        DeclareLaunchArgument('scan_depth', default_value='0.30',
+                              description='Kedalaman scan QR (m). Naikkan angka = '
+                                          'lebih dalam = QR lebih besar tapi petak '
+                                          'pandang menyempit.'),
+        DeclareLaunchArgument('cam_gripper_dx', default_value='0.16',
+                              description='Jarak gripper di depan kamera bawah (m). '
+                                          '0.0 = perilaku lama (tanpa koreksi).'),
         stabilized,
         mission,
     ])
