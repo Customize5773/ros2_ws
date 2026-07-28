@@ -1,0 +1,57 @@
+<?xml version="1.0" ?>
+<sdf version="1.9">
+  <model name="payload">
+    <static>false</static>
+    <link name="payload_link">
+      <inertial>
+        <mass>0.02</mass>
+        <inertia>
+          <ixx>0.0004</ixx><iyy>0.0004</iyy><izz>0.0004</izz>
+          <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <collision name="body_collision">
+  <geometry>
+    <box><size>0.05 0.006 0.1</size></box>
+  </geometry>
+  <surface>
+    <contact>
+      <collide_bitmask>0x02</collide_bitmask>
+    </contact>
+  </surface>
+</collision>
+      <visual name="body">
+        <geometry>
+          <mesh><uri>model://hydroships_gazebo/media/payload_body.obj</uri></mesh>
+        </geometry>
+        <material>
+          <ambient>0.75 0.76 0.80 1</ambient>
+          <diffuse>0.82 0.83 0.86 1</diffuse>
+        </material>
+      </visual>
+      <visual name="qr">
+        <pose>0 0.0012 0.04 0 0 0</pose>
+        <geometry><plane><normal>0 1 0</normal><size>0.12 0.12</size></plane></geometry>
+        <material>
+          <diffuse>1 1 1 1</diffuse>
+          <specular>0 0 0 1</specular>
+          <pbr>
+            <metal>
+              <albedo_map>model://hydroships_gazebo/media/qr_A.png</albedo_map>
+              <emissive_map>model://hydroships_gazebo/media/qr_A.png</emissive_map>
+              <metalness>0.0</metalness>
+              <roughness>1.0</roughness>
+            </metal>
+          </pbr>
+        </material>
+      </visual>
+    </link>
+    <plugin filename="ignition-gazebo-detachable-joint-system"
+            name="ignition::gazebo::systems::DetachableJoint">
+      <parent_link>payload_link</parent_link>
+      <child_model>hydroships</child_model>
+      <child_link>base_link</child_link>
+      <detach_topic>/model/hydroships/detachable_joint/detach</detach_topic>
+    </plugin>
+  </model>
+</sdf>
