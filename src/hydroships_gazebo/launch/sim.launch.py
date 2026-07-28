@@ -160,6 +160,7 @@ def _launch_setup(context, *args, **kwargs):
                 executable='create',
                 output='screen',
                 arguments=[
+                    '-world', world,
                     '-name', 'hydroships',
                     '-string', robot_desc,
                     '-x', x, '-y', y, '-z', z,
