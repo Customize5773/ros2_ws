@@ -58,14 +58,23 @@ def generate_launch_description():
                       'scan_depth': ParameterValue(LaunchConfiguration('scan_depth'),
                                                    value_type=float),
                       'cam_gripper_dx': ParameterValue(
-                          LaunchConfiguration('cam_gripper_dx'), value_type=float)}],
+                          LaunchConfiguration('cam_gripper_dx'), value_type=float),
+                      'hook_size_stop': ParameterValue(
+                          LaunchConfiguration('hook_size_stop'), value_type=float),
+                      'hook_center_tol': ParameterValue(
+                          LaunchConfiguration('hook_center_tol'), value_type=float),
+                      'hook_max_age': ParameterValue(
+                          LaunchConfiguration('hook_max_age'), value_type=float),
+                      't_approach': ParameterValue(
+                          LaunchConfiguration('t_approach'), value_type=float)}],
     )
 
     return LaunchDescription([
         DeclareLaunchArgument('headless', default_value='false'),
         DeclareLaunchArgument('world', default_value='kki_arena.sdf'),
         DeclareLaunchArgument('start_state', default_value='DIVE',
-                              description='State awal FSM (DIVE/GRAB/NAV_WALL/.../AUTO_RELEASE).'),
+                              description='State awal FSM (DIVE/GRAB/NAV_WALL/HANG/SURFACE/'
+                                          'WAIT_TRIGGER/APPROACH_HOOK/AUTO_RELEASE).'),
         DeclareLaunchArgument('start_wall', default_value='',
                               description='Seed manual wall A/B/C/D utk testing start_state '
                                           'mid-FSM (NAV_WALL/HANG/SURFACE/APPROACH_HOOK/AUTO_RELEASE).'),
@@ -95,6 +104,21 @@ def generate_launch_description():
         DeclareLaunchArgument('cam_gripper_dx', default_value='0.16',
                               description='Jarak gripper di depan kamera bawah (m). '
                                           '0.0 = perilaku lama (tanpa koreksi).'),
+        # Tuning APPROACH_HOOK (visual servo hook lewat kamera depan). Naikkan
+        # hook_size_stop = berhenti lebih dekat ke hook; turunkan hook_center_tol
+        # = tuntut pemusatan lebih ketat (butuh deteksi lebih stabil).
+        DeclareLaunchArgument('hook_size_stop', default_value='0.35',
+                              description='Ukuran-tampak hook (sqrt(area)/lebar frame) '
+                                          'yg dianggap "cukup dekat".'),
+        DeclareLaunchArgument('hook_center_tol', default_value='0.15',
+                              description='Toleransi |ex|,|ey| ternormalisasi utk '
+                                          '"hook terpusat".'),
+        DeclareLaunchArgument('hook_max_age', default_value='1.0',
+                              description='Umur maks deteksi hook (s) sebelum '
+                                          'APPROACH_HOOK jatuh ke target odometri.'),
+        DeclareLaunchArgument('t_approach', default_value='25.0',
+                              description='Timeout APPROACH_HOOK (s); habis waktu = '
+                                          'lanjut AUTO_RELEASE, bukan abort.'),
         stabilized,
         mission,
     ])

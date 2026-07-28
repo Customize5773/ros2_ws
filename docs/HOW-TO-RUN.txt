@@ -111,10 +111,15 @@ Folder build/ install/ log/ sengaja di-gitignore; regenerasi dgn colcon build.
 --------------------------------------------------------------------------------
   headless:=true      -> gz sim tanpa GUI (server saja); untuk CI / mesin tanpa GPU.
   world:=kki_arena.sdf -> arena lomba (default mission/stabilized). Alt: pool_empty.sdf.
-  start_state:=DIVE   -> (mission) state awal FSM: DIVE/APPROACH_QR/SCAN_QR/GRAB/
-                         NAV_WALL/HANG/SURFACE/DOCK/APPROACH_HOOK/AUTO_RELEASE.
+  start_state:=DIVE   -> (mission) state awal FSM: DIVE/APPROACH_QR/GRAB/NAV_WALL/
+                         HANG/SURFACE/WAIT_TRIGGER/APPROACH_HOOK/AUTO_RELEASE.
   start_wall:=A       -> (mission) seed wall target A/B/C/D utk testing mid-state
                          (NAV_WALL/HANG/SURFACE/APPROACH_HOOK/AUTO_RELEASE).
+  hook_size_stop:=0.35 hook_center_tol:=0.15 hook_max_age:=1.0 t_approach:=25.0
+                      -> (mission) tuning visual servo APPROACH_HOOK ke hook.
+                         hook_size_stop naik = berhenti lebih dekat; hook_center_tol
+                         turun = pemusatan lebih ketat; deteksi lebih tua dari
+                         hook_max_age = fallback ke target odometri.
   rov_random_spawn:=true -> (default) spawn ROV ACAK dekat salah satu dinding kolam
                          (posisi kontes, beda tiap run). false = pakai rov_x/rov_y/rov_z.
   rov_x:=1.0 rov_y:=-1.0 rov_z:=-0.5 -> posisi manual spawn ROV (dipakai bila

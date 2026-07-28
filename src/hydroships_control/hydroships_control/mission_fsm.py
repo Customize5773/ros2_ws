@@ -84,7 +84,7 @@ WALL_HEADING_DEG = {'A': 270.0, 'B': 90.0, 'C': 0.0, 'D': 180.0}
 class St(Enum):
     IDLE = auto(); DIVE = auto(); APPROACH_QR = auto(); GRAB = auto()
     NAV_WALL = auto(); HANG = auto(); SURFACE = auto(); WAIT_TRIGGER = auto()
-    AUTO_RELEASE = auto(); DONE = auto(); ABORT = auto()
+    APPROACH_HOOK = auto(); AUTO_RELEASE = auto(); DONE = auto(); ABORT = auto()
 
 
 class MissionFSM(Node):
@@ -132,7 +132,20 @@ class MissionFSM(Node):
         # timeout per state (s)
         p('t_dive', 20.0); p('t_scan', 45.0); p('t_grab', 10.0); p('t_nav', 30.0)
         p('t_hang', 20.0); p('t_surface', 20.0); p('t_wait_trigger', 600.0)
-        p('t_release', 30.0)
+        p('t_release', 30.0); p('t_approach', 25.0)
+        # APPROACH_HOOK: visual servo PD ke hook (hook_detector ->
+        # /hydroships/hook_offset). Default sama dgn hook_logic.HookServoGains —
+        # di sini hanya diekspos sebagai parameter ROS supaya bisa di-tune runtime.
+        p('hook_max_age', 1.0)       # s umur maks deteksi hook agar dianggap segar
+        p('hook_kp_surge', 40.0)     # N per satuan error ukuran-tampak
+        p('hook_kd_surge', 30.0)     # N/(m/s) redaman surge
+        p('hook_kp_sway', 45.0)      # N per satuan offset-x ternormalisasi
+        p('hook_kd_sway', 30.0)      # N/(m/s) redaman sway
+        p('hook_kp_depth', 0.25)     # m koreksi depth per satuan offset-y
+        p('hook_size_stop', 0.35)    # size (sqrt(area)/lebar frame) dianggap "cukup dekat"
+        p('hook_center_tol', 0.15)   # |ex|,|ey| dianggap "terpusat"
+        p('hook_fmax', 16.0)         # N batas gaya servo hook
+        p('hook_depth_range', 0.20)  # m batas koreksi depth dari hook_depth
         # APPROACH_QR: batas waktu navigasi XY sebelum RECOVERY (naikkan depth
         # utk perlebar FOV kamera bawah). Bukan abort — abort tetap di t_scan.
         p('t_nav_qr', 30.0)
@@ -188,9 +201,16 @@ class MissionFSM(Node):
         self.cam_bottom_dz = float(g('cam_bottom_dz'))
         self.cam_vfov_half_tan = float(g('cam_vfov_half_tan'))
         self.ey_target_max = float(g('ey_target_max'))
+        self.hook_max_age = float(g('hook_max_age'))
+        self.hook_gains = HookServoGains(
+            kp_surge=float(g('hook_kp_surge')), kd_surge=float(g('hook_kd_surge')),
+            kp_sway=float(g('hook_kp_sway')), kd_sway=float(g('hook_kd_sway')),
+            kp_depth=float(g('hook_kp_depth')),
+            size_stop=float(g('hook_size_stop')), center_tol=float(g('hook_center_tol')),
+            fmax=float(g('hook_fmax')), depth_range=float(g('hook_depth_range')))
         self.T = {k: float(g('t_' + k)) for k in
                   ('dive', 'scan', 'grab', 'nav', 'hang', 'surface',
-                   'wait_trigger', 'release')}
+                   'wait_trigger', 'release', 'approach')}
 
         # I/O
         self.pub_depth = self.create_publisher(Float64, '/hydroships/setpoint/depth', 10)
@@ -204,6 +224,10 @@ class MissionFSM(Node):
         self.create_subscription(String, '/hydroships/qr_result', self._on_qr, 10)
         self.create_subscription(PointStamped, '/hydroships/qr_offset',
                                   self._on_qr_offset, 10)
+        # hook_detector menerbitkan (ex, ey, size) ternormalisasi dari kamera
+        # DEPAN — dipakai APPROACH_HOOK utk visual servo presisi ke hook.
+        self.create_subscription(PointStamped, '/hydroships/hook_offset',
+                                  self._on_hook, 10)
         # payload_spawner menerbitkan pose payload SEKALI dgn QoS latched
         # (TRANSIENT_LOCAL) -> subscriber HARUS pakai durability sama supaya
         # tetap dapat pesan walau node ini start belakangan.
@@ -388,6 +412,22 @@ class MissionFSM(Node):
             return
         self.qr_off = (msg.point.x, msg.point.y, msg.point.z)
         self.qr_off_time = self._now()
+
+    def _on_hook(self, msg):
+        """Offset hook di frame kamera DEPAN dari hook_detector:
+        x=ex ternormalisasi (+ = hook di kanan pusat), y=ey (+ = di bawah pusat),
+        z=size = sqrt(area)/lebar frame (makin besar = makin dekat)."""
+        if msg.header.frame_id != 'camera_front_link':
+            return
+        self.hook_off = (msg.point.x, msg.point.y, msg.point.z)
+        self.hook_time = self._now()
+
+    def _hook_fresh(self):
+        """(ex, ey, size) bila deteksi hook masih segar, else None. hook_detector
+        hanya menerbitkan saat deteksi BERHASIL, jadi umur pesan = sinyal hilang."""
+        if self.hook_off is None or self._now() - self.hook_time > self.hook_max_age:
+            return None
+        return self.hook_off
 
     def _on_payload_pose(self, msg):
         """Pose payload sebenarnya dari spawner (payload di-random tiap run).
@@ -662,32 +702,89 @@ class MissionFSM(Node):
         self._set_surge(0.0, 0.0)
         if self._trigger_received:
             self.get_logger().info('Mulai misi pelepasan payload AUTONOMOUS')
-            self._to(St.AUTO_RELEASE)
+            self._to(St.APPROACH_HOOK)
         elif self._elapsed() > self.T['wait_trigger']:
             self.get_logger().error('WAIT_TRIGGER timeout — trigger tak diterima')
             self._to(St.ABORT)
 
-    def _st_auto_release(self):
-        """Misi 5 (AUTONOMOUS): turun ke hook, lepas payload (publish ke
-        detach topic — DetachableJoint), lalu naik ke permukaan dekat
-        dinding — semua tanpa input pilot."""
+    def _st_approach_hook(self):
+        """Misi 5 (AUTONOMOUS) fase 1: visual servo PD ke hook memakai
+        /hydroships/hook_offset (hook_detector). Tanpa ini AUTO_RELEASE melepas
+        payload murni berdasarkan odometri (_hook_xy) tanpa konfirmasi kamera.
+        Bila deteksi hilang, fallback ke target odometri itu (perilaku lama, aman).
+        Payload masih dijepit di sini — detach baru terjadi di AUTO_RELEASE."""
         if self.wall is None: self._to(St.ABORT); return
-        tx, ty = self._hook_xy(self.wall)
-        target_heading = math.radians(WALL_HEADING_DEG[self.wall])
-        self._set_heading(target_heading)
-        if not self._detach_sent:
+        self._set_heading(math.radians(WALL_HEADING_DEG[self.wall]))
+        off = self._hook_fresh()
+
+        if off is not None:
+            cmd = hook_servo(off, self.vx, self.vy, self.hook_depth, self.hook_gains)
+            self._set_depth(cmd.target_depth)
+            # Sudah dekat tapi belum terpusat: stop maju, koreksi lateral saja.
+            self._set_surge(0.0 if cmd.near else cmd.surge, cmd.sway)
+            if cmd.near and cmd.aligned:
+                if self._hold_since is None:
+                    self._hold_since = self._now()
+                if self._now() - self._hold_since >= self.hold_settle_s:
+                    self._set_surge(0.0, 0.0)
+                    self.get_logger().info(
+                        'APPROACH_HOOK: hook terpusat (ex %.2f ey %.2f size %.2f) -> AUTO_RELEASE'
+                        % off)
+                    self._to(St.AUTO_RELEASE)
+                    return
+            else:
+                self._hold_since = None
+        else:
+            # Fallback open-loop: target odometri, sama seperti AUTO_RELEASE lama.
             self._set_depth(self.hook_depth)
-            self._set_heading(target_heading)
+            tx, ty = self._hook_xy(self.wall)
             dist = self._goto_xy(tx, ty, fmax=self.nav_fmax)
             if dist < self.nav_tol:
                 if self._hold_since is None:
                     self._hold_since = self._now()
                 if self._now() - self._hold_since >= self.hold_settle_s:
-                    self.get_logger().info('AUTO_RELEASE: posisi stabil, publish detach...')
-                    self.pub_detach.publish(Empty())
-                    self._detach_sent = True
+                    self._set_surge(0.0, 0.0)
+                    self.get_logger().warn(
+                        'APPROACH_HOOK: tak ada deteksi hook, pakai target odometri '
+                        '(dist %.2fm) -> AUTO_RELEASE' % dist)
+                    self._to(St.AUTO_RELEASE)
+                    return
             else:
                 self._hold_since = None
+
+        if int(self._elapsed() * 2) % 6 == 0:
+            self.get_logger().info(
+                'APPROACH_HOOK dbg: off=%s depth=%.2f'
+                % (off, self.depth if self.depth is not None else -99.0))
+        if self._elapsed() > self.T['approach']:
+            # Jangan abort: AUTO_RELEASE punya station-keep sendiri sebelum detach.
+            self.get_logger().warn('APPROACH_HOOK timeout -> lanjut AUTO_RELEASE')
+            self._set_surge(0.0, 0.0)
+            self._to(St.AUTO_RELEASE)
+
+    def _st_auto_release(self):
+        """Misi 5 (AUTONOMOUS) fase 2: tahan posisi hasil servo APPROACH_HOOK,
+        lepas payload (publish ke detach topic — DetachableJoint), lalu naik ke
+        permukaan dekat dinding — semua tanpa input pilot."""
+        if self.wall is None: self._to(St.ABORT); return
+        target_heading = math.radians(WALL_HEADING_DEG[self.wall])
+        self._set_heading(target_heading)
+        if not self._detach_sent:
+            # APPROACH_HOOK sudah memosisikan ROV di atas hook. Jangan navigasi
+            # ulang ke _hook_xy — itu justru menarik ROV kembali menjauh dari
+            # posisi yg baru dikonfirmasi kamera. Cukup station-keep (redam
+            # kecepatan sisa) selama hold_settle_s, lalu detach.
+            self._set_depth(self.hook_depth)
+            brake_kd = 40.0
+            cl = lambda v: max(-self.nav_fmax, min(self.nav_fmax, v))
+            self._set_surge(cl(-brake_kd * self.vx), cl(-brake_kd * self.vy))
+            if self._hold_since is None:
+                self._hold_since = self._now()
+            if self._now() - self._hold_since >= self.hold_settle_s:
+                self.get_logger().info('AUTO_RELEASE: posisi stabil, publish detach...')
+                self.pub_detach.publish(Empty())
+                self._detach_sent = True
+                self._set_surge(0.0, 0.0)
             if self._elapsed() > self.T['release']:
                 self.get_logger().error('AUTO_RELEASE timeout (belum detach)'); self._to(St.ABORT)
             return
