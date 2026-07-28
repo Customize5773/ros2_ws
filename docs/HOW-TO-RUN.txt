@@ -77,6 +77,13 @@ Folder build/ install/ log/ sengaja di-gitignore; regenerasi dgn colcon build.
        ros2 launch hydroships_bringup hydroships_mission.launch.py start_state:=NAV_WALL start_wall:=B
        ros2 launch hydroships_bringup hydroships_mission.launch.py start_state:=NAV_WALL start_wall:=C
        ros2 launch hydroships_bringup hydroships_mission.launch.py start_state:=NAV_WALL start_wall:=D
+            # Uji NAV_WALL → HANG → SURFACE tanpa lewat fase awal
+                ros2 launch hydroships_bringup hydroships_mission.launch.py \
+                  start_state:=NAV_WALL start_wall:=B
+            # Samakan dengan ROV spawn manual di dekat wall B
+                ros2 launch hydroships_bringup hydroships_mission.launch.py \
+                    start_state:=NAV_WALL start_wall:=B \
+                    rov_random_spawn:=false rov_x:=0.0 rov_y:=2.0 rov_z:=-0.5
    Payload QR di-spawn otomatis RANDOM (A/B/C/D + posisi acak dalam bounds arena)
    oleh node payload_spawner setiap launch. Pilih huruf/posisi eksplisit:
        ros2 launch hydroships_bringup hydroships_mission.launch.py qr_letter:=B
