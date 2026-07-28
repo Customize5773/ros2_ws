@@ -2,7 +2,10 @@
 """estimate_mass_inertia — hitung ESTIMASI massa & inertia ROV dari geometri.
 
 Alat bantu untuk mengisi ``config/rov_params.yaml`` saat dimensi / material
-HYDROships final tersedia. Model dasar: **kotak pejal (solid box)** dengan
+HYDROships final tersedia. Untuk ROV KKI 2026 yang sudah punya mesh CAD,
+pakai ``measure_cad_frames.py`` — ia menurunkan massa, CoM, dan tensor
+inersia langsung dari geometri, jauh lebih baik daripada aproksimasi kotak
+di sini. Skrip ini tetap berguna untuk sketsa cepat / studi what-if. Model dasar: **kotak pejal (solid box)** dengan
 massa jenis material seragam, opsional ditambah **massa titik** komponen
 (thruster, baterai, dsb.) via teorema sumbu sejajar (parallel axis theorem).
 
@@ -147,19 +150,24 @@ def _parse_args(argv):
 
 
 def _self_test():
-    # Model saat ini: kotak 0.345^3(z=0.286), massa 33.6 kg, CoG di origin.
+    # Regresi FORMULA kotak pejal, bukan pencocokan rov_params.yaml.
+    # Sejak 2026-07-28 rov_params.yaml TIDAK lagi memakai inertia turunan box:
+    # nilainya dihitung dari mesh CAD via scripts/measure_cad_frames.py, dan
+    # massanya dari volume air tergeser terukur. Angka di bawah tetap dipakai
+    # sebagai acuan tetap agar perubahan rumus di file ini ketahuan.
+    # (Model lama: kotak 0.345^3 z=0.286, massa 33.6 kg, CoG di origin.)
     comps, vol = build_components([0.345, 0.345, 0.286], 33.6, None, [])
     m, cog, inertia = combine(comps)
     ixx, iyy, izz = inertia[0], inertia[1], inertia[2]
     assert abs(m - 33.6) < 1e-9, m
     assert all(abs(cog[k]) < 1e-12 for k in range(3)), cog
-    # nilai acuan (m/12 * ...) — cocokkan dgn rov_params.yaml
+    # nilai acuan (m/12 * ...) — konstanta regresi rumus, bukan isi YAML
     assert abs(ixx - 0.56230) < 1e-4, ixx
     assert abs(iyy - 0.56230) < 1e-4, iyy
     assert abs(izz - 0.66654) < 1e-4, izz
     # produk inersia harus nol (simetris)
     assert all(abs(inertia[k]) < 1e-12 for k in (3, 4, 5)), inertia
-    print('self-test OK: ixx=%.5f iyy=%.5f izz=%.5f (cocok rov_params.yaml)'
+    print('self-test OK: ixx=%.5f iyy=%.5f izz=%.5f (regresi rumus box)'
           % (ixx, iyy, izz))
 
 

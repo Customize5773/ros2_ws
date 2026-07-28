@@ -420,8 +420,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "pointstamped",
-      "community": 7,
-      "community_name": "test_qr_logic.py",
+      "community": 18,
+      "community_name": "PayloadSpawner",
       "norm_label": "pointstamped"
     },
     {
@@ -1047,8 +1047,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_hydroships_control_hydroships_control_hook_detector",
-      "community": 9,
-      "community_name": "hook_detector.py",
+      "community": 18,
+      "community_name": "PayloadSpawner",
       "norm_label": "hook_detector.py"
     },
     {
@@ -1058,8 +1058,8 @@
       "source_location": "L50",
       "_origin": "ast",
       "id": "src_hydroships_control_hydroships_control_hook_detector_to_gray_clahe",
-      "community": 9,
-      "community_name": "hook_detector.py",
+      "community": 18,
+      "community_name": "PayloadSpawner",
       "norm_label": "_to_gray_clahe()"
     },
     {
@@ -1069,8 +1069,8 @@
       "source_location": "L57",
       "_origin": "ast",
       "id": "src_hydroships_control_hydroships_control_hook_detector_score_contour",
-      "community": 9,
-      "community_name": "hook_detector.py",
+      "community": 18,
+      "community_name": "PayloadSpawner",
       "norm_label": "_score_contour()"
     },
     {
@@ -1080,8 +1080,8 @@
       "source_location": "L72",
       "_origin": "ast",
       "id": "src_hydroships_control_hydroships_control_hook_detector_best_contour",
-      "community": 9,
-      "community_name": "hook_detector.py",
+      "community": 18,
+      "community_name": "PayloadSpawner",
       "norm_label": "_best_contour()"
     },
     {
@@ -1091,8 +1091,8 @@
       "source_location": "L84",
       "_origin": "ast",
       "id": "src_hydroships_control_hydroships_control_hook_detector_detect_hook",
-      "community": 9,
-      "community_name": "hook_detector.py",
+      "community": 18,
+      "community_name": "PayloadSpawner",
       "norm_label": "detect_hook()"
     },
     {
@@ -1102,8 +1102,8 @@
       "source_location": "L112",
       "_origin": "ast",
       "id": "src_hydroships_control_hydroships_control_hook_detector_hookdetector",
-      "community": 9,
-      "community_name": "hook_detector.py",
+      "community": 18,
+      "community_name": "PayloadSpawner",
       "norm_label": "hookdetector"
     },
     {
@@ -1113,8 +1113,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_hydroships_control_hydroships_control_hook_detector_py_node",
-      "community": 9,
-      "community_name": "hook_detector.py",
+      "community": 18,
+      "community_name": "PayloadSpawner",
       "norm_label": "node"
     },
     {
@@ -1124,8 +1124,8 @@
       "source_location": "L113",
       "_origin": "ast",
       "id": "src_hydroships_control_hydroships_control_hook_detector_hookdetector_init",
-      "community": 9,
-      "community_name": "hook_detector.py",
+      "community": 18,
+      "community_name": "PayloadSpawner",
       "norm_label": ".__init__()"
     },
     {
@@ -1135,8 +1135,8 @@
       "source_location": "L129",
       "_origin": "ast",
       "id": "src_hydroships_control_hydroships_control_hook_detector_hookdetector_to_cv",
-      "community": 9,
-      "community_name": "hook_detector.py",
+      "community": 18,
+      "community_name": "PayloadSpawner",
       "norm_label": "._to_cv()"
     },
     {
@@ -1146,8 +1146,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_hydroships_control_hydroships_control_hook_detector_py_image",
-      "community": 9,
-      "community_name": "hook_detector.py",
+      "community": 18,
+      "community_name": "PayloadSpawner",
       "norm_label": "image"
     },
     {
@@ -1157,8 +1157,8 @@
       "source_location": "L140",
       "_origin": "ast",
       "id": "src_hydroships_control_hydroships_control_hook_detector_hookdetector_on_image",
-      "community": 9,
-      "community_name": "hook_detector.py",
+      "community": 18,
+      "community_name": "PayloadSpawner",
       "norm_label": "._on_image()"
     },
     {
@@ -1168,8 +1168,8 @@
       "source_location": "L180",
       "_origin": "ast",
       "id": "src_hydroships_control_hydroships_control_hook_detector_main",
-      "community": 9,
-      "community_name": "hook_detector.py",
+      "community": 18,
+      "community_name": "PayloadSpawner",
       "norm_label": "main()"
     },
     {
@@ -1179,8 +1179,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_hydroships_control_hydroships_control_hook_detector_rationale_1",
-      "community": 9,
-      "community_name": "hook_detector.py",
+      "community": 18,
+      "community_name": "PayloadSpawner",
       "norm_label": "hook_detector \u2014 deteksi hook (pipa-u) dari kamera depan -> offset (visual servo)"
     },
     {
@@ -1190,8 +1190,8 @@
       "source_location": "L85",
       "_origin": "ast",
       "id": "src_hydroships_control_hydroships_control_hook_detector_rationale_85",
-      "community": 9,
-      "community_name": "hook_detector.py",
+      "community": 18,
+      "community_name": "PayloadSpawner",
       "norm_label": "deteksi hook -> (center, area) atau none. jenjang: contour/clahe lalu hough."
     },
     {
@@ -1223,8 +1223,8 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "src_hydroships_control_hydroships_control_hook_logic_normalize_hook_offset",
-      "community": 1,
-      "community_name": "GuiBridgeLogic",
+      "community": 6,
+      "community_name": "hook_servo",
       "norm_label": "normalize_hook_offset()"
     },
     {
@@ -1267,8 +1267,8 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "src_hydroships_control_hydroships_control_hook_logic_rationale_15",
-      "community": 1,
-      "community_name": "GuiBridgeLogic",
+      "community": 6,
+      "community_name": "hook_servo",
       "norm_label": "(center px, area px^2, ukuran frame) -> (ex, ey, size) ternormalisasi.      konv"
     },
     {
@@ -3434,8 +3434,8 @@
       "source_location": "L93",
       "_origin": "ast",
       "id": "src_hydroships_control_test_test_gui_bridge_test_hook_offset_centered",
-      "community": 1,
-      "community_name": "GuiBridgeLogic",
+      "community": 6,
+      "community_name": "hook_servo",
       "norm_label": "test_hook_offset_centered()"
     },
     {
@@ -3445,8 +3445,8 @@
       "source_location": "L99",
       "_origin": "ast",
       "id": "src_hydroships_control_test_test_gui_bridge_test_hook_offset_right_and_down",
-      "community": 1,
-      "community_name": "GuiBridgeLogic",
+      "community": 6,
+      "community_name": "hook_servo",
       "norm_label": "test_hook_offset_right_and_down()"
     },
     {
@@ -3456,8 +3456,8 @@
       "source_location": "L104",
       "_origin": "ast",
       "id": "src_hydroships_control_test_test_gui_bridge_test_hook_offset_left_up",
-      "community": 1,
-      "community_name": "GuiBridgeLogic",
+      "community": 6,
+      "community_name": "hook_servo",
       "norm_label": "test_hook_offset_left_up()"
     },
     {
@@ -4209,6 +4209,28 @@
       "norm_label": "regresi frame nyata (bukan sintetik): frame kamera bottom hasil render     gazeb"
     },
     {
+      "label": "display_kki2026.launch.py",
+      "file_type": "code",
+      "source_file": "src/hydroships_description/launch/display_kki2026.launch.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "src_hydroships_description_launch_display_kki2026_launch",
+      "community": 33,
+      "community_name": "display_kki2026.launch.py",
+      "norm_label": "display_kki2026.launch.py"
+    },
+    {
+      "label": "generate_launch_description()",
+      "file_type": "code",
+      "source_file": "src/hydroships_description/launch/display_kki2026.launch.py",
+      "source_location": "L28",
+      "_origin": "ast",
+      "id": "src_hydroships_description_launch_display_kki2026_launch_generate_launch_description",
+      "community": 33,
+      "community_name": "display_kki2026.launch.py",
+      "norm_label": "generate_launch_description()"
+    },
+    {
       "label": "estimate_mass_inertia.py",
       "file_type": "code",
       "source_file": "src/hydroships_description/scripts/estimate_mass_inertia.py",
@@ -4317,6 +4339,248 @@
       "community": 12,
       "community_name": "estimate_mass_inertia.py",
       "norm_label": "gabungkan daftar komponen -> (massa_total, cog, inertia_full_di_cog).      compo"
+    },
+    {
+      "label": "measure_cad_frames.py",
+      "file_type": "code",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "src_hydroships_description_scripts_measure_cad_frames",
+      "community": 16,
+      "community_name": "measure_cad_frames.py",
+      "norm_label": "measure_cad_frames.py"
+    },
+    {
+      "label": "load_mesh()",
+      "file_type": "code",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L53",
+      "_origin": "ast",
+      "id": "src_hydroships_description_scripts_measure_cad_frames_load_mesh",
+      "community": 16,
+      "community_name": "measure_cad_frames.py",
+      "norm_label": "load_mesh()"
+    },
+    {
+      "label": "component_labels()",
+      "file_type": "code",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L62",
+      "_origin": "ast",
+      "id": "src_hydroships_description_scripts_measure_cad_frames_component_labels",
+      "community": 16,
+      "community_name": "measure_cad_frames.py",
+      "norm_label": "component_labels()"
+    },
+    {
+      "label": "bodies()",
+      "file_type": "code",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L68",
+      "_origin": "ast",
+      "id": "src_hydroships_description_scripts_measure_cad_frames_bodies",
+      "community": 16,
+      "community_name": "measure_cad_frames.py",
+      "norm_label": "bodies()"
+    },
+    {
+      "label": "_is_disc()",
+      "file_type": "code",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L82",
+      "_origin": "ast",
+      "id": "src_hydroships_description_scripts_measure_cad_frames_is_disc",
+      "community": 16,
+      "community_name": "measure_cad_frames.py",
+      "norm_label": "_is_disc()"
+    },
+    {
+      "label": "_is_housing()",
+      "file_type": "code",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L89",
+      "_origin": "ast",
+      "id": "src_hydroships_description_scripts_measure_cad_frames_is_housing",
+      "community": 16,
+      "community_name": "measure_cad_frames.py",
+      "norm_label": "_is_housing()"
+    },
+    {
+      "label": "find_thrusters()",
+      "file_type": "code",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L94",
+      "_origin": "ast",
+      "id": "src_hydroships_description_scripts_measure_cad_frames_find_thrusters",
+      "community": 16,
+      "community_name": "measure_cad_frames.py",
+      "norm_label": "find_thrusters()"
+    },
+    {
+      "label": "mesh_to_base()",
+      "file_type": "code",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L117",
+      "_origin": "ast",
+      "id": "src_hydroships_description_scripts_measure_cad_frames_mesh_to_base",
+      "community": 16,
+      "community_name": "measure_cad_frames.py",
+      "norm_label": "mesh_to_base()"
+    },
+    {
+      "label": "rotate_axis()",
+      "file_type": "code",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L125",
+      "_origin": "ast",
+      "id": "src_hydroships_description_scripts_measure_cad_frames_rotate_axis",
+      "community": 16,
+      "community_name": "measure_cad_frames.py",
+      "norm_label": "rotate_axis()"
+    },
+    {
+      "label": "inertia_per_kg()",
+      "file_type": "code",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L132",
+      "_origin": "ast",
+      "id": "src_hydroships_description_scripts_measure_cad_frames_inertia_per_kg",
+      "community": 16,
+      "community_name": "measure_cad_frames.py",
+      "norm_label": "inertia_per_kg()"
+    },
+    {
+      "label": "displaced_volume()",
+      "file_type": "code",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L140",
+      "_origin": "ast",
+      "id": "src_hydroships_description_scripts_measure_cad_frames_displaced_volume",
+      "community": 16,
+      "community_name": "measure_cad_frames.py",
+      "norm_label": "displaced_volume()"
+    },
+    {
+      "label": "export_meshes()",
+      "file_type": "code",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L152",
+      "_origin": "ast",
+      "id": "src_hydroships_description_scripts_measure_cad_frames_export_meshes",
+      "community": 16,
+      "community_name": "measure_cad_frames.py",
+      "norm_label": "export_meshes()"
+    },
+    {
+      "label": "main()",
+      "file_type": "code",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L174",
+      "_origin": "ast",
+      "id": "src_hydroships_description_scripts_measure_cad_frames_main",
+      "community": 16,
+      "community_name": "measure_cad_frames.py",
+      "norm_label": "main()"
+    },
+    {
+      "label": "Ringkas tiap connected component -> dict bbox/center/extent.",
+      "file_type": "rationale",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L69",
+      "_origin": "ast",
+      "id": "src_hydroships_description_scripts_measure_cad_frames_rationale_69",
+      "community": 16,
+      "community_name": "measure_cad_frames.py",
+      "norm_label": "ringkas tiap connected component -> dict bbox/center/extent."
+    },
+    {
+      "label": "Cakram/duct: dua sisi lebar mirip, sisi ketiga jauh lebih tipis.",
+      "file_type": "rationale",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L83",
+      "_origin": "ast",
+      "id": "src_hydroships_description_scripts_measure_cad_frames_rationale_83",
+      "community": 16,
+      "community_name": "measure_cad_frames.py",
+      "norm_label": "cakram/duct: dua sisi lebar mirip, sisi ketiga jauh lebih tipis."
+    },
+    {
+      "label": "Rumah thruster: bongkah kompak 45-110 mm di ketiga sumbu.",
+      "file_type": "rationale",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L90",
+      "_origin": "ast",
+      "id": "src_hydroships_description_scripts_measure_cad_frames_rationale_90",
+      "community": 16,
+      "community_name": "measure_cad_frames.py",
+      "norm_label": "rumah thruster: bongkah kompak 45-110 mm di ketiga sumbu."
+    },
+    {
+      "label": "Kenali 6 thruster dari bentuk body. Koordinat dikembalikan dlm MESH (mm).      D",
+      "file_type": "rationale",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L95",
+      "_origin": "ast",
+      "id": "src_hydroships_description_scripts_measure_cad_frames_rationale_95",
+      "community": 16,
+      "community_name": "measure_cad_frames.py",
+      "norm_label": "kenali 6 thruster dari bentuk body. koordinat dikembalikan dlm mesh (mm).      d"
+    },
+    {
+      "label": "Mesh (mm) -> base_link (m). Rz(+90 deg) lalu geser CoM ke origin.",
+      "file_type": "rationale",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L118",
+      "_origin": "ast",
+      "id": "src_hydroships_description_scripts_measure_cad_frames_rationale_118",
+      "community": 16,
+      "community_name": "measure_cad_frames.py",
+      "norm_label": "mesh (mm) -> base_link (m). rz(+90 deg) lalu geser com ke origin."
+    },
+    {
+      "label": "Sumbu mesh (0=x,1=y,2=z) -> vektor sumbu di frame base.",
+      "file_type": "rationale",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L126",
+      "_origin": "ast",
+      "id": "src_hydroships_description_scripts_measure_cad_frames_rationale_126",
+      "community": 16,
+      "community_name": "measure_cad_frames.py",
+      "norm_label": "sumbu mesh (0=x,1=y,2=z) -> vektor sumbu di frame base."
+    },
+    {
+      "label": "Tensor inersia per kg di CoM, sudah dirotasi ke frame base (m^2).",
+      "file_type": "rationale",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L133",
+      "_origin": "ast",
+      "id": "src_hydroships_description_scripts_measure_cad_frames_rationale_133",
+      "community": 16,
+      "community_name": "measure_cad_frames.py",
+      "norm_label": "tensor inersia per kg di com, sudah dirotasi ke frame base (m^2)."
+    },
+    {
+      "label": "Estimasi volume air tergeser (m^3).      = volume solid semua body + rongga TERT",
+      "file_type": "rationale",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L141",
+      "_origin": "ast",
+      "id": "src_hydroships_description_scripts_measure_cad_frames_rationale_141",
+      "community": 16,
+      "community_name": "measure_cad_frames.py",
+      "norm_label": "estimasi volume air tergeser (m^3).      = volume solid semua body + rongga tert"
+    },
+    {
+      "label": "Tulis mesh visual (fastener dibuang + decimate) & collision (convex hull).",
+      "file_type": "rationale",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L153",
+      "_origin": "ast",
+      "id": "src_hydroships_description_scripts_measure_cad_frames_rationale_153",
+      "community": 16,
+      "community_name": "measure_cad_frames.py",
+      "norm_label": "tulis mesh visual (fastener dibuang + decimate) & collision (convex hull)."
     },
     {
       "label": "sim.launch.py",
@@ -5318,6 +5582,149 @@
       "community": 26,
       "community_name": "README.md",
       "norm_label": "meshes/"
+    },
+    {
+      "label": "rov_kki2026_new_design.parts.md",
+      "file_type": "document",
+      "source_file": "src/hydroships_description/urdf/rov_kki2026_new_design.parts.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "src_hydroships_description_urdf_rov_kki2026_new_design_parts",
+      "community": 31,
+      "community_name": "Inventaris part \u2014 `@ROV KKI 2026 NEW DESIGN revisi FIXXXX GOOLLLL SIUUUU.f3z`",
+      "norm_label": "rov_kki2026_new_design.parts.md"
+    },
+    {
+      "label": "Inventaris part \u2014 `@ROV KKI 2026 NEW DESIGN revisi FIXXXX GOOLLLL SIUUUU.f3z`",
+      "file_type": "document",
+      "source_file": "src/hydroships_description/urdf/rov_kki2026_new_design.parts.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "src_hydroships_description_urdf_rov_kki2026_new_design_parts_inventaris_part_rov_kki_2026_new_design_revisi_fixxxx_goollll_siuuuu_f3z",
+      "community": 31,
+      "community_name": "Inventaris part \u2014 `@ROV KKI 2026 NEW DESIGN revisi FIXXXX GOOLLLL SIUUUU.f3z`",
+      "norm_label": "inventaris part \u2014 `@rov kki 2026 new design revisi fixxxx goollll siuuuu.f3z`"
+    },
+    {
+      "label": "Apa yang bisa & tidak bisa dikonversi",
+      "file_type": "document",
+      "source_file": "src/hydroships_description/urdf/rov_kki2026_new_design.parts.md",
+      "source_location": "L8",
+      "_origin": "ast",
+      "id": "src_hydroships_description_urdf_rov_kki2026_new_design_parts_apa_yang_bisa_tidak_bisa_dikonversi",
+      "community": 31,
+      "community_name": "Inventaris part \u2014 `@ROV KKI 2026 NEW DESIGN revisi FIXXXX GOOLLLL SIUUUU.f3z`",
+      "norm_label": "apa yang bisa & tidak bisa dikonversi"
+    },
+    {
+      "label": "Status geometri saat ini",
+      "file_type": "document",
+      "source_file": "src/hydroships_description/urdf/rov_kki2026_new_design.parts.md",
+      "source_location": "L24",
+      "_origin": "ast",
+      "id": "src_hydroships_description_urdf_rov_kki2026_new_design_parts_status_geometri_saat_ini",
+      "community": 31,
+      "community_name": "Inventaris part \u2014 `@ROV KKI 2026 NEW DESIGN revisi FIXXXX GOOLLLL SIUUUU.f3z`",
+      "norm_label": "status geometri saat ini"
+    },
+    {
+      "label": "Semua angka bisa dihitung ulang",
+      "file_type": "document",
+      "source_file": "src/hydroships_description/urdf/rov_kki2026_new_design.parts.md",
+      "source_location": "L77",
+      "_origin": "ast",
+      "id": "src_hydroships_description_urdf_rov_kki2026_new_design_parts_semua_angka_bisa_dihitung_ulang",
+      "community": 31,
+      "community_name": "Inventaris part \u2014 `@ROV KKI 2026 NEW DESIGN revisi FIXXXX GOOLLLL SIUUUU.f3z`",
+      "norm_label": "semua angka bisa dihitung ulang"
+    },
+    {
+      "label": "Posisi thruster (terukur dari mesh)",
+      "file_type": "document",
+      "source_file": "src/hydroships_description/urdf/rov_kki2026_new_design.parts.md",
+      "source_location": "L89",
+      "_origin": "ast",
+      "id": "src_hydroships_description_urdf_rov_kki2026_new_design_parts_posisi_thruster_terukur_dari_mesh",
+      "community": 31,
+      "community_name": "Inventaris part \u2014 `@ROV KKI 2026 NEW DESIGN revisi FIXXXX GOOLLLL SIUUUU.f3z`",
+      "norm_label": "posisi thruster (terukur dari mesh)"
+    },
+    {
+      "label": "Apung \u2014 perlu keputusan",
+      "file_type": "document",
+      "source_file": "src/hydroships_description/urdf/rov_kki2026_new_design.parts.md",
+      "source_location": "L116",
+      "_origin": "ast",
+      "id": "src_hydroships_description_urdf_rov_kki2026_new_design_parts_apung_perlu_keputusan",
+      "community": 31,
+      "community_name": "Inventaris part \u2014 `@ROV KKI 2026 NEW DESIGN revisi FIXXXX GOOLLLL SIUUUU.f3z`",
+      "norm_label": "apung \u2014 perlu keputusan"
+    },
+    {
+      "label": "Kompatibilitas dengan hydroships.urdf.xacro",
+      "file_type": "document",
+      "source_file": "src/hydroships_description/urdf/rov_kki2026_new_design.parts.md",
+      "source_location": "L137",
+      "_origin": "ast",
+      "id": "src_hydroships_description_urdf_rov_kki2026_new_design_parts_kompatibilitas_dengan_hydroships_urdf_xacro",
+      "community": 31,
+      "community_name": "Inventaris part \u2014 `@ROV KKI 2026 NEW DESIGN revisi FIXXXX GOOLLLL SIUUUU.f3z`",
+      "norm_label": "kompatibilitas dengan hydroships.urdf.xacro"
+    },
+    {
+      "label": "Kalau butuh mesh terpisah per komponen (lewat Fusion 360)",
+      "file_type": "document",
+      "source_file": "src/hydroships_description/urdf/rov_kki2026_new_design.parts.md",
+      "source_location": "L162",
+      "_origin": "ast",
+      "id": "src_hydroships_description_urdf_rov_kki2026_new_design_parts_kalau_butuh_mesh_terpisah_per_komponen_lewat_fusion_360",
+      "community": 31,
+      "community_name": "Inventaris part \u2014 `@ROV KKI 2026 NEW DESIGN revisi FIXXXX GOOLLLL SIUUUU.f3z`",
+      "norm_label": "kalau butuh mesh terpisah per komponen (lewat fusion 360)"
+    },
+    {
+      "label": "Komponen top-level (XREF dari root design)",
+      "file_type": "document",
+      "source_file": "src/hydroships_description/urdf/rov_kki2026_new_design.parts.md",
+      "source_location": "L177",
+      "_origin": "ast",
+      "id": "src_hydroships_description_urdf_rov_kki2026_new_design_parts_komponen_top_level_xref_dari_root_design",
+      "community": 31,
+      "community_name": "Inventaris part \u2014 `@ROV KKI 2026 NEW DESIGN revisi FIXXXX GOOLLLL SIUUUU.f3z`",
+      "norm_label": "komponen top-level (xref dari root design)"
+    },
+    {
+      "label": "Sub-assembly gripper",
+      "file_type": "document",
+      "source_file": "src/hydroships_description/urdf/rov_kki2026_new_design.parts.md",
+      "source_location": "L207",
+      "_origin": "ast",
+      "id": "src_hydroships_description_urdf_rov_kki2026_new_design_parts_sub_assembly_gripper",
+      "community": 31,
+      "community_name": "Inventaris part \u2014 `@ROV KKI 2026 NEW DESIGN revisi FIXXXX GOOLLLL SIUUUU.f3z`",
+      "norm_label": "sub-assembly gripper"
+    },
+    {
+      "label": "Fastener standar (tidak dijadikan link)",
+      "file_type": "document",
+      "source_file": "src/hydroships_description/urdf/rov_kki2026_new_design.parts.md",
+      "source_location": "L225",
+      "_origin": "ast",
+      "id": "src_hydroships_description_urdf_rov_kki2026_new_design_parts_fastener_standar_tidak_dijadikan_link",
+      "community": 31,
+      "community_name": "Inventaris part \u2014 `@ROV KKI 2026 NEW DESIGN revisi FIXXXX GOOLLLL SIUUUU.f3z`",
+      "norm_label": "fastener standar (tidak dijadikan link)"
+    },
+    {
+      "label": "Occurrence internal root frame (dari design stream)",
+      "file_type": "document",
+      "source_file": "src/hydroships_description/urdf/rov_kki2026_new_design.parts.md",
+      "source_location": "L233",
+      "_origin": "ast",
+      "id": "src_hydroships_description_urdf_rov_kki2026_new_design_parts_occurrence_internal_root_frame_dari_design_stream",
+      "community": 31,
+      "community_name": "Inventaris part \u2014 `@ROV KKI 2026 NEW DESIGN revisi FIXXXX GOOLLLL SIUUUU.f3z`",
+      "norm_label": "occurrence internal root frame (dari design stream)"
     }
   ],
   "links": [
@@ -12520,6 +12927,17 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/launch/display_kki2026.launch.py",
+      "source_location": "L28",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_launch_display_kki2026_launch",
+      "target": "src_hydroships_description_launch_display_kki2026_launch_generate_launch_description",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
       "source_file": "src/hydroships_description/scripts/estimate_mass_inertia.py",
       "source_location": "L42",
       "weight": 1.0,
@@ -12710,6 +13128,369 @@
       "_origin": "ast",
       "source": "src_hydroships_description_scripts_estimate_mass_inertia_main",
       "target": "src_hydroships_description_scripts_estimate_mass_inertia_self_test",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L68",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_scripts_measure_cad_frames",
+      "target": "src_hydroships_description_scripts_measure_cad_frames_bodies",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L62",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_scripts_measure_cad_frames",
+      "target": "src_hydroships_description_scripts_measure_cad_frames_component_labels",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L140",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_scripts_measure_cad_frames",
+      "target": "src_hydroships_description_scripts_measure_cad_frames_displaced_volume",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L152",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_scripts_measure_cad_frames",
+      "target": "src_hydroships_description_scripts_measure_cad_frames_export_meshes",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L94",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_scripts_measure_cad_frames",
+      "target": "src_hydroships_description_scripts_measure_cad_frames_find_thrusters",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L132",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_scripts_measure_cad_frames",
+      "target": "src_hydroships_description_scripts_measure_cad_frames_inertia_per_kg",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L82",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_scripts_measure_cad_frames",
+      "target": "src_hydroships_description_scripts_measure_cad_frames_is_disc",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L89",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_scripts_measure_cad_frames",
+      "target": "src_hydroships_description_scripts_measure_cad_frames_is_housing",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L53",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_scripts_measure_cad_frames",
+      "target": "src_hydroships_description_scripts_measure_cad_frames_load_mesh",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L174",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_scripts_measure_cad_frames",
+      "target": "src_hydroships_description_scripts_measure_cad_frames_main",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L117",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_scripts_measure_cad_frames",
+      "target": "src_hydroships_description_scripts_measure_cad_frames_mesh_to_base",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L125",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_scripts_measure_cad_frames",
+      "target": "src_hydroships_description_scripts_measure_cad_frames_rotate_axis",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L187",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_scripts_measure_cad_frames_main",
+      "target": "src_hydroships_description_scripts_measure_cad_frames_load_mesh",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L191",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_scripts_measure_cad_frames_main",
+      "target": "src_hydroships_description_scripts_measure_cad_frames_component_labels",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L192",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_scripts_measure_cad_frames_main",
+      "target": "src_hydroships_description_scripts_measure_cad_frames_bodies",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L69",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_scripts_measure_cad_frames_rationale_69",
+      "target": "src_hydroships_description_scripts_measure_cad_frames_bodies",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L103",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_scripts_measure_cad_frames_find_thrusters",
+      "target": "src_hydroships_description_scripts_measure_cad_frames_is_disc",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L83",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_scripts_measure_cad_frames_rationale_83",
+      "target": "src_hydroships_description_scripts_measure_cad_frames_is_disc",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L105",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_scripts_measure_cad_frames_find_thrusters",
+      "target": "src_hydroships_description_scripts_measure_cad_frames_is_housing",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L90",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_scripts_measure_cad_frames_rationale_90",
+      "target": "src_hydroships_description_scripts_measure_cad_frames_is_housing",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L208",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_scripts_measure_cad_frames_main",
+      "target": "src_hydroships_description_scripts_measure_cad_frames_find_thrusters",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L95",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_scripts_measure_cad_frames_rationale_95",
+      "target": "src_hydroships_description_scripts_measure_cad_frames_find_thrusters",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L212",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_scripts_measure_cad_frames_main",
+      "target": "src_hydroships_description_scripts_measure_cad_frames_mesh_to_base",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L118",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_scripts_measure_cad_frames_rationale_118",
+      "target": "src_hydroships_description_scripts_measure_cad_frames_mesh_to_base",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L213",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_scripts_measure_cad_frames_main",
+      "target": "src_hydroships_description_scripts_measure_cad_frames_rotate_axis",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L126",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_scripts_measure_cad_frames_rationale_126",
+      "target": "src_hydroships_description_scripts_measure_cad_frames_rotate_axis",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L219",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_scripts_measure_cad_frames_main",
+      "target": "src_hydroships_description_scripts_measure_cad_frames_inertia_per_kg",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L133",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_scripts_measure_cad_frames_rationale_133",
+      "target": "src_hydroships_description_scripts_measure_cad_frames_inertia_per_kg",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L227",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_scripts_measure_cad_frames_main",
+      "target": "src_hydroships_description_scripts_measure_cad_frames_displaced_volume",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L141",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_scripts_measure_cad_frames_rationale_141",
+      "target": "src_hydroships_description_scripts_measure_cad_frames_displaced_volume",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L242",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_scripts_measure_cad_frames_main",
+      "target": "src_hydroships_description_scripts_measure_cad_frames_export_meshes",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/scripts/measure_cad_frames.py",
+      "source_location": "L153",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_scripts_measure_cad_frames_rationale_153",
+      "target": "src_hydroships_description_scripts_measure_cad_frames_export_meshes",
       "confidence_score": 1.0
     },
     {
@@ -13810,8 +14591,140 @@
       "source": "src_hydroships_description_meshes_readme",
       "target": "src_hydroships_description_meshes_readme_meshes",
       "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/urdf/rov_kki2026_new_design.parts.md",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_urdf_rov_kki2026_new_design_parts",
+      "target": "src_hydroships_description_urdf_rov_kki2026_new_design_parts_inventaris_part_rov_kki_2026_new_design_revisi_fixxxx_goollll_siuuuu_f3z",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/urdf/rov_kki2026_new_design.parts.md",
+      "source_location": "L8",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_urdf_rov_kki2026_new_design_parts_inventaris_part_rov_kki_2026_new_design_revisi_fixxxx_goollll_siuuuu_f3z",
+      "target": "src_hydroships_description_urdf_rov_kki2026_new_design_parts_apa_yang_bisa_tidak_bisa_dikonversi",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/urdf/rov_kki2026_new_design.parts.md",
+      "source_location": "L116",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_urdf_rov_kki2026_new_design_parts_inventaris_part_rov_kki_2026_new_design_revisi_fixxxx_goollll_siuuuu_f3z",
+      "target": "src_hydroships_description_urdf_rov_kki2026_new_design_parts_apung_perlu_keputusan",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/urdf/rov_kki2026_new_design.parts.md",
+      "source_location": "L162",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_urdf_rov_kki2026_new_design_parts_inventaris_part_rov_kki_2026_new_design_revisi_fixxxx_goollll_siuuuu_f3z",
+      "target": "src_hydroships_description_urdf_rov_kki2026_new_design_parts_kalau_butuh_mesh_terpisah_per_komponen_lewat_fusion_360",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/urdf/rov_kki2026_new_design.parts.md",
+      "source_location": "L137",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_urdf_rov_kki2026_new_design_parts_inventaris_part_rov_kki_2026_new_design_revisi_fixxxx_goollll_siuuuu_f3z",
+      "target": "src_hydroships_description_urdf_rov_kki2026_new_design_parts_kompatibilitas_dengan_hydroships_urdf_xacro",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/urdf/rov_kki2026_new_design.parts.md",
+      "source_location": "L177",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_urdf_rov_kki2026_new_design_parts_inventaris_part_rov_kki_2026_new_design_revisi_fixxxx_goollll_siuuuu_f3z",
+      "target": "src_hydroships_description_urdf_rov_kki2026_new_design_parts_komponen_top_level_xref_dari_root_design",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/urdf/rov_kki2026_new_design.parts.md",
+      "source_location": "L233",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_urdf_rov_kki2026_new_design_parts_inventaris_part_rov_kki_2026_new_design_revisi_fixxxx_goollll_siuuuu_f3z",
+      "target": "src_hydroships_description_urdf_rov_kki2026_new_design_parts_occurrence_internal_root_frame_dari_design_stream",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/urdf/rov_kki2026_new_design.parts.md",
+      "source_location": "L89",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_urdf_rov_kki2026_new_design_parts_inventaris_part_rov_kki_2026_new_design_revisi_fixxxx_goollll_siuuuu_f3z",
+      "target": "src_hydroships_description_urdf_rov_kki2026_new_design_parts_posisi_thruster_terukur_dari_mesh",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/urdf/rov_kki2026_new_design.parts.md",
+      "source_location": "L77",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_urdf_rov_kki2026_new_design_parts_inventaris_part_rov_kki_2026_new_design_revisi_fixxxx_goollll_siuuuu_f3z",
+      "target": "src_hydroships_description_urdf_rov_kki2026_new_design_parts_semua_angka_bisa_dihitung_ulang",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/urdf/rov_kki2026_new_design.parts.md",
+      "source_location": "L24",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_urdf_rov_kki2026_new_design_parts_inventaris_part_rov_kki_2026_new_design_revisi_fixxxx_goollll_siuuuu_f3z",
+      "target": "src_hydroships_description_urdf_rov_kki2026_new_design_parts_status_geometri_saat_ini",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/urdf/rov_kki2026_new_design.parts.md",
+      "source_location": "L225",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_urdf_rov_kki2026_new_design_parts_komponen_top_level_xref_dari_root_design",
+      "target": "src_hydroships_description_urdf_rov_kki2026_new_design_parts_fastener_standar_tidak_dijadikan_link",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hydroships_description/urdf/rov_kki2026_new_design.parts.md",
+      "source_location": "L207",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_hydroships_description_urdf_rov_kki2026_new_design_parts_komponen_top_level_xref_dari_root_design",
+      "target": "src_hydroships_description_urdf_rov_kki2026_new_design_parts_sub_assembly_gripper",
+      "confidence_score": 1.0
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "b754a53d3e22e302c276a693f37e89f605ff9963"
+  "built_at_commit": "37ab46630875949b27ba41bfa783db77486c8ce1"
 }

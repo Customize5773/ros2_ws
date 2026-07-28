@@ -230,8 +230,8 @@
     "semantic_hash": ""
   },
   "src/hydroships_description/CMakeLists.txt": {
-    "mtime": 1785207522.1275105,
-    "ast_hash": "a0122dcbb056202358d9820a85d26df4",
+    "mtime": 1785235908.7182627,
+    "ast_hash": "53ecf8a7e335ff4d2609408e52fe924f",
     "semantic_hash": ""
   },
   "src/hydroships_description/config/rov_params.yaml": {
@@ -377,6 +377,21 @@
   "DOKUMENTASI ROV/surge-roll-yaw-heave-pitch-sway-ROV.png": {
     "mtime": 1783469423.044337,
     "ast_hash": "3b9afc1b392d6f74be057d1fd0b51629",
+    "semantic_hash": ""
+  },
+  "src/hydroships_description/launch/display_kki2026.launch.py": {
+    "mtime": 1785235874.3069084,
+    "ast_hash": "53e0468a35790fe5c9e1b691293b1358",
+    "semantic_hash": ""
+  },
+  "src/hydroships_description/scripts/measure_cad_frames.py": {
+    "mtime": 1785235591.2389097,
+    "ast_hash": "bebc24621e1635ea8ee82f2ab4371aaa",
+    "semantic_hash": ""
+  },
+  "src/hydroships_description/urdf/rov_kki2026_new_design.parts.md": {
+    "mtime": 1785235961.8388066,
+    "ast_hash": "9dcf6944c10e914796122b155c71b50f",
     "semantic_hash": ""
   }
 }

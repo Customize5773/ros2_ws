@@ -1,0 +1,586 @@
+<?xml version="1.0"?>
+<!--
+  ROV KKI 2026 — NEW DESIGN (revisi FIXXXX)
+  Model URDF/xacro berbasis GEOMETRI CAD NYATA, alternatif dari
+  hydroships.urdf.xacro yang memakai primitif box/cylinder.
+
+  Frame konvensi ROS (REP-103): x maju (surge), y kiri (sway), z atas (heave).
+
+  ============================ SUMBER ============================
+  Geometri : DOKUMENTASI ROV/@ROV KKI 2026 NEW DESIGN.stl
+             75 MB, 1.515.494 face, unit mm, SATU mesh gabungan.
+  Struktur : DOKUMENTASI ROV/@ROV KKI 2026 NEW DESIGN revisi FIXXXX
+             GOOLLLL SIUUUU.f3z — nama komponen & hierarki XREF (48 part).
+             Rincian: rov_kki2026_new_design.parts.md
+
+  SEMUA ANGKA GEOMETRI DI BAWAH TERUKUR DARI MESH, bukan tebakan. Hitung
+  ulang kapan saja (mis. setelah CAD direvisi) dengan:
+
+    python3 scripts/measure_cad_frames.py (opsi: stl, verbose)
+
+  Jalankan dengan opsi "help" untuk daftar argumen; opsi "export-meshes"
+  plus "out-dir ../meshes/kki2026" membuat ulang mesh visual & collision.
+
+  ==================== ORIENTASI MESH (PENTING) ====================
+  Origin STL BUKAN konvensi ROS. Sumbu memanjang ROV ada di Y mesh dan
+  haluan ada di -Y mesh, jadi mesh diputar +90 deg terhadap Z:
+      x_base = -y_mesh,  y_base = x_mesh,  z_base = z_mesh
+  Origin lalu digeser supaya base_link berimpit dengan pusat massa mesh.
+  Bukti orientasi (terukur, bukan asumsi):
+    * tabung enclosure OD 130 mm panjang 210 mm bersumbu Y mesh -> fore/aft;
+    * 3 thruster bersumbu Z mesh (heave), 2 bersumbu Y mesh (surge),
+      1 bersumbu X mesh (sway) — pola 3-2-1 khas ROV;
+    * struktur gripper/payload ada di ujung -Y mesh -> itulah haluan.
+  Model FBX lama (Model lain/rov.urdf.xacro) TIDAK memutar mesh, sehingga
+  koordinatnya tidak sebanding dengan file ini.
+
+  ==================== KOMPATIBILITAS ====================
+  Nama link, joint, topic, dan plugin sama dengan hydroships.urdf.xacro
+  (thruster_1..6, imu_link, depth_link, camera_front_link,
+  camera_bottom_link, gripper_base, gripper_finger_left/right), jadi bisa
+  dipakai bergantian tanpa menyentuh hydroships_control / hydroships_gazebo.
+  Nama model di sini bukan 'hydroships'; spawn dengan `-name hydroships`
+  supaya topic /model/hydroships/odometry tetap cocok dengan bridge.
+
+  ==================== STATUS SINKRONISASI (2026-07-28) ====================
+  SUDAH sinkron di ketiga tempat — model ini, hydroships.urdf.xacro, dan
+  hydroships_control/allocation.py: posisi & sumbu 6 thruster, penomoran,
+  kelas/diameter propeller, massa total, inertia, dan volume tergeser.
+  Keduanya membaca config/rov_params.yaml yang sama.
+
+  ==================== YANG MASIH PERLU DATA LUAR ====================
+  1. TANDA SUMBU dorong perlu verifikasi bench (Gambar 2.10 tidak konsisten
+     sendiri untuk thruster vertikal). Lihat blok THRUSTER & allocation.py.
+  2. Massa & volume tergeser masih turunan CAD + asumsi densitas seragam.
+     Ganti dgn hasil TIMBANG dan UJI CELUP nyata.
+  3. Koefisien hidrodinamika di rov_params.yaml masih acuan BlueROV2 untuk
+     bentuk box, belum untuk bentuk CAD ini (butuh uji tarik/CFD).
+  4. Mesh gabungan tidak bisa dipecah per komponen -> jari gripper tidak
+     teranimasi (kinematikanya tetap benar), dan posisi kamera exploreHD
+     masih estimasi.
+-->
+<robot name="rov_kki2026_new_design" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- ===================== Mesh & transform =====================
+       Mesh visual: fastener (<25 mm) dibuang lalu di-decimate ->
+       67.131 face / 3,4 MB (dari 1,5 juta face / 75 MB). Pembuangan
+       fastener perlu karena decimation saja mentok di ~95k face:
+       mesh punya 32.108 body terpisah yang masing-masing butuh minimal
+       beberapa face. Catatan: PROBLEM.md mencatat mesh 237k face dulu
+       menjatuhkan rate kamera 22->10 Hz, jadi jangan naikkan angka ini. -->
+  <xacro:property name="mesh_scale" value="0.001 0.001 0.001"/>
+  <xacro:property name="mesh_pkg" value="package://hydroships_description/meshes/kki2026"/>
+
+  <!-- Mesh STL -> base_link. Rz(+90 deg) + geser CoM ke origin. -->
+  <xacro:property name="mesh_xyz" value="0.10542 0.00426 0.06756"/>
+  <xacro:property name="mesh_rpy" value="0 0 1.5708"/>
+
+  <!-- Bounding box mesh di frame base_link (m), terukur:
+       x -0,1973..0,3106 · y -0,1695..0,1774 · z -0,1474..0,1486 -->
+  <xacro:property name="body_x" value="0.5079"/>
+  <xacro:property name="body_y" value="0.3469"/>
+  <xacro:property name="body_z" value="0.2959"/>
+  <xacro:property name="bbox_center" value="0.05665 0.00395 0.0006"/>
+
+  <!-- ===================== Pilihan collision =====================
+       Volume collision dipakai plugin Buoyancy untuk gaya apung, jadi
+       pilihan ini mengubah FISIKA, bukan cuma tabrakan.
+         'physical' (default) = silinder tabung + pelat footprint, volume
+                  dijumlah tepat = volume air tergeser terukur (0,006644 m^3).
+         'hull' = convex hull mesh CAD, 1.646 face. Volume 0,02805 m^3
+                  -> apung 28,05 kg (4x terlalu besar), tapi bentuk & kontak
+                  paling mirip ROV.
+         'box'  = kotak bbox. Volume 0,05214 m^3 -> apung 52,14 kg.
+       Lihat blok APUNG sebelum memilih. -->
+  <xacro:arg name="collision_mode" default="physical"/>
+  <xacro:property name="collision_mode" value="$(arg collision_mode)"/>
+
+  <!-- Penanda bola kecil di frame referensi (debug TF di RViz).
+       Override: xacro ... show_frame_markers:=true -->
+  <xacro:arg name="show_frame_markers" default="false"/>
+  <xacro:property name="show_frame_markers" value="$(arg show_frame_markers)"/>
+  <xacro:property name="marker_radius" value="0.008"/>
+
+  <!-- ============= Parameter FISIK dari config/rov_params.yaml =============
+       Sumber sama dengan hydroships.urdf.xacro supaya kedua model memakai
+       massa & koefisien hidrodinamika identik. -->
+  <xacro:property name="rp" value="${xacro.load_yaml('../config/rov_params.yaml')}"/>
+  <xacro:property name="vehicle_mass" value="${rp['vehicle_mass']}"/>
+  <xacro:property name="displaced_volume" value="${rp['displaced_volume']}"/>
+  <xacro:property name="thruster_mass" value="${rp['thruster_mass']}"/>
+  <xacro:property name="fluid_density" value="${rp['fluid_density']}"/>
+  <xacro:property name="cob_z" value="${rp['cob']['z']}"/>
+
+  <!-- Massa link tambahan model ini: 6 thruster + 2 jari + 6 frame referensi.
+       base_link mendapat sisanya, supaya massa TOTAL = vehicle_mass persis
+       sama dengan hydroships.urdf.xacro meski link tambahannya berbeda. -->
+  <xacro:property name="finger_mass" value="0.06"/>
+  <xacro:property name="frame_mass" value="0.001"/>
+  <xacro:property name="aux_mass" value="${6*thruster_mass + 2*finger_mass + 6*frame_mass}"/>
+  <xacro:property name="base_mass" value="${vehicle_mass - aux_mass}"/>
+
+  <!-- ========================== APUNG ==========================
+       Plugin Buoyancy gz menghitung gaya apung dari VOLUME COLLISION, jadi
+       ukuran collision menentukan fisika, bukan cuma tabrakan.
+
+       Angka terukur dari mesh (measure_cad_frames.py):
+         bahan padat semua body      0,004283 m^3
+         rongga tertutup tabung      0,002361 m^3
+         VOLUME TERGESER NYATA     ~ 0,006644 m^3  -> apung 6,64 kg
+         convex hull mesh            0,028047 m^3  -> apung 28,05 kg
+         bbox penuh                  0,052140 m^3  -> apung 52,14 kg
+
+       Hull dan bbox JAUH terlalu besar karena rangka ROV ini TERBUKA: air
+       mengalir menembusnya, jadi yang tergeser cuma bahan padat + rongga
+       tabung. Karena itu mode default 'physical' menyusun collision dari
+       dua primitif yang volumenya dijumlah tepat = displaced_volume:
+         * silinder = tabung enclosure (posisi & ukuran terukur), dan
+         * pelat tipis seluas footprint ROV = sisa volumenya.
+       Tinggi pelat disetel supaya centroid gabungan jatuh di cob_z (0,02 m)
+       DI ATAS CoG -> CoB > CoG, kapal stabil terhadap roll/pitch.
+
+       KONSEKUENSI mode 'physical': pelatnya tipis, jadi saat menyentuh dasar
+       kolam badan ROV akan tampak tenggelam sebagian ke lantai. Itu harga
+       dari apung yang benar. Pakai 'hull' kalau yang dibutuhkan kontak/visual
+       (tapi apungnya salah 4x), atau 'box' untuk membandingkan dgn model lama.
+
+       vehicle_mass 6,64 kg dipilih tepat di bawah 6,644 kg -> near-neutral.
+       Angka lama 33,6 kg bukan hasil timbang; itu pasangan dari apung KOTAK
+       PEJAL 0,345^3. TETAP GANTI dgn hasil timbang + uji celup nyata.
+       ============================================================ -->
+  <xacro:property name="tube_radius" value="0.065"/>
+  <xacro:property name="tube_length" value="0.210"/>
+  <xacro:property name="tube_z" value="0.0196"/>
+  <xacro:property name="v_tube" value="${pi * tube_radius * tube_radius * tube_length}"/>
+  <xacro:property name="v_plate" value="${displaced_volume - v_tube}"/>
+  <xacro:property name="plate_t" value="${v_plate / (body_x * body_y)}"/>
+  <!-- z pelat agar centroid volume gabungan tepat di cob_z -->
+  <xacro:property name="plate_z"
+                  value="${(cob_z * displaced_volume - v_tube * tube_z) / v_plate}"/>
+
+  <!-- ========================== INERTIAL ==========================
+       CoM & tensor inersia dihitung dari mesh (densitas seragam), lalu
+       dirotasi ke frame base_link. base_link SUDAH ditaruh di CoM, jadi
+       origin inertial = 0 0 0.
+
+       Koefisien di bawah adalah inersia PER KILOGRAM; dikalikan base_mass
+       supaya mengubah massa di YAML tetap menghasilkan inersia konsisten.
+
+       SENGAJA TIDAK memakai rp['inertia'] & rp['cog']: keduanya diturunkan
+       dari box 0,345^3 dengan cog di pusat bbox, bukan dari bentuk ini.
+       Asumsi densitas seragam tetap perlu diganti hasil Fusion "Physical
+       Material" bila menginginkan angka akhir. -->
+  <xacro:property name="i_xx_per_kg" value="0.01006764"/>
+  <xacro:property name="i_yy_per_kg" value="0.01420667"/>
+  <xacro:property name="i_zz_per_kg" value="0.01492528"/>
+  <xacro:property name="i_xy_per_kg" value="0.00053764"/>
+  <xacro:property name="i_xz_per_kg" value="0.00091664"/>
+  <xacro:property name="i_yz_per_kg" value="-0.00041051"/>
+
+  <!-- ============================ base_link ============================
+       SELURUH geometri ROV ada di sini: mesh gabungan tidak bisa dipecah
+       per komponen, jadi link lain hanyalah frame. -->
+  <link name="base_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="${base_mass}"/>
+      <inertia ixx="${base_mass * i_xx_per_kg}"
+               ixy="${base_mass * i_xy_per_kg}"
+               ixz="${base_mass * i_xz_per_kg}"
+               iyy="${base_mass * i_yy_per_kg}"
+               iyz="${base_mass * i_yz_per_kg}"
+               izz="${base_mass * i_zz_per_kg}"/>
+    </inertial>
+
+    <visual>
+      <origin xyz="${mesh_xyz}" rpy="${mesh_rpy}"/>
+      <geometry>
+        <mesh filename="${mesh_pkg}/rov_kki2026_visual.stl" scale="${mesh_scale}"/>
+      </geometry>
+      <material name="hydro_grey">
+        <color rgba="0.55 0.57 0.60 1.0"/>
+      </material>
+    </visual>
+
+    <!-- physical: silinder tabung + pelat footprint, volume = displaced_volume -->
+    <xacro:if value="${collision_mode == 'physical'}">
+      <collision name="enclosure_hull">
+        <origin xyz="0.0210 0.0043 ${tube_z}" rpy="0 1.5708 0"/>
+        <geometry>
+          <cylinder radius="${tube_radius}" length="${tube_length}"/>
+        </geometry>
+      </collision>
+      <collision name="frame_plate">
+        <origin xyz="0.05665 0.00395 ${plate_z}" rpy="0 0 0"/>
+        <geometry>
+          <box size="${body_x} ${body_y} ${plate_t}"/>
+        </geometry>
+      </collision>
+    </xacro:if>
+    <xacro:if value="${collision_mode == 'hull'}">
+      <collision>
+        <origin xyz="${mesh_xyz}" rpy="${mesh_rpy}"/>
+        <geometry>
+          <mesh filename="${mesh_pkg}/rov_kki2026_collision.stl" scale="${mesh_scale}"/>
+        </geometry>
+      </collision>
+    </xacro:if>
+    <xacro:if value="${collision_mode == 'box'}">
+      <collision>
+        <origin xyz="${bbox_center}" rpy="0 0 0"/>
+        <geometry>
+          <box size="${body_x} ${body_y} ${body_z}"/>
+        </geometry>
+      </collision>
+    </xacro:if>
+  </link>
+
+  <!-- ==================== Macro frame referensi ==================== -->
+  <xacro:macro name="ref_frame" params="name parent xyz:='0 0 0' rpy:='0 0 0'
+                                        color:='0.5 0.5 0.5 1.0'">
+    <link name="${name}">
+      <xacro:if value="${show_frame_markers}">
+        <visual>
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+          <geometry><sphere radius="${marker_radius}"/></geometry>
+          <material name="${name}_marker"><color rgba="${color}"/></material>
+        </visual>
+      </xacro:if>
+      <inertial>
+        <!-- massa diabaikan: frame referensi; massa aslinya sudah di base_mass -->
+        <mass value="${frame_mass}"/>
+        <inertia ixx="1e-7" ixy="0" ixz="0" iyy="1e-7" iyz="0" izz="1e-7"/>
+      </inertial>
+    </link>
+    <joint name="${name}_joint" type="fixed">
+      <origin xyz="${xyz}" rpy="${rpy}"/>
+      <parent link="${parent}"/>
+      <child link="${name}"/>
+    </joint>
+  </xacro:macro>
+
+  <!-- ==================== Macro satu thruster ==================== -->
+  <xacro:macro name="thruster" params="name xyz axis visual_rpy='0 0 0' visual_offset='0 0 0'">
+    <link name="${name}">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="${thruster_mass}"/>
+        <inertia ixx="1e-4" ixy="0.0" ixz="0.0"
+                 iyy="1e-4" iyz="0.0" izz="1e-4"/>
+      </inertial>
+      <visual>
+        <origin xyz="${visual_offset}" rpy="${visual_rpy}"/>
+        <geometry><cylinder radius="0.012" length="0.05"/></geometry>
+        <material name="hydro_dark"><color rgba="0.1 0.1 0.12 1.0"/></material>
+      </visual>
+      <visual>
+        <origin xyz="${visual_offset}" rpy="${visual_rpy}"/>
+        <geometry><cylinder radius="0.024" length="0.008"/></geometry>
+        <material name="hydro_yellow"><color rgba="0.9 0.75 0.1 1.0"/></material>
+      </visual>
+      <!-- Tanpa collision: thruster tidak menambah volume apung. -->
+    </link>
+    <joint name="${name}_joint" type="continuous">
+      <origin xyz="${xyz}" rpy="0 0 0"/>
+      <parent link="base_link"/>
+      <child link="${name}"/>
+      <axis xyz="${axis}"/>
+      <dynamics damping="0.0" friction="0.0"/>
+    </joint>
+  </xacro:macro>
+
+  <!-- ==================== Posisi thruster (TERUKUR) ====================
+       Enam unit dikenali dari mesh lewat connected-component analysis:
+       rumah thruster = bongkah kompak 45-110 mm, arah dorong = normal
+       cakram propeller/duct terdekat. Penomoran mengikuti Gambar 2.9/2.10
+       dokumen desain (penulis, 2026). IDENTIK dengan hydroships.urdf.xacro
+       dan hydroships_control/allocation.py.
+
+         nama        peran               kelas  duct terukur   putaran
+         thruster_1  surge kanan         T200   duct 90,1 mm   CCW
+         thruster_2  surge kiri          T200   duct 90,1 mm   CW
+         thruster_3  heave haluan kanan  T100   prop 66,6 mm   CCW
+         thruster_4  heave haluan kiri   T100   prop 66,6 mm   CW
+         thruster_5  heave buritan       T100   prop 66,6 mm   CW
+         thruster_6  sway tengah-bawah   T100   prop 59,0 mm   CCW
+
+       Jumlah unit cocok dgn .f3z: 4x "T100 THRUSTER ROVMAKER" + 2x
+       "T200-ASM-CCW-THRUSTER-R1". Verifikasi: keenam titik berjarak
+       3,4-8,5 mm dari permukaan mesh (angka desain lama: 8-108 mm).
+
+       Mapping LAMA menukar peran pasangan haluan <-> tengah dan menukar
+       5 <-> 6. CAD dan Gambar 2.9 keduanya menunjukkan pembagian di atas.
+       Setelah dikoreksi, cond(TAM) turun 19,7 -> 10,0 dan gaya thruster utk
+       wrench satuan pada DOF terlemah turun 9,25 N -> 4,06 N: geometri
+       terukur ini justru LEBIH mudah dikendalikan.
+
+       Tanda sumbu masih perlu verifikasi bench — lihat catatan di
+       hydroships_control/allocation.py. Kalau perintah positif ternyata
+       mendorong mundur, balik tanda di sini DAN di allocation.py.
+       ==================================================================== -->
+  <xacro:thruster name="thruster_1" xyz="-0.0291 -0.1188 0.0186" axis="1.0 0.0 0.0" visual_rpy="0 1.5708 0" visual_offset="0.008 0 0"/>
+  <xacro:thruster name="thruster_2" xyz="-0.0287 0.1274 0.0190"  axis="1.0 0.0 0.0" visual_rpy="0 1.5708 0" visual_offset="0.008 0 0"/>
+  <xacro:thruster name="thruster_3" xyz="0.1050 -0.1332 0.0592"  axis="0.0 0.0 1.0" visual_rpy="0 0 0"      visual_offset="0 0 0.008"/>
+  <xacro:thruster name="thruster_4" xyz="0.1053 0.1411 0.0550"   axis="0.0 0.0 1.0" visual_rpy="0 0 0"      visual_offset="0 0 0.008"/>
+  <xacro:thruster name="thruster_5" xyz="-0.1610 0.0037 0.0621"  axis="0.0 0.0 1.0" visual_rpy="0 0 0"      visual_offset="0 0 0.008"/>
+  <xacro:thruster name="thruster_6" xyz="-0.0700 0.0200 -0.0939" axis="0.0 1.0 0.0" visual_rpy="1.5708 0 0" visual_offset="0 0.008 0"/>
+
+  <!-- ==================== Frame sensor ====================
+       imu_link  : di CoM (= origin base_link).
+       depth_link: sisi atas tabung enclosure (penetrator, f3z id 65930).
+       Posisi tabung TERUKUR: pusat (0,021 0,004 0,020), sumbu X,
+       OD 130 mm, panjang 210 mm, ujung depan x=+0,126, belakang x=-0,097.
+
+       Kamera exploreHD (f3z id 65946) TIDAK bisa dikenali di mesh gabungan
+       — banyak body berukuran mirip. Dua frame kamera di bawah masih
+       ESTIMASI, tapi sudah disesuaikan dgn amplop CAD: camera_front tepat
+       di depan endcap depan, camera_bottom di bawah titik terendah mesh
+       (z=-0,147) supaya pandangan tidak terhalang badan sendiri. -->
+  <link name="imu_link"/>
+  <joint name="imu_joint" type="fixed">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="imu_link"/>
+  </joint>
+
+  <link name="depth_link"/>
+  <joint name="depth_joint" type="fixed">
+    <origin xyz="0.021 0.004 0.085" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="depth_link"/>
+  </joint>
+
+  <link name="camera_front_link"/>
+  <joint name="camera_front_joint" type="fixed">
+    <origin xyz="0.140 0.004 0.020" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="camera_front_link"/>
+  </joint>
+
+  <link name="camera_bottom_link"/>
+  <joint name="camera_bottom_joint" type="fixed">
+    <origin xyz="0.050 0.004 -0.170" rpy="0 1.5708 0"/>
+    <parent link="base_link"/>
+    <child link="camera_bottom_link"/>
+  </joint>
+
+  <!-- ==================== Sensor Gazebo ====================
+       Butuh gz-sim-imu-system & gz-sim-sensors-system aktif di world.
+       Depth diturunkan dari /hydroships/odom oleh node depth_publisher,
+       bukan dari sensor di sini. -->
+  <gazebo reference="imu_link">
+    <sensor name="imu" type="imu">
+      <always_on>1</always_on>
+      <update_rate>50</update_rate>
+      <topic>hydroships/imu</topic>
+    </sensor>
+  </gazebo>
+
+  <gazebo reference="camera_front_link">
+    <sensor name="camera_front" type="camera">
+      <always_on>1</always_on>
+      <update_rate>15</update_rate>
+      <visualize>false</visualize>
+      <topic>hydroships/camera_front/image</topic>
+      <camera>
+        <horizontal_fov>1.3962634</horizontal_fov>
+        <image><width>640</width><height>480</height><format>R8G8B8</format></image>
+        <clip><near>0.05</near><far>20.0</far></clip>
+      </camera>
+    </sensor>
+  </gazebo>
+
+  <gazebo reference="camera_bottom_link">
+    <sensor name="camera_bottom" type="camera">
+      <always_on>1</always_on>
+      <update_rate>15</update_rate>
+      <visualize>false</visualize>
+      <topic>hydroships/camera_bottom/image</topic>
+      <camera>
+        <horizontal_fov>1.3962634</horizontal_fov>
+        <image><width>640</width><height>480</height><format>R8G8B8</format></image>
+        <clip><near>0.05</near><far>20.0</far></clip>
+      </camera>
+    </sensor>
+  </gazebo>
+
+  <!-- ==================== Manipulator ====================
+       Gripper V4 KKI 2026 (f3z id 65931) + Hi-Tech Servo 646WP (65932).
+       gripper_base ditaruh di struktur haluan-bawah yang TERUKUR di mesh:
+       tumpukan pelat 42x102x5 mm di sekitar (0,260 -0,034 -0,096). Identitas
+       pastinya (rahang gripper atau rak payload) tidak bisa dipastikan dari
+       mesh gabungan — verifikasi di Fusion bila kritis.
+
+       Grasp FISIK memakai DetachableJoint (sambungan kaku ROV<->payload),
+       BUKAN gesekan jari; dua jari opposing di sini KOSMETIK. Geometrinya
+       terpanggang di mesh base_link sehingga visual jari hanya muncul bila
+       show_frame_markers=true — kinematikanya tetap benar.
+       Sudut 0 = TERTUTUP, naik = MEMBUKA; mirroring lewat tanda axis. -->
+  <xacro:ref_frame name="gripper_base" parent="base_link"
+                   xyz="0.260 -0.034 -0.096" rpy="0 0 0" color="0.85 0.7 0.1 1.0"/>
+
+  <!-- Cegah sdformat melebur gripper_base ke base_link saat URDF->SDF:
+       plugin DetachableJoint butuh link ini berdiri sendiri di SDF. -->
+  <gazebo reference="gripper_base_joint">
+    <preserveFixedJoint>true</preserveFixedJoint>
+  </gazebo>
+
+  <xacro:macro name="gripper_finger" params="side y_pivot axis_z">
+    <link name="gripper_finger_${side}">
+      <inertial>
+        <origin xyz="0.04 0 0" rpy="0 0 0"/>
+        <mass value="${finger_mass}"/>
+        <inertia ixx="6.0e-6" ixy="0.0" ixz="0.0"
+                 iyy="3.6e-5" iyz="0.0" izz="3.4e-5"/>
+      </inertial>
+      <xacro:if value="${show_frame_markers}">
+        <visual>
+          <origin xyz="0.04 0 0" rpy="0 0 0"/>
+          <geometry><box size="0.08 0.016 0.03"/></geometry>
+          <material name="hydro_jaw_${side}"><color rgba="0.95 0.8 0.2 1.0"/></material>
+        </visual>
+      </xacro:if>
+    </link>
+    <joint name="gripper_${side}_joint" type="revolute">
+      <origin xyz="0.04 ${y_pivot} 0" rpy="0 0 0"/>
+      <parent link="gripper_base"/>
+      <child link="gripper_finger_${side}"/>
+      <axis xyz="0 0 ${axis_z}"/>
+      <limit lower="-0.1" upper="0.5" effort="10.0" velocity="2.0"/>
+      <dynamics damping="0.05" friction="0.0"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:gripper_finger side="left"  y_pivot="-0.025" axis_z="-1"/>
+  <xacro:gripper_finger side="right" y_pivot="0.025"  axis_z="1"/>
+
+  <!-- ==================== Frame komponen lain ====================
+       Semua TERUKUR dari mesh kecuali payload_hook (satu region dgn
+       gripper, dipisah agar bisa digeser sendiri).
+         enclosure_tube   pusat tabung, sumbu X, OD 130 mm, panjang 210 mm
+         endcap_front     ujung depan tabung  (f3z id 65953)
+         endcap_rear      cakram endcap belakang terukur (f3z id 65914) -->
+  <xacro:ref_frame name="enclosure_tube"   parent="base_link"      xyz="0.0210 0.0043 0.0196"/>
+  <xacro:ref_frame name="enclosure_flange" parent="enclosure_tube" xyz="0 0 0"/>
+  <xacro:ref_frame name="endcap_front"     parent="base_link"      xyz="0.1260 0.0043 0.0196"/>
+  <xacro:ref_frame name="endcap_rear"      parent="base_link"      xyz="-0.0965 0.0044 0.0196"/>
+  <xacro:ref_frame name="payload_hook"     parent="base_link"      xyz="0.260 -0.034 -0.096"/>
+
+  <!-- Titik cengkeram (TCP) untuk visual servoing. -->
+  <link name="gripper_tcp_frame"/>
+  <joint name="gripper_tcp_joint" type="fixed">
+    <origin xyz="0.07 0 0" rpy="0 0 0"/>
+    <parent link="gripper_base"/>
+    <child link="gripper_tcp_frame"/>
+  </joint>
+
+  <!-- ============================================================ -->
+  <!-- ===================  Plugin Gazebo Fortress  =============== -->
+  <!-- ============================================================ -->
+
+  <!-- Hydrodynamics (added-mass + drag Fossen) pada base_link.
+       Koefisien dari rov_params.yaml — SAMA dengan model box, padahal
+       diturunkan untuk box 0,345^3 gaya BlueROV2. Sebagai acuan penskalaan
+       kasar, luas proyeksi bbox model ini: depan (y-z) 0,347x0,296 m,
+       samping (x-z) 0,508x0,296 m, atas (x-y) 0,508x0,347 m. Ganti dgn
+       hasil uji tarik/CFD bila ada. -->
+  <xacro:property name="am" value="${rp['added_mass']}"/>
+  <xacro:property name="ld" value="${rp['linear_damping']}"/>
+  <xacro:property name="qd" value="${rp['quadratic_damping']}"/>
+  <gazebo>
+    <plugin filename="gz-sim-hydrodynamics-system"
+            name="gz::sim::systems::Hydrodynamics">
+      <link_name>base_link</link_name>
+      <water_density>${fluid_density}</water_density>
+      <xDotU>${am['xDotU']}</xDotU>
+      <yDotV>${am['yDotV']}</yDotV>
+      <zDotW>${am['zDotW']}</zDotW>
+      <kDotP>${am['kDotP']}</kDotP>
+      <mDotQ>${am['mDotQ']}</mDotQ>
+      <nDotR>${am['nDotR']}</nDotR>
+      <xU>${ld['xU']}</xU>
+      <yV>${ld['yV']}</yV>
+      <zW>${ld['zW']}</zW>
+      <kP>${ld['kP']}</kP>
+      <mQ>${ld['mQ']}</mQ>
+      <nR>${ld['nR']}</nR>
+      <xUabsU>${qd['xUabsU']}</xUabsU>
+      <yVabsV>${qd['yVabsV']}</yVabsV>
+      <zWabsW>${qd['zWabsW']}</zWabsW>
+      <kPabsP>${qd['kPabsP']}</kPabsP>
+      <mQabsQ>${qd['mQabsQ']}</mQabsQ>
+      <nRabsR>${qd['nRabsR']}</nRabsR>
+    </plugin>
+  </gazebo>
+
+  <!-- Odometry publisher -> /model/<nama_spawn>/odometry. -->
+  <gazebo>
+    <plugin filename="gz-sim-odometry-publisher-system"
+            name="gz::sim::systems::OdometryPublisher">
+      <odom_frame>odom</odom_frame>
+      <robot_base_frame>base_link</robot_base_frame>
+      <dimensions>3</dimensions>
+      <odom_publish_frequency>30</odom_publish_frequency>
+    </plugin>
+  </gazebo>
+
+  <!-- Satu plugin Thruster per propeller -> /hydroships/thruster_i/thrust.
+       Diameter kini mengikuti KELAS hasil ukur: T200 (surge) duct 90 mm ->
+       0,076 m; T100 (heave & sway) prop 66,6 mm -> 0,048 m. Di
+       hydroships.urdf.xacro pembagian 0,076/0,048 mengikuti nomor urut,
+       bukan kelas, sehingga thruster_3 & _4 dapat diameter berbeda padahal
+       unitnya sama. Diameter mempengaruhi gaya per perintah — kalau ingin
+       dinamika persis sama dgn model lama, samakan lagi nilainya. -->
+  <xacro:macro name="thruster_plugin" params="name diameter">
+    <gazebo>
+      <plugin filename="gz-sim-thruster-system"
+              name="gz::sim::systems::Thruster">
+        <namespace>hydroships</namespace>
+        <joint_name>${name}_joint</joint_name>
+        <topic>${name}/thrust</topic>
+        <use_angvel_cmd>false</use_angvel_cmd>
+        <fluid_density>${fluid_density}</fluid_density>
+        <propeller_diameter>${diameter}</propeller_diameter>
+        <thrust_coefficient>0.004422</thrust_coefficient>
+        <max_thrust_cmd>50.0</max_thrust_cmd>
+        <min_thrust_cmd>-40.0</min_thrust_cmd>
+      </plugin>
+    </gazebo>
+  </xacro:macro>
+
+  <xacro:thruster_plugin name="thruster_1" diameter="0.076"/>  <!-- T200 surge -->
+  <xacro:thruster_plugin name="thruster_2" diameter="0.076"/>  <!-- T200 surge -->
+  <xacro:thruster_plugin name="thruster_3" diameter="0.048"/>  <!-- T100 heave -->
+  <xacro:thruster_plugin name="thruster_4" diameter="0.048"/>  <!-- T100 heave -->
+  <xacro:thruster_plugin name="thruster_5" diameter="0.048"/>  <!-- T100 heave -->
+  <xacro:thruster_plugin name="thruster_6" diameter="0.048"/>  <!-- T100 sway  -->
+
+  <!-- Kontrol posisi dua jari kosmetik (gz.msgs.Double). -->
+  <xacro:macro name="gripper_finger_plugin" params="side">
+    <gazebo>
+      <plugin filename="gz-sim-joint-position-controller-system"
+              name="gz::sim::systems::JointPositionController">
+        <joint_name>gripper_${side}_joint</joint_name>
+        <topic>/hydroships/gripper_${side}/cmd</topic>
+        <p_gain>2.0</p_gain>
+        <i_gain>0.0</i_gain>
+        <d_gain>0.1</d_gain>
+      </plugin>
+    </gazebo>
+  </xacro:macro>
+  <xacro:gripper_finger_plugin side="left"/>
+  <xacro:gripper_finger_plugin side="right"/>
+
+  <!-- GRASP FISIK: DetachableJoint gripper_base <-> payload. -->
+  <gazebo>
+    <plugin filename="gz-sim-detachable-joint-system"
+            name="gz::sim::systems::DetachableJoint">
+      <parent_link>gripper_base</parent_link>
+      <child_model>payload</child_model>
+      <child_link>payload_link</child_link>
+      <attach_topic>/hydroships/gripper/attach</attach_topic>
+      <detach_topic>/hydroships/gripper/detach</detach_topic>
+    </plugin>
+  </gazebo>
+
+</robot>

@@ -15,6 +15,7 @@
   "13": "Integrasi GUI-ROV ↔ hydroships (ROS 2) — Analisis Selisih & Adapter",
   "14": "DepthPublisher",
   "15": "test_qr_ey_target.py",
+  "16": "measure_cad_frames.py",
   "17": "sim.launch.py",
   "18": "PayloadSpawner",
   "19": "hydroships_gui.launch.py",
@@ -29,5 +30,7 @@
   "28": "ros2-ws",
   "29": "__init__.py",
   "30": "setup.py",
-  "32": "4.7 Sub-Kategori Remotely Operated Underwater Vehicle (ROV)"
+  "31": "Inventaris part — `@ROV KKI 2026 NEW DESIGN revisi FIXXXX GOOLLLL SIUUUU.f3z`",
+  "32": "4.7 Sub-Kategori Remotely Operated Underwater Vehicle (ROV)",
+  "33": "display_kki2026.launch.py"
 }

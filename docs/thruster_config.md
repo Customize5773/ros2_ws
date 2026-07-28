@@ -3,48 +3,95 @@
 Frame body mengikuti REP-103: **x maju (surge), y kiri (sway), z atas (heave)**.
 Rotasi: roll (Mx, sekitar x), pitch (My, sekitar y), yaw (Mz, sekitar z).
 
-Geometri ini adalah sumber kebenaran tunggal dan **harus identik** di dua tempat
+Geometri ini adalah sumber kebenaran tunggal dan **harus identik** di tiga tempat
 (konsistensi masih manual/duplikat — lihat catatan):
 
-- `hydroships_description/urdf/hydroships.urdf.xacro` (posisi/sumbu joint thruster)
+- `hydroships_description/urdf/hydroships.urdf.xacro` (model primitif box)
+- `hydroships_description/urdf/rov_kki2026_new_design.urdf.xacro` (model mesh CAD)
 - `hydroships_control/allocation.py` (konstanta `THRUSTERS`, modul murni yang dipakai
   node `thruster_allocator`)
 
 ## Konvensi posisi & sumber data
 
-Posisi diturunkan dari `docs/thruster_positions.csv` yang berkonvensi **berbeda** dari
-frame body ROS:
+**Diperbarui 2026-07-28 — sumber data berganti dari CSV ke CAD.**
 
-- **CSV:** `X = lateral (kanan +)`, `Y = fore/aft (DEPAN negatif)`, `Z = atas`, satuan **mm**.
-- **Konversi ke body ROS:** `x_body = -Y_csv`, `y_body = -X_csv`, `z_body = Z_csv` (mm→m).
+Posisi & sumbu kini **diukur langsung dari mesh CAD**
+`DOKUMENTASI ROV/@ROV KKI 2026 NEW DESIGN.stl` memakai
+`hydroships_description/scripts/measure_cad_frames.py`:
 
-> ⚠️ **Bug historis (sudah diperbaiki, `14cf649`):** kolom CSV sempat disalin **mentah**
-> `(X,Y,Z)→(x,y,z)` tanpa rotasi frame → posisi terputar 90°, momen yaw T100-A/C saling
-> meniadakan, `cond(TAM)≈1.2e4` (yaw near-singular). Setelah konversi di atas: `cond≈20`,
-> yaw pulih. Lihat [CHANGELOG.md](CHANGELOG.md).
+```bash
+python3 src/hydroships_description/scripts/measure_cad_frames.py --stl "DOKUMENTASI ROV/@ROV KKI 2026 NEW DESIGN.stl" --verbose
+```
+
+Tiap unit dikenali lewat *connected-component analysis*: rumah thruster = bongkah
+kompak 45–110 mm, arah dorong = normal cakram propeller/duct terdekat. Jumlahnya
+cocok dengan `.f3z`: 4× T100 + 2× T200.
+
+Origin STL bukan konvensi ROS — sumbu memanjang ROV ada di Y mesh dan haluan di
+−Y mesh, jadi mesh diputar **+90° terhadap Z** lalu digeser sehingga `base_link`
+berimpit dengan pusat massa:
+
+    x_base = -y_mesh    y_base = x_mesh    z_base = z_mesh
+
+**Penomoran** mengikuti Gambar 2.9/2.10 dokumen desain (penulis, 2026).
+
+> ⚠️ **Koreksi peran (2026-07-28).** Mapping lama menukar peran pasangan haluan ↔
+> pasangan tengah (dulu `#1,#2` dianggap vertikal dan `#3,#4` surge) serta menukar
+> `#5` ↔ `#6`. CAD dan Gambar 2.9 keduanya menunjukkan sebaliknya: pasangan haluan
+> digambar sebagai lingkaran (propeller dilihat searah sumbu → **vertikal**),
+> pasangan tengah & unit tengah-bawah digambar profil samping → **horizontal**.
+> Verifikasi geometris: dengan angka lama, `#1` dan `#3` berjarak 89 mm dan 108 mm
+> dari permukaan mesh (menggantung di ruang kosong); setelah dikoreksi keenam titik
+> berjarak 3,4–8,5 mm.
+
+> ⚠️ **Bug historis (`14cf649`):** kolom CSV sempat disalin **mentah** `(X,Y,Z)→(x,y,z)`
+> tanpa rotasi frame → posisi terputar 90°, `cond(TAM)≈1.2e4`. `docs/thruster_positions.csv`
+> kini **hanya arsip**; jangan dipakai lagi sebagai sumber.
 
 ## Tabel thruster (sesuai `allocation.py`)
 
-Urutan `thruster_1..6` = urutan `THRUSTERS` di `allocation.py`. Kolom "CSV" = nilai mentah
-`(X,Y,Z)_mm` sebelum konversi.
+Urutan `thruster_1..6` = urutan `THRUSTERS` di `allocation.py`.
 
-| # | Label | Peran | Posisi body (x, y, z) [m] | Arah dorong (unit) | CSV (X,Y,Z) [mm] |
-|---|-------|-------|---------------------------|--------------------|------------------|
-| 1 | T200-E | Vertikal (kanan)     | (-0.0275, -0.1234, 0.0142) | (0, 0, 1) | (123.4, 27.5, 14.2) |
-| 2 | T200-F | Vertikal (kiri)      | (-0.0290, 0.1228, 0.0148)  | (0, 0, 1) | (-122.8, 29.0, 14.8) |
-| 3 | T100-C | Surge (depan-kanan)  | (0.1298, -0.1371, 0.0336)  | (1, 0, 0) | (137.1, -129.8, 33.6) |
-| 4 | T100-A | Surge (depan-kiri)   | (0.1296, 0.1371, 0.0374)   | (1, 0, 0) | (-137.1, -129.6, 37.4) |
-| 5 | T200-B | Sway (tengah-bawah)  | (-0.0455, -0.0003, -0.0994) | (0, 1, 0) | (0.3, 45.5, -99.4) |
-| 6 | T100-D | Vertikal (belakang)  | (-0.1364, 0.0003, 0.0403)  | (0, 0, 1) | (-0.3, 136.4, 40.3) |
+| # | Peran | Kelas | Posisi body (x, y, z) [m] | Arah dorong | Duct terukur | Putaran |
+|---|-------|-------|---------------------------|-------------|--------------|---------|
+| 1 | Surge (kanan) | T200 | (-0.0291, -0.1188, 0.0186) | (1, 0, 0) | duct 90,1 mm | CCW |
+| 2 | Surge (kiri) | T200 | (-0.0287, 0.1274, 0.0190) | (1, 0, 0) | duct 90,1 mm | CW |
+| 3 | Heave (haluan-kanan) | T100 | (0.1050, -0.1332, 0.0592) | (0, 0, 1) | prop 66,6 mm | CCW |
+| 4 | Heave (haluan-kiri) | T100 | (0.1053, 0.1411, 0.0550) | (0, 0, 1) | prop 66,6 mm | CW |
+| 5 | Heave (buritan) | T100 | (-0.1610, 0.0037, 0.0621) | (0, 0, 1) | prop 66,6 mm | CW |
+| 6 | Sway (tengah-bawah) | T100 | (-0.0700, 0.0200, -0.0939) | (0, 1, 0) | prop 59,0 mm | CCW |
 
-- **Horizontal:** `#3`, `#4` menghasilkan **surge** (dan yaw dari selisih kiri-kanan);
-  `#5` menghasilkan **sway**.
-- **Vertikal:** `#1`, `#2`, `#6` (dorong +z) menghasilkan **heave**, plus **roll/pitch**
+- **Horizontal:** `#1`, `#2` menghasilkan **surge** (dan yaw dari selisih kiri-kanan);
+  `#6` menghasilkan **sway**.
+- **Vertikal:** `#3`, `#4`, `#5` (dorong +z) menghasilkan **heave**, plus **roll/pitch**
   dari penempatan tak segaris.
+- **Putaran** (Gambar 2.9): tiap pasangan berlawanan arah agar torsi reaksi saling
+  meniadakan. Nilai ini dokumentatif (`SPIN` di `allocation.py`), tidak masuk TAM.
+- **Diameter propeller** di plugin gz kini mengikuti kelas: T200 → 0,076 m,
+  T100 → 0,048 m. Sebelumnya pembagian mengikuti nomor urut, bukan kelas.
 
-> Catatan label: thruster `#5` dulu dilabeli **T100-B**, kini **T200-B** — tetap thruster
-> sway horizontal. (`docs/thruster_positions.csv` masih menuliskan label T100-B pada baris
-> tersebut; nilai posisinya tetap benar.) Peran/axis sudah dikonfirmasi via anotasi arah gaya.
+### ⚠️ Tanda sumbu belum diverifikasi bench
+
+Gambar 2.10 menggambar F1/F2 (surge) menunjuk ke **buritan** dan F6 (sway) ke **kiri**.
+Arah F6 dipakai apa adanya (+y). Untuk surge dipakai **+x (maju)** mengikuti REP-103,
+*bukan* arah panah gambar, karena panah untuk thruster vertikal (F3/F4/F5) jelas
+artefak gambar — arah gaya thruster vertikal tidak bisa digambar di tampak atas —
+sehingga gambar itu tidak konsisten dengan dirinya sendiri. **Uji bench:** beri
+perintah positif ke `thruster_1`; kalau ROV terdorong mundur, balik tanda sumbu di
+`allocation.py` **dan** kedua URDF.
+
+### Dampak koreksi terhadap kendali
+
+| | lama | baru |
+|---|---|---|
+| `cond(TAM)` | 19,7 | **9,98** |
+| singular value terkecil | 0,088 | **0,174** |
+| gaya thruster utk wrench satuan, DOF terlemah | 9,25 N | **4,06 N** |
+| pitch (My) tercapai, damped pinv | 44 % | **82 %** |
+| roll (Mx) | 75 % | 79 % |
+| yaw (Mz) | 79 % | 75 % |
+
+Geometri terukur ini **lebih mudah dikendalikan** daripada angka desain lama.
 
 ## Thrust Allocation Matrix (TAM)
 

@@ -1,16 +1,16 @@
 # Graph Report - ros2_ws  (2026-07-28)
 
 ## Corpus Check
-- 51 files · ~101,431 words
+- 54 files · ~104,838 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 483 nodes · 744 edges · 31 communities (23 shown, 8 thin omitted)
+- 520 nodes · 789 edges · 34 communities (26 shown, 8 thin omitted)
 - Extraction: 87% EXTRACTED · 13% INFERRED · 0% AMBIGUOUS · INFERRED: 99 edges (avg confidence: 0.78)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `b754a53d`
+- Built from commit: `37ab4663`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -31,6 +31,7 @@
 - Integrasi GUI-ROV ↔ hydroships (ROS 2) — Analisis Selisih & Adapter
 - DepthPublisher
 - test_qr_ey_target.py
+- measure_cad_frames.py
 - sim.launch.py
 - PayloadSpawner
 - hydroships_gui.launch.py
@@ -41,6 +42,7 @@
 - CLAUDE.md
 - README.md
 - ros2-ws
+- Inventaris part — `@ROV KKI 2026 NEW DESIGN revisi FIXXXX GOOLLLL SIUUUU.f3z`
 - 4.7 Sub-Kategori Remotely Operated Underwater Vehicle (ROV)
 
 ## God Nodes (most connected - your core abstractions)
@@ -70,15 +72,15 @@
 ## Import Cycles
 - None detected.
 
-## Communities (31 total, 8 thin omitted)
+## Communities (34 total, 8 thin omitted)
 
 ### Community 0 - "MissionFSM"
 Cohesion: 0.09
 Nodes (24): Enum, HookServoGains, Gain PD visual-servo APPROACH_HOOK (holonomik: sway+surge+depth-setpoint)., main(), MissionFSM, Node, Non-holonomik: putar dulu menghadap target, baru maju (surge saja,         tanpa, PD posisi HOLONOMIK: dorong ROV ke (tx,ty) dunia via gaya horizontal         bod (+16 more)
 
 ### Community 1 - "GuiBridgeLogic"
-Cohesion: 0.06
-Nodes (33): GuiBridge, clamp(), GuiBridgeLogic, _num(), gui_bridge_logic — inti terjemahan GUI-ROV <-> ROS 2 (murni, tanpa ROS/UDP).  Re, yaw REP-103 (rad, CCW dari +x) -> heading GUI (derajat 0..360)., Susun dict telemetri utk GUI (JSON). Nilai None -> 0 agar GUI aman., Terjemahan stateless-ish GUI<->ROS. Simpan axis manual terakhir & status.      G (+25 more)
+Cohesion: 0.07
+Nodes (28): GuiBridge, clamp(), GuiBridgeLogic, _num(), gui_bridge_logic — inti terjemahan GUI-ROV <-> ROS 2 (murni, tanpa ROS/UDP).  Re, yaw REP-103 (rad, CCW dari +x) -> heading GUI (derajat 0..360)., Susun dict telemetri utk GUI (JSON). Nilai None -> 0 agar GUI aman., Terjemahan stateless-ish GUI<->ROS. Simpan axis manual terakhir & status.      G (+20 more)
 
 ### Community 2 - "GripperLogic"
 Cohesion: 0.10
@@ -97,20 +99,20 @@ Cohesion: 0.22
 Nodes (6): Empty, GripperController, main(), Node, gripper_controller — node manipulator ROV (rancang ulang M5, DetachableJoint)., String
 
 ### Community 6 - "hook_servo"
-Cohesion: 0.19
-Nodes (16): _clamp(), hook_servo(), hook_logic — helper murni deteksi/servo hook (tanpa ROS/cv2), agar testable.  Di, PD visual servo hook -> perintah gerak (fungsi MURNI, testable).      Args:, Uji hook_servo (PD visual servo APPROACH_HOOK) — fungsi murni, tanpa rclpy.  Ver, test_centered_far_moves_forward_only(), test_convergence_reduces_error_over_iterations(), test_depth_setpoint_clamped() (+8 more)
+Cohesion: 0.14
+Nodes (21): _clamp(), hook_servo(), normalize_hook_offset(), hook_logic — helper murni deteksi/servo hook (tanpa ROS/cv2), agar testable.  Di, (center px, area px^2, ukuran frame) -> (ex, ey, size) ternormalisasi.      Konv, PD visual servo hook -> perintah gerak (fungsi MURNI, testable).      Args:, test_hook_offset_centered(), test_hook_offset_left_up() (+13 more)
 
 ### Community 7 - "test_qr_logic.py"
-Cohesion: 0.08
-Nodes (30): CameraInfo, PointStamped, main(), Image, Node, QRDetector, qr_detector — deteksi QR dari kamera → sisi kolam A/B/C/D + offset piksel (M3)., _candidates() (+22 more)
+Cohesion: 0.09
+Nodes (29): CameraInfo, main(), Image, Node, QRDetector, qr_detector — deteksi QR dari kamera → sisi kolam A/B/C/D + offset piksel (M3)., _candidates(), offset_from_points() (+21 more)
 
 ### Community 8 - "PROBLEM.md — Catatan Masalah & Verifikasi Tertunda (HYDROships ros2_ws)"
 Cohesion: 0.12
 Nodes (17): 2026-07-07, 2026-07-08, 2026-07-11, 2026-07-12, 2026-07-14, 2026-07-15 … 07-16, 2026-07-17, 2026-07-18 (+9 more)
 
 ### Community 9 - "hook_detector.py"
-Cohesion: 0.10
-Nodes (26): _best_contour(), detect_hook(), HookDetector, main(), Image, Node, hook_detector — deteksi hook (pipa-U) dari kamera depan -> offset (visual servo), Deteksi hook -> (center, area) atau None. Jenjang: contour/CLAHE lalu Hough. (+18 more)
+Cohesion: 0.17
+Nodes (16): channels_for_encoding(), image_msg_to_bgr(), image_util — decode sensor_msgs/Image ke array BGR (tanpa rclpy/cv_bridge).  Dip, Jumlah channel per piksel dari string encoding sensor_msgs/Image., Reshape buffer Image menghormati msg.step (row stride).      sensor_msgs/Image.s, sensor_msgs/Image -> ndarray BGR (atau grayscale utk mono8).      Melempar excep, reshape_with_step(), _padded_buffer() (+8 more)
 
 ### Community 10 - "TeleopStabilized"
 Cohesion: 0.35
@@ -136,20 +138,28 @@ Nodes (5): DepthPublisher, main(), Node, Odometry, depth_publisher — turunkan 
 Cohesion: 0.13
 Nodes (20): qr_ey_target(), Offset vertikal ternormalisasi tempat QR HARUS tampak di kamera bawah.      Grip, ey(), Uji qr_ey_target: koreksi offset kamera bawah -> gripper (APPROACH_QR).  Kamera, TAN harus = tan(atan(0.75 * tan(40°))) utk sensor 640x480, hFOV 80°., Depth operasional: h_cam=0.414, ½-tinggi=0.261 -> ey=-0.61 (aman)., Bukti kenapa scan_depth harus dinaikkan.      Pada 0.46, h_cam=0.254 -> ½-tinggi, Konvensi offset_from_points: ey<0 = QR di ATAS pusat = payload di DEPAN. (+12 more)
 
+### Community 16 - "measure_cad_frames.py"
+Cohesion: 0.14
+Nodes (21): bodies(), component_labels(), displaced_volume(), export_meshes(), find_thrusters(), inertia_per_kg(), _is_disc(), _is_housing() (+13 more)
+
 ### Community 17 - "sim.launch.py"
 Cohesion: 0.29
 Nodes (9): _f(), generate_launch_description(), _launch_setup(), Launch simulasi Gazebo Fortress + spawn ROV HYDROships + ros_gz_bridge.  Argumen, Ambil LaunchConfiguration sbg float; fallback ke default bila kosong/invalid., Kembalikan (x, y, z, yaw) string utk spawn ROV.      rov_random_spawn=true -> ac, RNG utk pose spawn. spawn_seed diisi -> reproducible (replay/debug);     kosong, _rov_spawn_pose() (+1 more)
 
 ### Community 18 - "PayloadSpawner"
-Cohesion: 0.39
-Nodes (3): main(), PayloadSpawner, Node
+Cohesion: 0.13
+Nodes (14): PointStamped, _best_contour(), detect_hook(), HookDetector, main(), Image, Node, hook_detector — deteksi hook (pipa-U) dari kamera depan -> offset (visual servo) (+6 more)
+
+### Community 31 - "Inventaris part — `@ROV KKI 2026 NEW DESIGN revisi FIXXXX GOOLLLL SIUUUU.f3z`"
+Cohesion: 0.15
+Nodes (12): Apa yang bisa & tidak bisa dikonversi, Apung — perlu keputusan, Fastener standar (tidak dijadikan link), Inventaris part — `@ROV KKI 2026 NEW DESIGN revisi FIXXXX GOOLLLL SIUUUU.f3z`, Kalau butuh mesh terpisah per komponen (lewat Fusion 360), Kompatibilitas dengan hydroships.urdf.xacro, Komponen top-level (XREF dari root design), Occurrence internal root frame (dari design stream) (+4 more)
 
 ### Community 32 - "4.7 Sub-Kategori Remotely Operated Underwater Vehicle (ROV)"
 Cohesion: 0.18
 Nodes (10): 4.7.1 Deskripsi dan Misi, 4.7.2 Ketentuan Teknis Prototipe ROV, 4.7.3 Sistem Kontes dan Lintasan ROV, 4.7.4 Penilaian dan Penentuan Pemenang ROV, 4.7.5 Penilaian Proposal ROV, 4.7.6 Penilaian Laporan Kemajuan ROV, 4.7 Sub-Kategori Remotely Operated Underwater Vehicle (ROV), 4.8 Sistem Penilaian Kategori Prototipe (+2 more)
 
 ## Knowledge Gaps
-- **47 isolated node(s):** `ros2-ws`, `graphify`, `PROBLEM.md — pindah ke docs/`, `Status Milestone`, `Instalasi Dependensi` (+42 more)
+- **57 isolated node(s):** `ros2-ws`, `graphify`, `PROBLEM.md — pindah ke docs/`, `Status Milestone`, `Instalasi Dependensi` (+52 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **8 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
@@ -157,9 +167,9 @@ Nodes (10): 4.7.1 Deskripsi dan Misi, 4.7.2 Ketentuan Teknis Prototipe ROV, 4.7.
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `GripperController` connect `QRDetector` to `GripperLogic`?**
-  _High betweenness centrality (0.091) - this node is a cross-community bridge._
+  _High betweenness centrality (0.078) - this node is a cross-community bridge._
 - **Why does `GripperLogic` connect `GripperLogic` to `QRDetector`?**
-  _High betweenness centrality (0.077) - this node is a cross-community bridge._
+  _High betweenness centrality (0.067) - this node is a cross-community bridge._
 - **Are the 19 inferred relationships involving `GripperLogic` (e.g. with `GripperController` and `.__init__()`) actually correct?**
   _`GripperLogic` has 19 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 11 inferred relationships involving `GuiBridgeLogic` (e.g. with `GuiBridge` and `.__init__()`) actually correct?**
@@ -169,4 +179,4 @@ _Questions this graph is uniquely positioned to answer:_
 - **Are the 9 inferred relationships involving `PID` (e.g. with `Stabilizer` and `.__init__()`) actually correct?**
   _`PID` has 9 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `ros2-ws`, `graphify`, `PROBLEM.md — pindah ke docs/` to the rest of the system?**
-  _47 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _57 weakly-connected nodes found - possible documentation gaps or missing edges._

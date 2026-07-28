@@ -20,9 +20,27 @@
 # ==========================================================================
 
 # --- Massa ---
-base_mass: 33.6          # kg   [estimate] near-neutral; dipilih agar total
-                         #      (base+6 thruster) sedikit di bawah massa air
-                         #      terpindah (~34.04 kg) -> apung pelan saat mati.
+# vehicle_mass = massa TOTAL kendaraan (badan + thruster + gripper + jari).
+# Tiap URDF menghitung sendiri massa base_link = vehicle_mass dikurangi massa
+# link tambahannya, sehingga KEDUA model punya massa total identik.
+# (Menggantikan 'base_mass' lama yang menyebabkan total tiap model berbeda.)
+vehicle_mass: 6.64       # kg   [estimate-CAD] tepat di bawah volume air
+                         #      terpindah yang TERUKUR dari CAD
+                         #      (0.006644 m^3 -> 6.644 kg) -> near-neutral,
+                         #      apung sangat pelan saat thruster mati.
+                         #      Nilai lama 33.6 kg BUKAN hasil timbang: itu
+                         #      dipilih agar pas dgn apung KOTAK PEJAL 0.345^3
+                         #      (34.04 kg). Begitu geometri diganti CAD nyata
+                         #      (rangka TERBUKA, air mengalir menembusnya)
+                         #      dasar itu batal. Ganti dgn hasil TIMBANG nyata.
+
+# Volume air yang benar-benar tergeser (m^3), TERUKUR dari mesh CAD:
+#   bahan padat semua body   0.004283
+#   rongga tertutup tabung   0.002361  (silinder OD 130 x 210 mm)
+# Dipakai kedua URDF untuk menyetel UKURAN collision, karena plugin Buoyancy
+# gz menghitung gaya apung dari volume collision. Bbox (0.0508 m^3) jauh
+# terlalu besar untuk rangka terbuka.
+displaced_volume: 0.006644   # m^3  [estimate-CAD]
 thruster_mass: 0.05      # kg   [estimate] massa tiap link thruster.
 
 # --- Massa jenis fluida (air kolam) ---
@@ -30,25 +48,36 @@ fluid_density: 1000.0    # kg/m^3  [measured] air tawar; dipakai plugin
                          #         Hydrodynamics & Thruster.
 
 # --- Center of Gravity (offset dari origin base_link) ---
-cog: {x: 0.0, y: 0.0, z: 0.0}   # m  [estimate] origin = pusat bbox.
+cog: {x: 0.0, y: 0.0, z: 0.0}   # m  [estimate-CAD] origin base_link SUDAH
+                                #     ditaruh di pusat massa mesh, jadi 0,0,0.
 
 # --- Center of Buoyancy (offset dari origin base_link) ---
 # CATATAN: nilai ini DOKUMENTATIF. Buoyancy sim saat ini berasal dari volume
 # collision-box + <graded_buoyancy> di world, BUKAN dari CoB eksplisit di
 # plugin. Disimpan di sini agar tersedia bila kelak dipakai plugin apung yg
 # menerima CoB. Menyetel di sini TIDAK mengubah fisika sim saat ini.
-cob: {x: 0.0, y: 0.0, z: 0.02}  # m  [estimate] sedikit di atas CoG (stabil).
+cob: {x: 0.0, y: 0.0, z: 0.02}  # m  [estimate-CAD] geometri collision di kedua
+                                #     URDF sengaja disusun agar centroid volume
+                                #     jatuh ~0.020 m di atas CoG -> stabil.
 
 # --- Tensor inertia base_link di CoG (kg*m^2) ---
-# [estimate] diturunkan dari box pejal 0.345 x 0.345 x 0.286 m @ base_mass
-# via scripts/estimate_mass_inertia.py (self-test menjaga konsistensi).
+# [estimate-CAD] dihitung dari mesh CAD dgn asumsi DENSITAS SERAGAM, lalu
+# dirotasi ke frame base_link, via scripts/measure_cad_frames.py.
+# Nilai = (inersia per kg) x base_mass:
+#   ixx/kg 0.01006764  iyy/kg 0.01420667  izz/kg 0.01492528
+#   ixy/kg 0.00053764  ixz/kg 0.00091664  iyz/kg -0.00041051
+# Nilai di bawah dipakai model box; model bermesh CAD menghitung sendiri dari
+# koefisien per-kg x massa base_link-nya, jadi otomatis ikut kalau massa
+# berubah. Kalau vehicle_mass diubah, hitung ulang blok ini (kalikan koefisien
+# di atas dgn massa base_link) atau jalankan measure_cad_frames.py --mass.
+# Produk inersia TIDAK nol karena bentuk CAD memang tidak simetris.
 inertia:
-  ixx: 0.56230
-  iyy: 0.56230
-  izz: 0.66654
-  ixy: 0.0
-  ixz: 0.0
-  iyz: 0.0
+  ixx: 0.06383
+  iyy: 0.09007
+  izz: 0.09463
+  ixy: 0.00341
+  ixz: 0.00581
+  iyz: -0.00260
 
 # --- Koefisien hidrodinamika (model Fossen) ---
 # SEMUA [estimate]: nilai acuan tipe BlueROV2, BUKAN ROV HYDROships nyata.
