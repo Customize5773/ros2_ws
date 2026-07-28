@@ -54,7 +54,8 @@ WALL_HEADING_DEG = {'A': 270.0, 'B': 90.0, 'C': 0.0, 'D': 180.0}
 
 class St(Enum):
     IDLE = auto(); DIVE = auto(); APPROACH_QR = auto(); GRAB = auto()
-    NAV_WALL = auto(); HANG = auto(); AUTO_RELEASE = auto(); DONE = auto(); ABORT = auto()
+    NAV_WALL = auto(); HANG = auto(); SURFACE = auto(); WAIT_TRIGGER = auto()
+    AUTO_RELEASE = auto(); DONE = auto(); ABORT = auto()
 
 
 class MissionFSM(Node):
@@ -121,6 +122,8 @@ class MissionFSM(Node):
         self.create_subscription(Float64, '/hydroships/depth', self._on_depth, 10)
         self.create_subscription(Odometry, '/hydroships/odom', self._on_odom, 10)
         self.create_subscription(String, '/hydroships/qr_result', self._on_qr, 10)
+        self.create_subscription(Empty, '/hydroships/mission/start_autonomous',
+                                  self._on_trigger, 10)
 
         # payload sudah nempel ke ROV sejak spawn (DetachableJoint).
         # Detach = publish Empty ke topic ini.
@@ -144,6 +147,7 @@ class MissionFSM(Node):
         self.state = St.IDLE
         self.t_state = self._now()
         self._hold_since = None
+        self._trigger_received = False
         try:
             self._start_state = St[g('start_state')]
         except KeyError:
@@ -368,7 +372,7 @@ class MissionFSM(Node):
                 self._set_surge(0.0)
                 self.score['m3'] = 15
                 self.get_logger().info('Payload tergantung stabil di hook %s (+15)' % self.wall)
-                self._to(St.AUTO_RELEASE)
+                self._to(St.SURFACE)
         else:
             self._hold_since = None
         if self._elapsed() > self.T['hang']:
