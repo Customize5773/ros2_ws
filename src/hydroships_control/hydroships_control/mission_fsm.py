@@ -333,16 +333,27 @@ class MissionFSM(Node):
             self.get_logger().error('DIVE timeout'); self._to(St.ABORT)
 
     def _st_approach_qr(self):
-        """Misi 1 (SIMPLIFIED): QR detection dilewati sementara (lihat
-        PROBLEM.md). Wall diambil langsung dari urutan wall_order, ROV
-        tetap posisikan diri di atas payload dulu sebelum lanjut."""
+        """Misi 1: dekati payload holonomik (tanpa terikat heading, cegah
+        osilasi saat mendekati target). Wall prioritas dari QR asli
+        (/hydroships/qr_result via self.qr_wall, lihat _on_qr) begitu
+        terbaca segar (< qr_max_age); fallback ke urutan wall_order kalau
+        QR belum/tak terbaca sampai posisi di atas payload tercapai."""
         self._set_depth(self.scan_depth)
-        dist = self._goto_xy_yaw_first(self.payload_x, self.payload_y)
+        dist = self._goto_xy(self.payload_x, self.payload_y)
         if int(self._elapsed() * 2) % 6 == 0:
             self.get_logger().info(
                 'APPROACH_QR dbg: dist=%.3f x=%.2f y=%.2f yaw=%.1f target=(%.2f,%.2f)'
                 % (dist, self.x or -99, self.y or -99,
                    math.degrees(self.yaw or 0), self.payload_x, self.payload_y))
+
+        qr_fresh = self.qr_wall is not None and (self._now() - self.qr_time) < self.qr_max_age
+        if qr_fresh:
+            self.wall = self.qr_wall
+            self.score['m1'] = 15
+            self.get_logger().info('QR %s terbaca -> wall %s dipilih (+15)'
+                                   % (self.qr_wall, self.wall))
+            self._set_surge(0.0); self._to(St.GRAB); return
+
         if dist < self.approach_tol:
             if self._wall_idx >= len(self._wall_sequence):
                 self.get_logger().info('Semua wall selesai, misi tuntas.')
