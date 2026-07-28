@@ -66,7 +66,8 @@ terverifikasi di sim; kamera/QR/kedalaman (M3), manipulator (M5), integrasi GUI 
 | `/hydroships/qr_offset` | `geometry_msgs/PointStamped` | `qr_detector` → FSM/`gripper_controller` | 🧪 M3 (offset piksel ternorm. + ukuran; verifikasi runtime tertunda) |
 | `/hydroships/hook_offset` | `geometry_msgs/PointStamped` | hook_detector → FSM | 🧪 M7 (visual servo APPROACH_HOOK; port GUI-ROV) |
 | `/hydroships/gripper/command` | `std_msgs/String` | GUI/FSM → gripper_controller | 🧪 M5 ("open"/"close") |
-| `/hydroships/gripper_jaw/cmd` | `std_msgs/Float64` | gripper_controller → sim | 🧪 M5 (sudut jari kosmetik, rad) |
+| `/hydroships/gripper_left/cmd` | `std_msgs/Float64` | gripper_controller → sim | 🧪 M5 (sudut jari kiri kosmetik, rad) |
+| `/hydroships/gripper_right/cmd` | `std_msgs/Float64` | gripper_controller → sim | 🧪 M5 (sudut jari kanan, nilai sama dgn kiri) |
 | `/hydroships/gripper/attach` | `std_msgs/Empty` | gripper_controller → sim | 🧪 M5 (trigger DetachableJoint attach) |
 | `/hydroships/gripper/detach` | `std_msgs/Empty` | gripper_controller → sim | 🧪 M5 (trigger DetachableJoint detach) |
 

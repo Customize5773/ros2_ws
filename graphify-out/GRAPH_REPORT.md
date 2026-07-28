@@ -1,16 +1,16 @@
 # Graph Report - ros2_ws  (2026-07-28)
 
 ## Corpus Check
-- 51 files · ~100,111 words
+- 48 files · ~97,997 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 470 nodes · 694 edges · 33 communities (24 shown, 9 thin omitted)
-- Extraction: 87% EXTRACTED · 13% INFERRED · 0% AMBIGUOUS · INFERRED: 87 edges (avg confidence: 0.78)
+- 436 nodes · 665 edges · 30 communities (22 shown, 8 thin omitted)
+- Extraction: 87% EXTRACTED · 13% INFERRED · 0% AMBIGUOUS · INFERRED: 88 edges (avg confidence: 0.78)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `72789351`
+- Built from commit: `8657b0a5`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -30,8 +30,6 @@
 - estimate_mass_inertia.py
 - Integrasi GUI-ROV ↔ hydroships (ROS 2) — Analisis Selisih & Adapter
 - DepthPublisher
-- File yang Harus Diperbaiki/Dibuat
-- File yang Harus Diperbaiki
 - sim.launch.py
 - PayloadSpawner
 - hydroships_gui.launch.py
@@ -42,37 +40,36 @@
 - CLAUDE.md
 - README.md
 - ros2-ws
-- prompt-random-qr-payload.md
 - 4.7 Sub-Kategori Remotely Operated Underwater Vehicle (ROV)
 
 ## God Nodes (most connected - your core abstractions)
-1. `MissionFSM` - 29 edges
-2. `GripperLogic` - 28 edges
+1. `GripperLogic` - 29 edges
+2. `MissionFSM` - 29 edges
 3. `GuiBridgeLogic` - 18 edges
 4. `PID` - 15 edges
 5. `hook_servo()` - 14 edges
 6. `GripperController` - 12 edges
 7. `_fresh()` - 12 edges
 8. `QRDetector` - 11 edges
-9. `build_allocation_matrix()` - 10 edges
-10. `GuiBridge` - 10 edges
+9. `CHANGELOG — Riwayat Kronologis HYDROships (KKI 2026)` - 11 edges
+10. `build_allocation_matrix()` - 10 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `test_tam_full_rank()` --calls--> `build_allocation_matrix()`  [INFERRED]
   src/hydroships_control/test/test_allocation.py → src/hydroships_control/hydroships_control/allocation.py
 - `GripperController` --uses--> `GripperLogic`  [INFERRED]
   src/hydroships_control/hydroships_control/gripper_controller.py → src/hydroships_control/hydroships_control/gripper_logic.py
+- `test_jaw_targets_within_urdf_joint_limits()` --calls--> `GripperLogic`  [INFERRED]
+  src/hydroships_control/test/test_gripper.py → src/hydroships_control/hydroships_control/gripper_logic.py
 - `test_no_offset_not_safe()` --calls--> `GripperLogic`  [INFERRED]
   src/hydroships_control/test/test_gripper.py → src/hydroships_control/hydroships_control/gripper_logic.py
 - `test_open_without_attach_no_detach()` --calls--> `GripperLogic`  [INFERRED]
-  src/hydroships_control/test/test_gripper.py → src/hydroships_control/hydroships_control/gripper_logic.py
-- `test_stale_offset_not_safe()` --calls--> `GripperLogic`  [INFERRED]
   src/hydroships_control/test/test_gripper.py → src/hydroships_control/hydroships_control/gripper_logic.py
 
 ## Import Cycles
 - None detected.
 
-## Communities (33 total, 9 thin omitted)
+## Communities (30 total, 8 thin omitted)
 
 ### Community 0 - "MissionFSM"
 Cohesion: 0.12
@@ -84,7 +81,7 @@ Nodes (28): GuiBridge, clamp(), GuiBridgeLogic, _num(), gui_bridge_logic — int
 
 ### Community 2 - "GripperLogic"
 Cohesion: 0.10
-Nodes (27): GripperLogic, gripper_logic — inti keputusan manipulator ROV (murni Python, tanpa ROS).  Dipis, Paksa lepas tanpa perintah (mis. saat shutdown/abort)., Aksi auto-detach saat node START.          gz-sim Fortress SELALU meng-attach De, Mesin keputusan gripper. Semua waktu (``now``, ``stamp``) dalam detik.      Para, Simpan sinyal visual servo terbaru (dari /hydroships/qr_offset)., True bila payload ada di jangkauan aman untuk di-attach:         offset kecil (R, Proses perintah semantik. Kembalikan dict aksi tingkat-rendah:             {'jaw (+19 more)
+Nodes (28): GripperLogic, gripper_logic — inti keputusan manipulator ROV (murni Python, tanpa ROS).  Dipis, Paksa lepas tanpa perintah (mis. saat shutdown/abort)., Aksi auto-detach saat node START.          gz-sim Fortress SELALU meng-attach De, Mesin keputusan gripper. Semua waktu (``now``, ``stamp``) dalam detik.      Para, Simpan sinyal visual servo terbaru (dari /hydroships/qr_offset)., True bila payload ada di jangkauan aman untuk di-attach:         offset kecil (R, Proses perintah semantik. Kembalikan dict aksi tingkat-rendah:             {'jaw (+20 more)
 
 ### Community 3 - "PID"
 Cohesion: 0.08
@@ -108,7 +105,7 @@ Nodes (32): CameraInfo, PointStamped, main(), Image, Node, QRDetector, qr_detect
 
 ### Community 8 - "PROBLEM.md — Catatan Masalah & Verifikasi Tertunda (HYDROships ros2_ws)"
 Cohesion: 0.12
-Nodes (16): 2026-07-07, 2026-07-08, 2026-07-11, 2026-07-12, 2026-07-14, 2026-07-15 … 07-16, 2026-07-17, 2026-07-18 (+8 more)
+Nodes (17): 2026-07-07, 2026-07-08, 2026-07-11, 2026-07-12, 2026-07-14, 2026-07-15 … 07-16, 2026-07-17, 2026-07-18 (+9 more)
 
 ### Community 9 - "hook_detector.py"
 Cohesion: 0.22
@@ -134,14 +131,6 @@ Nodes (30): Arsitektur Simulasi HYDROships (KKI 2026), Diagram aliran (Milestone
 Cohesion: 0.29
 Nodes (5): DepthPublisher, main(), Node, Odometry, depth_publisher — turunkan KEDALAMAN ROV dari odometry (Milestone 3).  Di simula
 
-### Community 15 - "File yang Harus Diperbaiki/Dibuat"
-Cohesion: 0.09
-Nodes (22): 1. **BUAT** `src/hydroships_gazebo/scripts/payload_spawner.py`, 2. **MODIFIKASI** `src/hydroships_gazebo/worlds/kki_arena.sdf`, 3. **MODIFIKASI** `src/hydroships_control/hydroships_control/mission_fsm.py`, 4. **MODIFIKASI** `src/hydroships_gazebo/launch/sim.launch.py`, 5. **MODIFIKASI** `src/hydroships_bringup/launch/hydroships_mission.launch.py`, 6. **MODIFIKASI** `docs/HOW-TO-RUN.txt`, 7. **MODIFIKASI** `docs/STATUS.md`, 8. **MODIFIKASI** `docs/CHANGELOG.md` (+14 more)
-
-### Community 16 - "File yang Harus Diperbaiki"
-Cohesion: 0.18
-Nodes (10): 1. `src/hydroships_description/urdf/hydroships.urdf.xacro` — Pindah mount ke depan, 2. `src/hydroships_control/hydroships_control/mission_fsm.py` — Konsistenkan mention gripper, 3. `docs/STATUS.md`, 4. `docs/CHANGELOG.md`, 5. `docs/HOW-TO-RUN.txt`, File yang Harus Diperbaiki, Konfirmasi Status Saat Ini, Plan: Mount Gripper Body on Front Face of ROV (+X forward) (+2 more)
-
 ### Community 17 - "sim.launch.py"
 Cohesion: 0.29
 Nodes (9): _f(), generate_launch_description(), _launch_setup(), Launch simulasi Gazebo Fortress + spawn ROV HYDROships + ros_gz_bridge.  Argumen, Ambil LaunchConfiguration sbg float; fallback ke default bila kosong/invalid., Kembalikan (x, y, z, yaw) string utk spawn ROV.      rov_random_spawn=true -> ac, RNG utk pose spawn. spawn_seed diisi -> reproducible (replay/debug);     kosong, _rov_spawn_pose() (+1 more)
@@ -155,21 +144,21 @@ Cohesion: 0.18
 Nodes (10): 4.7.1 Deskripsi dan Misi, 4.7.2 Ketentuan Teknis Prototipe ROV, 4.7.3 Sistem Kontes dan Lintasan ROV, 4.7.4 Penilaian dan Penentuan Pemenang ROV, 4.7.5 Penilaian Proposal ROV, 4.7.6 Penilaian Laporan Kemajuan ROV, 4.7 Sub-Kategori Remotely Operated Underwater Vehicle (ROV), 4.8 Sistem Penilaian Kategori Prototipe (+2 more)
 
 ## Knowledge Gaps
-- **73 isolated node(s):** `ros2-ws`, `Konfirmasi Status Saat Ini`, `Pendekatan: Payload Spawner Node`, `Aliran setelah perbaikan:`, `1. **BUAT** `src/hydroships_gazebo/scripts/payload_spawner.py`` (+68 more)
+- **47 isolated node(s):** `ros2-ws`, `graphify`, `PROBLEM.md — pindah ke docs/`, `Status Milestone`, `Instalasi Dependensi` (+42 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **9 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **8 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `GripperController` connect `QRDetector` to `GripperLogic`?**
-  _High betweenness centrality (0.075) - this node is a cross-community bridge._
+  _High betweenness centrality (0.089) - this node is a cross-community bridge._
 - **Why does `normalize_hook_offset()` connect `hook_servo` to `hook_detector.py`?**
-  _High betweenness centrality (0.070) - this node is a cross-community bridge._
+  _High betweenness centrality (0.082) - this node is a cross-community bridge._
 - **Why does `GripperLogic` connect `GripperLogic` to `QRDetector`?**
-  _High betweenness centrality (0.064) - this node is a cross-community bridge._
-- **Are the 18 inferred relationships involving `GripperLogic` (e.g. with `GripperController` and `.__init__()`) actually correct?**
-  _`GripperLogic` has 18 INFERRED edges - model-reasoned connections that need verification._
+  _High betweenness centrality (0.077) - this node is a cross-community bridge._
+- **Are the 19 inferred relationships involving `GripperLogic` (e.g. with `GripperController` and `.__init__()`) actually correct?**
+  _`GripperLogic` has 19 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 11 inferred relationships involving `GuiBridgeLogic` (e.g. with `GuiBridge` and `.__init__()`) actually correct?**
   _`GuiBridgeLogic` has 11 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 9 inferred relationships involving `PID` (e.g. with `Stabilizer` and `.__init__()`) actually correct?**

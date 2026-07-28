@@ -276,6 +276,30 @@ Commit hash & tanggal dari `git log` (rentang 2026-07-07 … 2026-07-17).
 
 ---
 
+## 2026-07-28
+
+- **[RESOLVED] Redesign gripper: jari tunggal → DUA JARI OPPOSING (tetap kosmetik).**
+  Jari kosmetik lama `gripper_jaw` memakai revolute sumbu **Y**, jadi mengayun naik-turun
+  di bidang XZ — terlihat seperti flap/scoop, bukan gripper yang menjepit. Diganti dua jari
+  `gripper_finger_left`/`gripper_finger_right` (box 0.08×0.016×0.03 m, massa 0.06 kg) dengan
+  revolute sumbu **Z** di pivot `(0.04, ∓0.025, 0)` relatif `gripper_base` → menjepit di
+  bidang XY seperti parallel gripper. Sudut `0.0` = tertutup, `0.35` = terbuka (limit joint
+  `[-0.1, 0.5]`; `jaw_open` diturunkan dari 0.6 agar muat). **Mirroring diurus tanda `axis`**
+  (kiri `0 0 -1`, kanan `0 0 1`) sehingga nilai Float64 yang **sama** dikirim ke kedua joint —
+  `GripperLogic.jaw_target` tetap **skalar tunggal**, API logic tak berubah sama sekali.
+  URDF pakai `xacro:macro` `gripper_finger` + `gripper_finger_plugin` (dua instance
+  `JointPositionController`, satu per joint — cara standar Fortress). Topik jari
+  `/hydroships/gripper_jaw/cmd` **diganti** `/hydroships/gripper_left/cmd` +
+  `/hydroships/gripper_right/cmd` (bridge.yaml, `Float64` ↔ `gz.msgs.Double`).
+  **Tidak berubah**: `DetachableJoint` (grasp fisik sesungguhnya), `preserveFixedJoint` pada
+  `gripper_base_joint`, kontrak `/hydroships/gripper/command` & `attach`/`detach`, `mission_fsm`,
+  GUI. **Ini BUKAN pemulihan gripper 2-jari lama** (lihat arsip di bawah) — jari baru tetap
+  murni kosmetik, tidak menahan payload lewat gesekan.
+  **[VERIFY]** runtime di sim: kedua jari terlihat & bergerak serempak, dan jari tidak
+  menutupi pusat frame kamera bawah (deteksi QR tetap jalan).
+
+---
+
 ## Keputusan yang DIBATALKAN / diganti (arsip)
 
 Disimpan sebagai referensi agar tidak dihidupkan ulang tanpa sadar.

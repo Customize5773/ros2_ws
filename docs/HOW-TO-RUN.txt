@@ -59,8 +59,9 @@ Folder build/ install/ log/ sengaja di-gitignore; regenerasi dgn colcon build.
        ros2 launch hydroships_gazebo sim.launch.py world:=kki_arena.sdf
   (default world sim.launch.py = pool_empty.sdf; pakai kki_arena.sdf utk arena lomba.)
   Setelah spawn, verifikasi visual: body gripper (kotak kuning 0.10×0.10×0.06 m)
-  harus terlihat di muka depan ROV (x≈0.18 m). Jari gripper menjorok ke depan
-  (+X) sebagai persegi panjang kuning 0.12 m.
+  harus terlihat di muka depan ROV (x≈0.18 m). DUA jari kuning (masing-masing
+  0.08 m) menjorok ke depan (+X) dari body, satu di sisi kiri (y≈-0.025 m) dan
+  satu di sisi kanan (y≈+0.025 m) — bentuk gripper penjepit.
 
   ── 3B. SIM + STABILISASI + KENDALI MANUAL (teleop) (SIMULASI AIR KOLAM TIDAK ADA)───────────────────────────
   Menyalakan: sim + thruster_allocator + stabilizer (depth-hold & heading-hold).
@@ -187,14 +188,16 @@ ros2 launch hydroships_bringup hydroships_gui.launch.py \
 
   e) GRIPPER BODY (mode 3A/3C): verifikasi body gripper terlihat di Gazebo
      di muka depan ROV (kotak kuning 0.10×0.10×0.06 m di x≈0.18 m).
-     Jari gripper menjorok ke depan (+X) sebagai persegi panjang kuning 0.12 m.
+     Dua jari kuning 0.08 m menjorok ke depan (+X) di sisi kiri & kanan body.
 
   f) GRIPPER MECHANISME (mode 3C): selama misi, di state GRAB periksa:
        ros2 topic echo /hydroships/gripper/attach
        ros2 topic echo /hydroships/gripper/detach
      Payload harus ter-attach saat ROV di atasnya, dan ter-detach saat AUTO_RELEASE.
-     Jari gripper bergerak (buka/tutup) sesuai perintah:
-       ros2 topic echo /hydroships/gripper_jaw/cmd
+     Kedua jari bergerak serempak (menjepit/membuka) sesuai perintah — kedua
+     topik ini harus menerbitkan nilai IDENTIK (0.35 = buka, 0.0 = tutup):
+       ros2 topic echo /hydroships/gripper_left/cmd
+       ros2 topic echo /hydroships/gripper_right/cmd
 
 
 --------------------------------------------------------------------------------

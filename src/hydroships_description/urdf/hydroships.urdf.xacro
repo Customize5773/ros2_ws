@@ -270,11 +270,10 @@
   </gazebo>
 
   <!-- ==================== Manipulator (rancang ulang M5) ====================
-       Gripper 1-DOF SEDERHANA (bukan 2 jari kompleks versi lama yg tak pernah
-       lolos uji grasp). Grasp FISIK memakai gz-sim DetachableJoint (sambungan
-       kaku ROV<->payload), BUKAN gesekan jari. Jari tunggal di sini KOSMETIK
-       (indikator visual buka/tutup). Dipasang di MUKA DEPAN ROV, menjorok
-       ke arah depan (+X). Lihat PROBLEM.md. -->
+       Grasp FISIK memakai gz-sim DetachableJoint (sambungan kaku ROV<->payload),
+       BUKAN gesekan jari. DUA JARI opposing (kiri/kanan) di sini KOSMETIK
+       (indikator visual buka/tutup) — digerakkan SEREMPAK dari satu nilai sudut.
+       Dipasang di MUKA DEPAN ROV, menjorok ke arah depan (+X). Lihat PROBLEM.md. -->
   <xacro:property name="grip_mass" value="0.12"/>
 
   <!-- Body gripper di muka depan ROV, menjorok ke depan (+X). -->
@@ -310,32 +309,41 @@
     <preserveFixedJoint>true</preserveFixedJoint>
   </gazebo>
 
-  <!-- Jari tunggal (1 DOF revolute, sumbu y). Kosmetik: menandai buka/tutup.
-       Jari menjorok ke depan (+X) dari body gripper. -->
-  <link name="gripper_jaw">
-    <inertial>
-      <origin xyz="0.06 0 0" rpy="0 0 0"/>
-      <mass value="${grip_mass}"/>
-      <inertia ixx="1.9e-4" ixy="0.0" ixz="0.0" iyy="8.5e-7" iyz="0.0" izz="1.9e-4"/>
-    </inertial>
-    <visual>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><box size="0.12 0.016 0.04"/></geometry>
-      <material name="hydro_jaw"><color rgba="0.95 0.8 0.2 1.0"/></material>
-    </visual>
-    <collision>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><box size="0.12 0.016 0.04"/></geometry>
-    </collision>
-  </link>
-  <joint name="gripper_jaw_joint" type="revolute">
-    <origin xyz="0.05 0 0" rpy="0 0 0"/>
-    <parent link="gripper_base"/>
-    <child link="gripper_jaw"/>
-    <axis xyz="0 1 0"/>
-    <limit lower="-0.1" upper="1.2" effort="10.0" velocity="2.0"/>
-    <dynamics damping="0.05" friction="0.0"/>
-  </joint>
+  <!-- Dua jari opposing (masing-masing 1 DOF revolute, sumbu Z) -> menjepit di
+       bidang XY seperti parallel gripper pada umumnya. Kosmetik: menandai
+       buka/tutup. Sudut 0 = TERTUTUP (kedua jari sejajar menghadap +X); sudut
+       naik = MEMBUKA (tip menjauh dari sumbu tengah). Mirroring diurus tanda
+       axis (kiri 0 0 -1, kanan 0 0 1) sehingga nilai Float64 yang SAMA dikirim
+       ke kedua joint dan gerakannya otomatis simetris. -->
+  <xacro:macro name="gripper_finger" params="side y_pivot axis_z">
+    <link name="gripper_finger_${side}">
+      <inertial>
+        <origin xyz="0.04 0 0" rpy="0 0 0"/>
+        <mass value="0.06"/>
+        <inertia ixx="6.0e-6" ixy="0.0" ixz="0.0" iyy="3.6e-5" iyz="0.0" izz="3.4e-5"/>
+      </inertial>
+      <visual>
+        <origin xyz="0.04 0 0" rpy="0 0 0"/>
+        <geometry><box size="0.08 0.016 0.03"/></geometry>
+        <material name="hydro_jaw"><color rgba="0.95 0.8 0.2 1.0"/></material>
+      </visual>
+      <collision>
+        <origin xyz="0.04 0 0" rpy="0 0 0"/>
+        <geometry><box size="0.08 0.016 0.03"/></geometry>
+      </collision>
+    </link>
+    <joint name="gripper_${side}_joint" type="revolute">
+      <origin xyz="0.04 ${y_pivot} 0" rpy="0 0 0"/>
+      <parent link="gripper_base"/>
+      <child link="gripper_finger_${side}"/>
+      <axis xyz="0 0 ${axis_z}"/>
+      <limit lower="-0.1" upper="0.5" effort="10.0" velocity="2.0"/>
+      <dynamics damping="0.05" friction="0.0"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:gripper_finger side="left"  y_pivot="-0.025" axis_z="-1"/>
+  <xacro:gripper_finger side="right" y_pivot="0.025"  axis_z="1"/>
 
   <!-- ============================================================ -->
   <!-- ===================  Plugin Gazebo Fortress  =============== -->
@@ -419,18 +427,24 @@
   <xacro:thruster_plugin name="thruster_6" diameter="0.048"/>
 
   <!-- ============ Plugin manipulator (rancang ulang M5) ============ -->
-  <!-- Kontrol posisi jari kosmetik: target sudut (rad) via gz.msgs.Double di
-       /hydroships/gripper_jaw/cmd (dijembatani dari ROS Float64). -->
-  <gazebo>
-    <plugin filename="gz-sim-joint-position-controller-system"
-            name="gz::sim::systems::JointPositionController">
-      <joint_name>gripper_jaw_joint</joint_name>
-      <topic>/hydroships/gripper_jaw/cmd</topic>
-      <p_gain>2.0</p_gain>
-      <i_gain>0.0</i_gain>
-      <d_gain>0.1</d_gain>
-    </plugin>
-  </gazebo>
+  <!-- Kontrol posisi dua jari kosmetik: target sudut (rad) via gz.msgs.Double di
+       /hydroships/gripper_left/cmd & /hydroships/gripper_right/cmd (dijembatani
+       dari ROS Float64). Satu instance plugin per joint (cara standar Fortress);
+       nilai yang dikirim identik, mirroring dari tanda axis di URDF. -->
+  <xacro:macro name="gripper_finger_plugin" params="side">
+    <gazebo>
+      <plugin filename="gz-sim-joint-position-controller-system"
+              name="gz::sim::systems::JointPositionController">
+        <joint_name>gripper_${side}_joint</joint_name>
+        <topic>/hydroships/gripper_${side}/cmd</topic>
+        <p_gain>2.0</p_gain>
+        <i_gain>0.0</i_gain>
+        <d_gain>0.1</d_gain>
+      </plugin>
+    </gazebo>
+  </xacro:macro>
+  <xacro:gripper_finger_plugin side="left"/>
+  <xacro:gripper_finger_plugin side="right"/>
 
   <!-- GRASP FISIK: DetachableJoint membuat sambungan kaku gripper_base<->payload.
        attach saat pesan di /hydroships/gripper/attach, detach di .../detach

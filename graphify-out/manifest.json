@@ -55,13 +55,13 @@
     "semantic_hash": ""
   },
   "src/hydroships_control/hydroships_control/gripper_controller.py": {
-    "mtime": 1785207522.1265106,
-    "ast_hash": "29eb54a268f1dc7d344b30a2bf6930ca",
+    "mtime": 1785222019.98331,
+    "ast_hash": "04b0282be1c5e8be20f07a1569c32ca4",
     "semantic_hash": ""
   },
   "src/hydroships_control/hydroships_control/gripper_logic.py": {
-    "mtime": 1785207522.1265106,
-    "ast_hash": "906aa5af45015554a2f91d75f6e48058",
+    "mtime": 1785222031.9130006,
+    "ast_hash": "243c31681829e67ff21c06c242b58603",
     "semantic_hash": ""
   },
   "src/hydroships_control/hydroships_control/gui_bridge.py": {
@@ -85,8 +85,8 @@
     "semantic_hash": ""
   },
   "src/hydroships_control/hydroships_control/mission_fsm.py": {
-    "mtime": 1785207529.4848568,
-    "ast_hash": "3a404ce880f3d3b51df20dd77d83f3af",
+    "mtime": 1785219711.4346411,
+    "ast_hash": "de4ab74a8eac1cade47b46df45328027",
     "semantic_hash": ""
   },
   "src/hydroships_control/hydroships_control/pid.py": {
@@ -140,8 +140,8 @@
     "semantic_hash": ""
   },
   "src/hydroships_control/test/test_gripper.py": {
-    "mtime": 1785207522.1275105,
-    "ast_hash": "ef30ee0342b6858dc259ade20151c809",
+    "mtime": 1785222207.8543475,
+    "ast_hash": "f1bcb6133c0e5c2798569d80d836b7fd",
     "semantic_hash": ""
   },
   "src/hydroships_control/test/test_gui_bridge.py": {
@@ -170,8 +170,8 @@
     "semantic_hash": ""
   },
   "src/hydroships_gazebo/launch/sim.launch.py": {
-    "mtime": 1785211787.504761,
-    "ast_hash": "ecd0b36cc288a2b45557c7ab1f912d0e",
+    "mtime": 1785217164.2516992,
+    "ast_hash": "a60084927c0b7525887ba7f766472ab3",
     "semantic_hash": ""
   },
   "src/hydroships_gazebo/scripts/generate_qr.py": {
@@ -195,8 +195,8 @@
     "semantic_hash": ""
   },
   "docs/ARCHITECTURE.md": {
-    "mtime": 1785207522.11351,
-    "ast_hash": "b4d7e773501caa6eed311ed24a8f8cfd",
+    "mtime": 1785222217.674188,
+    "ast_hash": "174de397a642d002885d1a3f17dbd0f3",
     "semantic_hash": ""
   },
   "docs/GUI-INTEGRATION.md": {
@@ -205,8 +205,8 @@
     "semantic_hash": ""
   },
   "docs/HOW-TO-RUN.txt": {
-    "mtime": 1785211927.1659706,
-    "ast_hash": "324c1d4dc8a88b3d569df677d545bedc",
+    "mtime": 1785222260.4255397,
+    "ast_hash": "e9f60b2cf5053f379691b348d66b112f",
     "semantic_hash": ""
   },
   "docs/thruster_config.md": {
@@ -250,8 +250,8 @@
     "semantic_hash": ""
   },
   "src/hydroships_gazebo/config/bridge.yaml": {
-    "mtime": 1785207522.1275105,
-    "ast_hash": "015fd7306eedc4880b414e25bfbd9064",
+    "mtime": 1785221995.0439863,
+    "ast_hash": "e1d58fb83cd87fd142c30dad2c64708e",
     "semantic_hash": ""
   },
   "Gambar ROV/Back-View.jpeg": {
@@ -315,13 +315,13 @@
     "semantic_hash": ""
   },
   "docs/CHANGELOG.md": {
-    "mtime": 1785207522.11351,
-    "ast_hash": "548dc521b78f4dd88c11a51aed29ba72",
+    "mtime": 1785222300.830993,
+    "ast_hash": "05497fc0a4f88f9d69cb3430fd3ac69a",
     "semantic_hash": ""
   },
   "docs/STATUS.md": {
-    "mtime": 1785207522.11751,
-    "ast_hash": "8d43bc7a551aaab59f703e46030cf545",
+    "mtime": 1785222236.6028917,
+    "ast_hash": "72cefded9ae9418ce850f8e5e17f7d53",
     "semantic_hash": ""
   },
   "docs/VERIFICATION-CHECKLIST.md": {
@@ -357,21 +357,6 @@
   "src/hydroships_gazebo/scripts/payload_spawner.py": {
     "mtime": 1785207522.1285107,
     "ast_hash": "90e74e7f4dfb5d663b41d213a0575e33",
-    "semantic_hash": ""
-  },
-  ".kilo/plans/1784302420016-random-qr-payload-spawner.md": {
-    "mtime": 1785207522.11251,
-    "ast_hash": "3c36c57849940807025b4fe577d04200",
-    "semantic_hash": ""
-  },
-  ".kilo/plans/1784302420016-restore-mission-fsm-regression.md": {
-    "mtime": 1785207522.11251,
-    "ast_hash": "2a8af34a763949c6bab4c855335e5b02",
-    "semantic_hash": ""
-  },
-  ".kilo/plans/prompt-random-qr-payload.md": {
-    "mtime": 1785207522.11351,
-    "ast_hash": "ab1d9fe2bbc34b69eccee06a434f9cb0",
     "semantic_hash": ""
   },
   "docs/GUIDEBOOK.md": {
