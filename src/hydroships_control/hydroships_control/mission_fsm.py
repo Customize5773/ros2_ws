@@ -338,6 +338,11 @@ class MissionFSM(Node):
         tetap posisikan diri di atas payload dulu sebelum lanjut."""
         self._set_depth(self.scan_depth)
         dist = self._goto_xy_yaw_first(self.payload_x, self.payload_y)
+        if int(self._elapsed() * 2) % 6 == 0:
+            self.get_logger().info(
+                'APPROACH_QR dbg: dist=%.3f x=%.2f y=%.2f yaw=%.1f target=(%.2f,%.2f)'
+                % (dist, self.x or -99, self.y or -99,
+                   math.degrees(self.yaw or 0), self.payload_x, self.payload_y))
         if dist < self.approach_tol:
             if self._wall_idx >= len(self._wall_sequence):
                 self.get_logger().info('Semua wall selesai, misi tuntas.')
@@ -381,6 +386,7 @@ class MissionFSM(Node):
                    math.degrees(self.yaw or 0), tx, ty))
         if dist < self.nav_tol:
             self._set_surge(0.0)
+            speed = math.hypot(self.vx, self.vy)
             self.get_logger().info('Tiba di standoff wall %s (dist %.2fm, v %.2fm/s) -> HANG'
                                    % (self.wall, dist, speed))
             self._to(St.HANG)

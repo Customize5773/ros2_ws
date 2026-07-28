@@ -99,6 +99,7 @@ def _launch_setup(context, *args, **kwargs):
     pkg_description = get_package_share_directory('hydroships_description')
 
     world = LaunchConfiguration('world').perform(context)
+    world_name = os.path.splitext(os.path.basename(world))[0]
     headless = LaunchConfiguration('headless').perform(context).lower() == 'true'
     try:
         spawn_delay = float(LaunchConfiguration('spawn_delay').perform(context))
@@ -160,7 +161,7 @@ def _launch_setup(context, *args, **kwargs):
                 executable='create',
                 output='screen',
                 arguments=[
-                    '-world', world,
+                    '-world', world_name,
                     '-name', 'hydroships',
                     '-string', robot_desc,
                     '-x', x, '-y', y, '-z', z,
