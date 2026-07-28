@@ -19,6 +19,11 @@ Ringkas: (0) prasyarat -> (1) build -> (2) source -> (3) run -> (4) uji.
 - Cara aman memasang semua dependensi paket (dijalankan di root workspace):
       cd ~/ros2_ws
       rosdep install --from-paths src --ignore-src -r -y
+- Kalau python3-opencv tidak tersedia/gagal via apt, pasang dependensi Python
+  lewat pip (opencv-python + numpy, sama seperti di README.md):
+      cd ~/ros2_ws
+      pip install -r requirements.txt
+  Cek `cv2` sudah kebaca: python3 -c "import cv2; print(cv2.__version__)"
 
 Catatan GPU: sensor kamera (gz-sim-sensors, ogre2) butuh render. Di mesin tanpa
 GPU/EGL, pakai mode headless (lihat argumen 'headless' di bawah) atau kamera bisa
@@ -110,6 +115,8 @@ Folder build/ install/ log/ sengaja di-gitignore; regenerasi dgn colcon build.
   rov_arena_half:=2.55 -> setengah lebar kolam (dinding di +-nilai ini).
   spawn_delay:=3.0    -> jeda (detik) sebelum spawn ROV; naikkan bila mesin lambat
                          (cegah race: service create belum siap).
+  spawn_seed:=42      -> fix seed pose spawn acak supaya run bisa diulang persis
+                         (replay/debug). KOSONG (default) = acak penuh tiap launch.
   qr_letter:=B        -> (mission/stabilized/sim) huruf QR payload A/B/C/D.
                          KOSONG (default) = random + posisi acak dalam bounds arena.
   payload_x:=0.5      -> posisi X payload (m); dipakai bila qr_letter di-set eksplisit.
@@ -198,6 +205,20 @@ ros2 launch hydroships_bringup hydroships_gui.launch.py \
 - Kamera hitam / sim berat / crash render di mesin tanpa GPU:
     Pakai headless:=true, atau jalankan di mesin ber-GPU.
 
+- QR tidak terdeteksi walau kamera & unit test normal (KNOWN ISSUE):
+    Gejala di log qr_detector, umumnya saat headless:
+      [WARN] DECODE GAGAL: QR tak terdeteksi (pts=None)
+      [WARN] DECODE GAGAL: QR terdeteksi (pts ada) tapi decode kosong
+    Ini bisa muncul walaupun /hydroships/camera_bottom/image_raw dan camera_info
+    mengalir normal dan unit test QR (test_qr_logic.py) semuanya lolos — test
+    memakai fixture frame, bukan hasil render headless. Penyebabnya di sisi
+    render/pencahayaan sim, bukan di logika decode. Yang bisa dicoba:
+      1) Jalankan TANPA headless (headless:=false) supaya render penuh.
+      2) Turunkan ketinggian scan biar QR lebih besar di frame, mis. scan_depth
+         lebih dekat ke payload.
+      3) Untuk menguji FSM tanpa menunggu deteksi, suntik hasil QR manual:
+           ros2 topic pub -1 /hydroships/qr_result std_msgs/msg/String "{data: 'A'}"
+
 - Model gagal spawn (service create belum siap):
     Naikkan spawn_delay, mis. spawn_delay:=6.0.
 
@@ -230,8 +251,9 @@ cd ~/ros2_ws
 source /opt/ros/humble/setup.bash
 source install/setup.bash
 ros2 run hydroships_control teleop_stabilized
- -> ros2 run hydroships_control teleop_stabilized --ros-args -r /cmd_vel:=/hydroships/cmd_vel -p use_sim_time:=true
- -> ros2 run hydroships_control teleop_stabilized --ros-args -r /cmd_vel:=/hydroships/manual/cmd -p use_sim_time:=true
+ -> ros2 run hydroships_control teleop_stabilized --ros-args -p use_sim_time:=true
+    (teleop_stabilized sudah publish ke /hydroships/manual/cmd secara native,
+     jadi tidak perlu remap. Remap /cmd_vel hanya relevan utk teleop_keyboard.)
 
 TERMINAL 3: CHECK IF KEYBOARD SEND DATA (LINEAR/ANGULAR)
 ~
