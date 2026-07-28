@@ -175,49 +175,34 @@
     </model>
 
     <!-- ================= Payload dgn QR (sesuai gambar KKI) =================
-         Braket L: pelat 5cm x 0.6cm x 10cm dgn lubang dia 3cm (0.6cm dari atas),
-         kaki 3cm, + QR 4x4cm di muka depan pelat. Berdiri di dasar kolam.
-         Ditempatkan 0.4 m di +X dari tengah & QR menghadap -X (ke arah ROV) agar
-         kamera depan ROV membacanya saat SCAN_QR. Isi QR = sisi target (A/B/C/D). -->
-    <model name="payload">
-      <static>true</static>
-      <!-- BERBARING di dasar dgn QR MENGHADAP ATAS (sesuai gambar referensi: QR/payload
-           datar di lantai, dibaca kamera BAWAH). QR berada di world (0.4, 0) — target
-           APPROACH FSM (payload_x/payload_y). Untuk versi berdiri saat digantung di wall,
-           pakai '0.4 0 -0.9 0 0 1.5708'. -->
-      <pose>0.4 0.04 -0.894 1.5708 0 0</pose>
-      <link name="payload_link">
-        <visual name="body">
-          <geometry>
-            <mesh><uri>model://hydroships_gazebo/media/payload_body.obj</uri></mesh>
-          </geometry>
-          <material>
-            <ambient>0.75 0.76 0.80 1</ambient>
-            <diffuse>0.82 0.83 0.86 1</diffuse>
-          </material>
-        </visual>
-        <visual name="qr">
-          <!-- SIM_ONLY: QR diperbesar 0.04 -> 0.12 m agar terbaca kamera sim di
-               kedalaman scan. Payload NYATA/KKI tetap 4 cm — ini murni alat bantu
-               render sim (lihat PROBLEM.md "Perbesar QR khusus sim"). Kembali ke
-               ukuran asli: set size 0.04 0.04. -->
-          <pose>0 0.0012 0.04 0 0 0</pose>
-          <geometry><plane><normal>0 1 0</normal><size>0.12 0.12</size></plane></geometry>
-          <material>
-            <diffuse>1 1 1 1</diffuse>
-            <specular>0 0 0 1</specular>
-            <pbr>
-              <metal>
-                <albedo_map>model://hydroships_gazebo/media/qr_A.png</albedo_map>
-                <emissive_map>model://hydroships_gazebo/media/qr_A.png</emissive_map>
-                <metalness>0.0</metalness>
-                <roughness>1.0</roughness>
-              </metal>
-            </pbr>
-          </material>
-        </visual>
-      </link>
-    </model>
+         Payload TIDAK LAGI didefinisikan inline di world. Kini di-spawn RUNTIME
+         oleh node `payload_spawner` (hydroships_gazebo) dgn huruf QR random
+         (A/B/C/D) & posisi acak dalam bounds arena (atau via launch arg
+         qr_letter/payload_x/payload_y). Definisi model (mesh, collision, quiet-zone,
+         QR pbr, massa 0.3 kg non-static) ada di scripts/payload_spawner.py
+         (PAYLOAD_SDF_TEMPLATE). Posisi spawn dipublikasikan ke
+         /hydroships/payload_pose agar mission_fsm APPROACH_QR navigasi dinamis. -->
+
+    <!-- SIM_ONLY: Lampu lokal untuk menerangi area QR tanpa mengubah exposure
+         global scene (fix opsi (b), lihat PROBLEM.md item "QR belum terbaca").
+         Payload kini di-spawn RANDOM oleh payload_spawner di x∈[0.2,0.6],
+         y∈[-1.5,1.5] (lihat scripts/payload_spawner.py). Range lampu diperbesar
+         0.8 -> 3.0 m + atenuasi lebih landai agar QR tetap kontras di SELURUH
+         area spawn (bukan hanya posisi 0.4,0 lama). Ditaruh di TENGAH area
+         (0.4, 0) ~0.45 m di atas dasar; jarak ke sudut terjauh (y=±1.5) ~1.6 m
+         < range. Bila payload tampak gelap di posisi ekstrem, naikkan range/diffuse. -->
+    <light type="point" name="payload_fill">
+      <cast_shadows>false</cast_shadows>
+      <pose>0.4 0 -0.45 0 0 0</pose>
+      <diffuse>0.9 0.9 0.9 1</diffuse>
+      <specular>0.1 0.1 0.1 1</specular>
+      <attenuation>
+        <range>3.0</range>
+        <constant>0.6</constant>
+        <linear>0.15</linear>
+        <quadratic>0.08</quadratic>
+      </attenuation>
+    </light>
 
     <!-- ============================ Hook / gantungan ============================ -->
     <!--

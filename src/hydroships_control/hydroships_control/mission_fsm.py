@@ -34,9 +34,11 @@ from enum import Enum, auto
 
 import rclpy
 from rclpy.node import Node
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, PointStamped
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64, String, Empty
+
+from hydroships_control.hook_logic import HookServoGains, hook_servo
 
 
 def yaw_from_quaternion(q):
@@ -65,6 +67,7 @@ class MissionFSM(Node):
         p('start_state', 'DIVE')
         p('wall_order', 'random')   # 'ABCD', 'DCBA', atau 'random'
         p('start_delay', 3.0)
+        p('start_wall', '')          # override manual utk testing start_state=NAV_WALL/HANG/dst
         p('surge_force', 25.0)       # N gaya maju horizontal
         p('depth_bottom', 0.70)      # m kedalaman dasar
         p('depth_surface', 0.08)     # m ambang "di permukaan"
@@ -74,9 +77,14 @@ class MissionFSM(Node):
         p('qr_max_age', 1.5)         # s umur maks deteksi QR agar dianggap segar
         p('payload_x', 0.4)          # m posisi payload/QR di dunia (x)
         p('payload_y', 0.0)          # m posisi payload/QR di dunia (y)
-        p('scan_depth', 0.62)        # m kedalaman scan (kamera bawah ~9cm di atas QR)
+        # [RESOLVED] QR detection: scan_depth 0.62 -> 0.46. Di 0.62 kamera bawah hanya
+        # ~9cm di atas QR (world z=-0.893) -> QR 12cm MEMENUHI/melebihi frame, finder
+        # bawah TER-CROP + gripper menutupi atas frame -> cv2.QRCodeDetector gagal
+        # (pts=None). Di 0.46 kamera ~25cm di atas QR -> QR utuh + quiet-zone di frame,
+        # terbaca 'A'..'D' (dibuktikan runtime: frame kamera bottom -> decode 'A').
+        p('scan_depth', 0.46)        # m kedalaman scan (kamera bawah ~25cm di atas QR)
         p('approach_kp', 90.0)       # N/m gain posisi XY -> gaya horizontal
-        p('approach_kd', 70.0)       # N/(m/s) redaman kecepatan (cegah overshoot)
+        p('approach_kd', 140.0)       # N/(m/s) redaman kecepatan (cegah overshoot)
         p('approach_fmax', 16.0)     # N batas gaya approach
         p('approach_tol', 0.06)      # m radius "sudah di atas payload"
         p('wall_dist', 2.30)         # m jarak pusat->target wall (standoff; hook ~2.4 m)
@@ -119,6 +127,9 @@ class MissionFSM(Node):
         self.pub_depth = self.create_publisher(Float64, '/hydroships/setpoint/depth', 10)
         self.pub_head = self.create_publisher(Float64, '/hydroships/setpoint/heading', 10)
         self.pub_manual = self.create_publisher(Twist, '/hydroships/manual/cmd', 10)
+        # Manipulator (rancang ulang M5): perintah semantik open/close ke
+        # gripper_controller (yg memicu gz DetachableJoint attach/detach).
+        self.pub_grip = self.create_publisher(String, '/hydroships/gripper/command', 10)
         self.create_subscription(Float64, '/hydroships/depth', self._on_depth, 10)
         self.create_subscription(Odometry, '/hydroships/odom', self._on_odom, 10)
         self.create_subscription(String, '/hydroships/qr_result', self._on_qr, 10)
@@ -141,6 +152,13 @@ class MissionFSM(Node):
         self.vy = 0.0
         self.qr_wall = None
         self.qr_time = 0.0
+        self.qr_off = None        # (ex, ey, size) ternormalisasi dari qr_offset
+        self.qr_off_time = 0.0
+        self._warned_no_odom = False
+        self._approach_move_t0 = self._now()  # baseline timeout nav APPROACH_QR
+        self.hook_off = None      # (ex, ey, size)
+        self.hook_time = 0.0
+        self.payload_pose = None  # (x, y, z) dari /hydroships/payload_pose (spawner)
         self.wall = None
         self.done_hooks = set()
         self.score = {'m1': 0, 'm2': 0, 'm3': 0, 'm4': 0, 'm5': 0}
@@ -152,6 +170,13 @@ class MissionFSM(Node):
             self._start_state = St[g('start_state')]
         except KeyError:
             self._start_state = St.DIVE
+        # Seed manual self.wall utk testing state mid-FSM (NAV_WALL/HANG/SURFACE/
+        # APPROACH_HOOK/AUTO_RELEASE) yg biasanya di-set oleh QR di APPROACH_QR/SCAN_QR.
+        # Harus SETELAH self.wall = None di atas agar tak tertimpa. Guard di
+        # _st_nav_wall tetap abort bila wall benar-benar tak diketahui (operasi normal).
+        sw = str(g('start_wall')).strip().upper()
+        if sw in WALL_HEADING_DEG:
+            self.wall = sw
         self._started = False
         self._t0 = self._now()
         self._start_delay = float(g('start_delay'))
@@ -231,6 +256,13 @@ class MissionFSM(Node):
             return 999.0
         fm = self.approach_fmax if fmax is None else fmax
         ex, ey = tx - self.x, ty - self.y
+        dist = math.hypot(ex, ey)
+        # Taper gaya maks saat mendekati target (slow-down radius) -> cegah slam.
+        slow_radius = 1.0  # m, mulai perlambat dalam radius ini
+        min_fmax_frac = 0.05  # jangan sampai gaya nol total (masih perlu lawan drag/arus)
+        if dist < slow_radius:
+            frac = max(min_fmax_frac, dist / slow_radius)
+            fm = fm * frac
         c, s = math.cos(self.yaw), math.sin(self.yaw)
         bx = ex * c + ey * s
         by = -ex * s + ey * c
@@ -238,7 +270,7 @@ class MissionFSM(Node):
         surge = self.approach_kp * bx - self.approach_kd * self.vx
         sway = self.approach_kp * by - self.approach_kd * self.vy
         self._set_surge(cl(surge), cl(sway))
-        return math.hypot(ex, ey)
+        return dist
 
     def _wall_xy(self, wall):
         d = self.wall_dist
@@ -349,7 +381,8 @@ class MissionFSM(Node):
                    math.degrees(self.yaw or 0), tx, ty))
         if dist < self.nav_tol:
             self._set_surge(0.0)
-            self.get_logger().info('Tiba di wall %s (dist %.2fm)' % (self.wall, dist))
+            self.get_logger().info('Tiba di standoff wall %s (dist %.2fm, v %.2fm/s) -> HANG'
+                                   % (self.wall, dist, speed))
             self._to(St.HANG)
         elif self._elapsed() > self.T['nav']:
             self.get_logger().error('NAV_WALL timeout (dist %.2fm)' % dist); self._to(St.ABORT)

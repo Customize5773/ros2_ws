@@ -1,8 +1,15 @@
 #!/usr/bin/env python3
 """Generate tekstur QR payload HYDROships (A/B/C/D) untuk simulasi.
 
-Menghasilkan media/qr_A.png .. qr_D.png berisi "HYDROSHIP-M5-A" .. "-D"
-(sama dgn label payload nyata; qr_detector mengekstrak huruf A/B/C/D).
+Menghasilkan media/qr_A.png .. qr_D.png berisi HURUF sisi tunggal "A".."D"
+(qr_detector.parse_wall mengekstrak huruf A/B/C/D).
+
+Isi QR sengaja HANYA huruf sisi (bukan "HYDROSHIP-M5-A") — string pendek =
+QR versi rendah (21x21) = modul besar = jauh lebih tahan degradasi render
+kamera sim (fix [RESOLVED] QR detection, lihat docs/CHANGELOG.md). Ini juga
+menyamakan konvensi dgn qr_A.png yang sudah ter-commit & terbukti terbaca di
+sim. parse_wall tetap menerima string panjang, jadi payload NYATA boleh pakai
+label penuh tanpa mengubah kontrak.
 
 Kenapa skrip (bukan aset commit langsung): bitmap QR = data biner, mudah usang
 bila isi/format berubah. Regen deterministik dari sini agar reproducible.
@@ -20,12 +27,8 @@ import argparse
 import os
 import sys
 
-CONTENT = {
-    'A': 'HYDROSHIP-M5-A',
-    'B': 'HYDROSHIP-M5-B',
-    'C': 'HYDROSHIP-M5-C',
-    'D': 'HYDROSHIP-M5-D',
-}
+# Isi QR = huruf sisi tunggal (QR versi rendah/modul besar -> tahan render sim).
+CONTENT = {'A': 'A', 'B': 'B', 'C': 'C', 'D': 'D'}
 
 
 def main():

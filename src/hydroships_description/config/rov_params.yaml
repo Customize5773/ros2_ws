@@ -1,0 +1,77 @@
+# rov_params.yaml — Parameter FISIK ROV HYDROships (KKI 2026)
+# ==========================================================================
+# Dipisah dari hydroships.urdf.xacro agar massa, CoG/CoB, inertia, dan
+# koefisien hidrodinamika bisa diganti TANPA menyunting URDF langsung.
+# URDF memuat file ini via xacro.load_yaml('../config/rov_params.yaml').
+#
+# STATUS TIAP NILAI (lihat PROBLEM.md):
+#   [estimate]  = placeholder / turunan geometri box / acuan tipe BlueROV2.
+#                 BUKAN data ROV HYDROships nyata — masih perlu pengukuran.
+#   [measured]  = sudah dari pengukuran/known-value nyata.
+#
+# CARA ISI DATA NYATA:
+#   1. Ukur dimensi/massa/material ROV final.
+#   2. Jalankan scripts/estimate_mass_inertia.py (mis. --dims X Y Z --mass M
+#      atau --density RHO, tambah --point-mass utk komponen) -> salin blok
+#      base_mass/cog/inertia ke sini.
+#   3. Ganti koefisien hidrodinamika dgn hasil uji tarik/CFD bila ada.
+#   4. Ubah tag [estimate] -> [measured] pada nilai yg sudah tervalidasi.
+#   Frame: ROS REP-103 (x maju, y kiri, z atas). Satuan SI.
+# ==========================================================================
+
+# --- Massa ---
+base_mass: 33.6          # kg   [estimate] near-neutral; dipilih agar total
+                         #      (base+6 thruster) sedikit di bawah massa air
+                         #      terpindah (~34.04 kg) -> apung pelan saat mati.
+thruster_mass: 0.05      # kg   [estimate] massa tiap link thruster.
+
+# --- Massa jenis fluida (air kolam) ---
+fluid_density: 1000.0    # kg/m^3  [measured] air tawar; dipakai plugin
+                         #         Hydrodynamics & Thruster.
+
+# --- Center of Gravity (offset dari origin base_link) ---
+cog: {x: 0.0, y: 0.0, z: 0.0}   # m  [estimate] origin = pusat bbox.
+
+# --- Center of Buoyancy (offset dari origin base_link) ---
+# CATATAN: nilai ini DOKUMENTATIF. Buoyancy sim saat ini berasal dari volume
+# collision-box + <graded_buoyancy> di world, BUKAN dari CoB eksplisit di
+# plugin. Disimpan di sini agar tersedia bila kelak dipakai plugin apung yg
+# menerima CoB. Menyetel di sini TIDAK mengubah fisika sim saat ini.
+cob: {x: 0.0, y: 0.0, z: 0.02}  # m  [estimate] sedikit di atas CoG (stabil).
+
+# --- Tensor inertia base_link di CoG (kg*m^2) ---
+# [estimate] diturunkan dari box pejal 0.345 x 0.345 x 0.286 m @ base_mass
+# via scripts/estimate_mass_inertia.py (self-test menjaga konsistensi).
+inertia:
+  ixx: 0.56230
+  iyy: 0.56230
+  izz: 0.66654
+  ixy: 0.0
+  ixz: 0.0
+  iyz: 0.0
+
+# --- Koefisien hidrodinamika (model Fossen) ---
+# SEMUA [estimate]: nilai acuan tipe BlueROV2, BUKAN ROV HYDROships nyata.
+# Ganti dgn hasil identifikasi (uji tarik / CFD) saat tersedia.
+# Tanda negatif = gaya reaktif melawan gerak (konvensi plugin gz Hydrodynamics).
+added_mass:            # gaya reaktif ~ percepatan
+  xDotU: -6.36
+  yDotV: -7.12
+  zDotW: -18.68
+  kDotP: -0.189
+  mDotQ: -0.135
+  nDotR: -0.222
+linear_damping:        # gaya reaktif ~ kecepatan
+  xU: -11.7
+  yV: -20.0
+  zW: -31.9
+  kP: -25.0
+  mQ: -44.0
+  nR: -5.0
+quadratic_damping:     # gaya reaktif ~ kecepatan*|kecepatan|
+  xUabsU: -18.18
+  yVabsV: -21.66
+  zWabsW: -36.99
+  kPabsP: -1.55
+  mQabsQ: -1.55
+  nRabsR: -1.55

@@ -51,8 +51,11 @@ Folder build/ install/ log/ sengaja di-gitignore; regenerasi dgn colcon build.
 
   ── 3A. SIM SAJA (lihat ROV di kolam, tanpa kendali) ──────────────────────────
   Menyalakan: Gazebo + spawn ROV + bridge + depth_publisher + qr_detector.
-      ros2 launch hydroships_gazebo sim.launch.py world:=kki_arena.sdf
+       ros2 launch hydroships_gazebo sim.launch.py world:=kki_arena.sdf
   (default world sim.launch.py = pool_empty.sdf; pakai kki_arena.sdf utk arena lomba.)
+  Setelah spawn, verifikasi visual: body gripper (kotak kuning 0.10×0.10×0.06 m)
+  harus terlihat di muka depan ROV (x≈0.18 m). Jari gripper menjorok ke depan
+  (+X) sebagai persegi panjang kuning 0.12 m.
 
   ── 3B. SIM + STABILISASI + KENDALI MANUAL (teleop) (SIMULASI AIR KOLAM TIDAK ADA)───────────────────────────
   Menyalakan: sim + thruster_allocator + stabilizer (depth-hold & heading-hold).
@@ -63,8 +66,31 @@ Folder build/ install/ log/ sengaja di-gitignore; regenerasi dgn colcon build.
   ── 3C. MISI AUTONOMOUS PENUH (FSM) ───────────────────────────────────────────
   Menyalakan: sim + allocator + stabilizer + mission_fsm (IDLE->DIVE->...->DONE).
       ros2 launch hydroships_bringup hydroships_mission.launch.py
-  Mulai dari state tertentu (lewati DIVE/SCAN):
-      ros2 launch hydroships_bringup hydroships_mission.launch.py start_state:=NAV_WALL
+   Mulai dari state tertentu (lewati DIVE/SCAN):
+       ros2 launch hydroships_bringup hydroships_mission.launch.py start_state:=NAV_WALL
+       ros2 launch hydroships_bringup hydroships_mission.launch.py start_state:=NAV_WALL start_wall:=A
+       ros2 launch hydroships_bringup hydroships_mission.launch.py start_state:=NAV_WALL start_wall:=B
+       ros2 launch hydroships_bringup hydroships_mission.launch.py start_state:=NAV_WALL start_wall:=C
+       ros2 launch hydroships_bringup hydroships_mission.launch.py start_state:=NAV_WALL start_wall:=D
+   Payload QR di-spawn otomatis RANDOM (A/B/C/D + posisi acak dalam bounds arena)
+   oleh node payload_spawner setiap launch. Pilih huruf/posisi eksplisit:
+       ros2 launch hydroships_bringup hydroships_mission.launch.py qr_letter:=B
+       ros2 launch hydroships_bringup hydroships_mission.launch.py qr_letter:=C payload_x:=0.5 payload_y:=-1.2
+   FSM membaca posisi spawn dari /hydroships/payload_pose (navigasi APPROACH_QR
+   ke payload di posisi manapun; fallback ke default 0.4/0.04 bila pose belum tiba).
+   ROV di-spawn RANDOM dekat salah satu dinding kolam tiap run (default kontes).
+   Lihat posisi di log "[sim.launch] ROV spawn (random=True) di (x, y, z)". Override
+   posisi manual:
+       ros2 launch hydroships_bringup hydroships_mission.launch.py rov_random_spawn:=false rov_x:=1.0 rov_y:=-1.0
+
+  ── 3D. SIM + JEMBATAN GUI TIM (M7, UDP-JSON) ─────────────────────────────────
+  Menyalakan: sim + allocator + gui_bridge (adapter GUI-ROV <-> ROS via UDP).
+  GUI tim (Customize5773/GUI-ROV) memakai UDP-JSON/MAVLink, bukan ROS langsung
+  (lihat docs/GUI-INTEGRATION.md). [VERIFY: belum diuji GUI live.]
+      ros2 launch hydroships_bringup hydroships_gui.launch.py
+  Arahkan telemetri ke laptop GUI (server.js) & set port bila perlu:
+      ros2 launch hydroships_bringup hydroships_gui.launch.py \
+          gui_host:=192.168.2.1 cmd_port:=14550 telem_port:=14551
 
 
 --------------------------------------------------------------------------------
@@ -74,12 +100,29 @@ Folder build/ install/ log/ sengaja di-gitignore; regenerasi dgn colcon build.
   world:=kki_arena.sdf -> arena lomba (default mission/stabilized). Alt: pool_empty.sdf.
   start_state:=DIVE   -> (mission) state awal FSM: DIVE/APPROACH_QR/SCAN_QR/GRAB/
                          NAV_WALL/HANG/SURFACE/DOCK/APPROACH_HOOK/AUTO_RELEASE.
-  x:=0 y:=0 z:=-0.5   -> posisi spawn ROV (default 0 0 -0.5, sedikit di bawah permukaan).
+  start_wall:=A       -> (mission) seed wall target A/B/C/D utk testing mid-state
+                         (NAV_WALL/HANG/SURFACE/APPROACH_HOOK/AUTO_RELEASE).
+  rov_random_spawn:=true -> (default) spawn ROV ACAK dekat salah satu dinding kolam
+                         (posisi kontes, beda tiap run). false = pakai rov_x/rov_y/rov_z.
+  rov_x:=1.0 rov_y:=-1.0 rov_z:=-0.5 -> posisi manual spawn ROV (dipakai bila
+                         rov_random_spawn:=false). rov_z default -0.5 (di bawah permukaan).
+  rov_wall_margin:=0.5 -> jarak aman ROV dari dinding fisik (+-rov_arena_half).
+  rov_arena_half:=2.55 -> setengah lebar kolam (dinding di +-nilai ini).
   spawn_delay:=3.0    -> jeda (detik) sebelum spawn ROV; naikkan bila mesin lambat
                          (cegah race: service create belum siap).
+  qr_letter:=B        -> (mission/stabilized/sim) huruf QR payload A/B/C/D.
+                         KOSONG (default) = random + posisi acak dalam bounds arena.
+  payload_x:=0.5      -> posisi X payload (m); dipakai bila qr_letter di-set eksplisit.
+  payload_y:=-1.2     -> posisi Y payload (m); dipakai bila qr_letter di-set eksplisit.
 
 Contoh gabungan:
   ros2 launch hydroships_bringup hydroships_mission.launch.py headless:=true world:=kki_arena.sdf
+
+Argumen launch (default cocok GUI-ROV: cmd 14550, telem 14551):
+
+ros2 launch hydroships_bringup hydroships_gui.launch.py \
+    gui_host:=192.168.2.1 cmd_port:=14550 telem_port:=14551
+# atau headless:=true / world:=pool_empty.sdf
 
 
 --------------------------------------------------------------------------------
@@ -89,6 +132,8 @@ Contoh gabungan:
       ros2 topic list
       ros2 topic echo /hydroships/odom          # pose & twist ROV
       ros2 topic echo /hydroships/depth          # kedalaman (m, >=0)
+      ros2 topic echo /hydroships/payload_pose   # posisi spawn payload QR (dari payload_spawner)
+      ros2 topic echo /hydroships/qr_result      # huruf QR terbaca kamera (A/B/C/D)
 
   Kendali langsung (saat mode 3B/3C berjalan):
       # target kedalaman (negatif = menyelam)
@@ -126,6 +171,17 @@ Contoh gabungan:
   d) NAV_WALL (mode 3C): jalankan misi, suntik QR (mis. 'A'), ROV harus bergerak
      ke wall A tanpa harus memutar badan (navigasi holonomik).
 
+  e) GRIPPER BODY (mode 3A/3C): verifikasi body gripper terlihat di Gazebo
+     di muka depan ROV (kotak kuning 0.10×0.10×0.06 m di x≈0.18 m).
+     Jari gripper menjorok ke depan (+X) sebagai persegi panjang kuning 0.12 m.
+
+  f) GRIPPER MECHANISME (mode 3C): selama misi, di state GRAB periksa:
+       ros2 topic echo /hydroships/gripper/attach
+       ros2 topic echo /hydroships/gripper/detach
+     Payload harus ter-attach saat ROV di atasnya, dan ter-detach saat AUTO_RELEASE.
+     Jari gripper bergerak (buka/tutup) sesuai perintah:
+       ros2 topic echo /hydroships/gripper_jaw/cmd
+
 
 --------------------------------------------------------------------------------
 7. TROUBLESHOOTING
@@ -155,6 +211,37 @@ Contoh gabungan:
       cd ~/ros2_ws
       colcon test --packages-select hydroships_control
       colcon test-result --verbose
+
+
+--------------------------------------------------------------------------------
+9. CONTOH SESI MULTI-TERMINAL (teleop + cek allocator)
+--------------------------------------------------------------------------------
+TERMINAL 1: MAIN SIMULASI
+cd ~/ros2_ws
+source /opt/ros/humble/setup.bash
+colcon build --symlink-install
+source install/setup.bash
+ros2 launch hydroships_bringup hydroships_sim.launch.py #run Simulasi Dasar (Top-Level ROV)
+ros2 launch hydroships_bringup hydroships_mission.launch.py  #run Misi Autonomous (Milestone 6)
+ros2 launch hydroships_bringup hydroships_stabilized.launch.py #run Mode Stabilisasi Manual (Milestone 2)
+
+TERMINAL 2: CONTROL SIMULASI
+cd ~/ros2_ws
+source /opt/ros/humble/setup.bash
+source install/setup.bash
+ros2 run hydroships_control teleop_stabilized
+ -> ros2 run hydroships_control teleop_stabilized --ros-args -r /cmd_vel:=/hydroships/cmd_vel -p use_sim_time:=true
+ -> ros2 run hydroships_control teleop_stabilized --ros-args -r /cmd_vel:=/hydroships/manual/cmd -p use_sim_time:=true
+
+TERMINAL 3: CHECK IF KEYBOARD SEND DATA (LINEAR/ANGULAR)
+~
+ros2 topic echo /hydroships/cmd_vel
+
+TERMINAL 4: CHECK IF PROGRAM ALLOCATOR RESPONS
+~
+ros2 topic echo /hydroships/thruster_1/thrust
+
+---
 
 
 ================================================================================
