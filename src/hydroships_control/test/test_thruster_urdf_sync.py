@@ -1,7 +1,6 @@
 """Jaga agar geometri thruster di URDF dan allocation.py tetap identik.
 
 Geometri thruster diduplikasi di tiga tempat (lihat docs/thruster_config.md):
-  * hydroships_description/urdf/hydroships.urdf.xacro       (model primitif)
   * hydroships_description/urdf/rov_kki2026_new_design.urdf.xacro (model mesh CAD)
   * hydroships_control/allocation.py                        (tabel THRUSTERS)
 
@@ -26,7 +25,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _URDF_DIR = os.path.normpath(
     os.path.join(_HERE, '..', '..', 'hydroships_description', 'urdf'))
 
-MODELS = ['hydroships.urdf.xacro', 'rov_kki2026_new_design.urdf.xacro']
+MODELS = ['rov_kki2026_new_design.urdf.xacro']
 
 # Toleransi: URDF menulis posisi 4 desimal (0,1 mm), jadi 1e-4 sudah ketat.
 TOL = 1e-4

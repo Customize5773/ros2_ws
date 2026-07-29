@@ -20,11 +20,18 @@ from std_msgs.msg import Empty
 
 # Template SDF payload — SAMA PERSIS dgn definisi 'payload' di
 # worlds/kki_arena.sdf (mesh body, collision, quiet-zone, QR pbr). {letter}
-# memilih qr_A/B/C/D.png. Non-static agar bisa diangkat DetachableJoint gripper.
+# memilih qr_A/B/C/D.png. {static}: spawn AWAL selalu 'true' — model bernama
+# 'payload' otomatis di-attach gz-sim DetachableJoint (gripper_base<->payload)
+# begitu entity muncul, TANPA syarat jarak. Bila dynamic & ROV jauh, koreksi
+# constraint sesaat itu meledak -> ODE "aabbBound" assert & gz crash. Static
+# kebal (badan static tak pernah digerakkan solver), jadi entity aman terbit
+# di posisi arena manapun. Baru di-respawn dynamic ('static'='false') saat
+# grasp SUNGGUHAN (ROV sudah dekat, lihat _make_dynamic/gripper_controller),
+# sehingga saat itu auto-attach terjadi dgn offset kecil & aman.
 PAYLOAD_SDF_TEMPLATE = '''<?xml version="1.0"?>
 <sdf version="1.9">
   <model name="payload">
-    <static>false</static>
+    <static>{static}</static>
     <pose>{x} {y} {z} 1.5708 0 0</pose>
     <link name="payload_link">
       <inertial>
@@ -34,9 +41,9 @@ PAYLOAD_SDF_TEMPLATE = '''<?xml version="1.0"?>
           <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
         </inertia>
       </inertial>
-      <collision name="body_collision">
-        <geometry><box><size>0.05 0.006 0.10</size></box></geometry>
-      </collision>
+       <collision name="body_collision">
+         <geometry><box><size>0.05 0.020 0.10</size></box></geometry>
+       </collision>
       <visual name="body">
         <geometry>
           <mesh><uri>model://hydroships_gazebo/media/payload_body.obj</uri></mesh>
@@ -92,6 +99,7 @@ class PayloadSpawner(Node):
         p('arena_x_max', 0.6)
         p('arena_y_min', -1.5)
         p('arena_y_max', 1.5)
+        p('world_name', 'kki_arena')  # utk gz service remove saat respawn dynamic
 
         # QoS transient_local (latched): subscriber yg join belakangan (mis.
         # mission_fsm) tetap menerima pose terakhir walau spawn sudah lewat.
@@ -101,9 +109,18 @@ class PayloadSpawner(Node):
         # bawaan gz SETELAH ini (urutan benar). Latched agar tak hilang bila terbit
         # sebelum subscriber terhubung.
         self.pub_spawned = self.create_publisher(Empty, '/hydroships/payload/spawned', qos)
+        # Handshake grasp: gripper_controller minta payload jadi dynamic SESAAT
+        # sebelum attach fisik (ROV sudah dekat/aman - lihat is_safe()); baru
+        # setelah konfirmasi 'made_dynamic' gripper boleh publish attach_topic.
+        self.pub_made_dynamic = self.create_publisher(
+            Empty, '/hydroships/payload/made_dynamic', qos)
+        self.create_subscription(
+            Empty, '/hydroships/payload/request_dynamic', self._on_request_dynamic, 10)
         self._spawn_delay = float(self.get_parameter('spawn_delay').value)
         self._t0 = self._now()
         self._done = False
+        self._is_dynamic = False
+        self._letter = None
         self._pose = None           # (x, y, z) hasil spawn utk republish periodik
         self.create_timer(0.5, self._tick)
         self.get_logger().info('payload_spawner siap (spawn dalam %.1fs)' % self._spawn_delay)
@@ -136,11 +153,30 @@ class PayloadSpawner(Node):
         # create yg bisa lambat — FSM butuh pose utk navigasi, tak perlu tunggu model
         # benar-benar muncul. (Republish periodik + latched di _tick sbg jaring.)
         self._pose = (float(x), float(y), float(z))
+        self._letter = letter
         self._publish_pose()
 
-        sdf = PAYLOAD_SDF_TEMPLATE.format(x=x, y=y, z=z, letter=letter)
+        # Spawn AWAL selalu static=true — lihat catatan di PAYLOAD_SDF_TEMPLATE.
+        spawned_ok = self._spawn_model(x, y, z, letter, static=True)
+        self._is_dynamic = False
+
+        # Beritahu gripper_controller HANYA bila model benar-benar muncul, agar
+        # detach terjadi setelah payload ada (bukan sebelum). Bila create gagal,
+        # tak ada payload -> tak ada auto-attach bawaan -> tak perlu sinyal detach.
+        if spawned_ok:
+            self.pub_spawned.publish(Empty())
+            self.get_logger().info('Sinyal /hydroships/payload/spawned diterbitkan')
+
+        # Pastikan pose ter-publish (idempoten; sudah dipublish di awal _spawn).
+        self._publish_pose()
+
+    def _spawn_model(self, x, y, z, letter, static):
+        """Spawn (atau respawn) model 'payload' via ros_gz_sim create. Kembalikan
+        True bila sukses. static=True/False -> field {static} template SDF."""
+        sdf = PAYLOAD_SDF_TEMPLATE.format(
+            x=x, y=y, z=z, letter=letter, static='true' if static else 'false')
         tmp = None
-        spawned_ok = False
+        ok = False
         try:
             with tempfile.NamedTemporaryFile(mode='w', suffix='.sdf', delete=False) as f:
                 f.write(sdf)
@@ -153,29 +189,62 @@ class PayloadSpawner(Node):
                 '-x', str(x), '-y', str(y), '-z', str(z), '-R', '1.5708',
             ]
             self.get_logger().info(
-                'Spawn payload QR=%s pos=(%.2f, %.2f, %.2f)' % (letter, x, y, z))
+                'Spawn payload QR=%s pos=(%.2f, %.2f, %.2f) static=%s'
+                % (letter, x, y, z, static))
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
             if result.returncode != 0:
-                self.get_logger().warn('spawn gagal (FSM pakai default): %s'
-                                       % result.stderr.strip())
+                self.get_logger().warn('spawn gagal: %s' % result.stderr.strip())
             else:
-                spawned_ok = True
-                self.get_logger().info('Payload QR=%s spawned OK' % letter)
+                ok = True
+                self.get_logger().info('Payload QR=%s spawned OK (static=%s)' % (letter, static))
         except Exception as e:  # noqa: BLE001 — jangan matikan node bila spawn gagal
-            self.get_logger().warn('spawn exception (FSM pakai default): %s' % e)
+            self.get_logger().warn('spawn exception: %s' % e)
         finally:
             if tmp and os.path.exists(tmp):
                 os.unlink(tmp)
+        return ok
 
-        # Beritahu gripper_controller HANYA bila model benar-benar muncul, agar
-        # detach terjadi setelah payload ada (bukan sebelum). Bila create gagal,
-        # tak ada payload -> tak ada auto-attach bawaan -> tak perlu sinyal detach.
-        if spawned_ok:
-            self.pub_spawned.publish(Empty())
-            self.get_logger().info('Sinyal /hydroships/payload/spawned diterbitkan')
+    def _remove_payload(self):
+        """Hapus entity 'payload' dari world via gz service (perlu utk toggle
+        static->dynamic; gz-sim tak punya service ubah static entity langsung)."""
+        world = str(self.get_parameter('world_name').value)
+        cmd = [
+            'gz', 'service', '-s', '/world/%s/remove' % world,
+            '--reqtype', 'gz.msgs.Entity', '--reptype', 'gz.msgs.Boolean',
+            '--timeout', '2000', '--req', 'name: "payload" type: MODEL',
+        ]
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+            if result.returncode != 0:
+                self.get_logger().warn('gz remove payload gagal: %s' % result.stderr.strip())
+                return False
+            return True
+        except Exception as e:  # noqa: BLE001
+            self.get_logger().warn('gz remove payload exception: %s' % e)
+            return False
 
-        # Pastikan pose ter-publish (idempoten; sudah dipublish di awal _spawn).
-        self._publish_pose()
+    def _on_request_dynamic(self, _msg: Empty):
+        """Dipicu gripper_controller SESAAT SEBELUM attach fisik (ROV sudah
+        dekat & aman - is_safe()). Despawn payload static lalu respawn dynamic
+        di pose yg sama; karena ROV dekat, auto-attach DetachableJoint yg
+        terjadi begitu entity dynamic muncul aman (offset kecil, bukan lintas
+        arena)."""
+        if not self._done or self._pose is None:
+            self.get_logger().warn('request_dynamic diabaikan: payload belum spawn')
+            return
+        if self._is_dynamic:
+            # Sudah dynamic (mis. permintaan dobel) -> langsung konfirmasi.
+            self.pub_made_dynamic.publish(Empty())
+            return
+        x, y, z = self._pose
+        if not self._remove_payload():
+            return
+        if self._spawn_model(x, y, z, self._letter, static=False):
+            self._is_dynamic = True
+            self.pub_made_dynamic.publish(Empty())
+            self.get_logger().info('Payload respawned dynamic utk grasp')
+        else:
+            self.get_logger().warn('respawn dynamic gagal - grasp dibatalkan')
 
     def _publish_pose(self):
         if self._pose is None:

@@ -157,7 +157,7 @@ class MissionFSM(Node):
         p('qr_servo_sign', 1.0)
         # --- Koreksi offset kamera bawah -> gripper ---
         # camera_bottom_link ada di x=+0.02 sedangkan gripper_base di x=+0.18
-        # (hydroships.urdf.xacro), jadi GRIPPER 0.16 m DI DEPAN kamera. Servo lama
+        # (rov_kki2026_new_design.urdf.xacro), jadi GRIPPER 0.16 m DI DEPAN kamera. Servo lama
         # memusatkan QR di KAMERA -> gripper selalu melewati payload ~0.16 m.
         # Sekarang servo menargetkan QR muncul di ey_target (bukan 0) supaya
         # GRIPPER yang berada tepat di atas QR.

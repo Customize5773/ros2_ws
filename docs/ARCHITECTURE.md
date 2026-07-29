@@ -94,7 +94,7 @@ terverifikasi di sim; kamera/QR/kedalaman (M3), manipulator (M5), integrasi GUI 
 
 ## File & model legacy
 
-- **Model aktif ROV** = geometri **primitif** di `hydroships_description/urdf/hydroships.urdf.xacro`.
+- **Model aktif ROV** = geometri **CAD mesh** di `hydroships_description/urdf/rov_kki2026_new_design.urdf.xacro`.
   Mesh berat lama **`model/rov.fbx` (FBX) & `meshes/rov.stl` (~12 MB) sudah DIHAPUS** dari
   repo (tak lagi dirujuk URDF; `meshes/` kini hanya berisi `README.md` placeholder). Catatan
   lama yang menyebut "`model/rov.fbx` 48 MB dibiarkan di repo" **tidak berlaku lagi**.

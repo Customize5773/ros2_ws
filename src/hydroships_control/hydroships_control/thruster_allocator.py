@@ -11,7 +11,7 @@ Konvensi wrench (frame body, REP-103 x-maju/y-kiri/z-atas):
   linear.y  -> Fy (sway)    angular.y -> My (pitch)
   linear.z  -> Fz (heave)   angular.z -> Mz (yaw)
 
-Geometri thruster HARUS konsisten dengan urdf/hydroships.urdf.xacro dan
+Geometri thruster HARUS konsisten dengan urdf/rov_kki2026_new_design.urdf.xacro dan
 docs/thruster_config.md. Kolom ke-i TAM = [axis_i ; pos_i x axis_i].
 """
 

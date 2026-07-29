@@ -29,7 +29,7 @@ Commit hash & tanggal dari `git log` (rentang 2026-07-07 … 2026-07-17).
   Akar masalah: `thruster_positions.csv` berkonvensi X=lateral / Y=fore-aft (depan
   negatif) / Z=atas, disalin **mentah** ke frame body ROS tanpa rotasi → posisi terputar
   90°, momen yaw T100-A/C saling meniadakan (`cond(TAM)≈1.2e4`). Fix: konversi
-  `x_body=-Y_csv, y_body=-X_csv, z_body=Z_csv` di `allocation.py` & `hydroships.urdf.xacro`
+  `x_body=-Y_csv, y_body=-X_csv, z_body=Z_csv` di `allocation.py` & rov_kki2026_new_design.urdf.xacro
   → `cond` turun ke ~20, yaw pulih (yaw 5 N·m ~ 18 N, dulu butuh 25.000 N).
 - **`5387b55`** (Fase 1b) — FSM: navigasi wall holonomik (mitigasi yaw lemah).
 - **`b8b0623`** (Fase 3) — Bridge `camera_info` + skrip generator QR payload.
@@ -115,7 +115,7 @@ Commit hash & tanggal dari `git log` (rentang 2026-07-07 … 2026-07-17).
   `gripper_base`, tapi plugin `gz-sim-detachable-joint-system` (baca SDF hasil convert)
   tidak → `parent_link` invalid. `gripper_jaw` tak kena karena joint-nya `revolute`.
   Fix: `<gazebo reference="gripper_base_joint"><preserveFixedJoint>true</preserveFixedJoint></gazebo>`
-  di `hydroships.urdf.xacro` — menahan joint fixed jadi joint SDF nyata sehingga
+  di `rov_kki2026_new_design.urdf.xacro` — menahan joint fixed jadi joint SDF nyata sehingga
   `gripper_base` tetap link tersendiri (kinematika kaku tak berubah). Diverifikasi
   dgn `ign sdf -p` (Fortress): link `gripper_base` kini muncul di SDF hasil convert.
   Catatan: `<dontcollapse>` TIDAK dikenali sdformat, dan `<disableFixedJointLumping>`
@@ -363,7 +363,7 @@ kosmetik + DetachableJoint (lihat [STATUS.md](STATUS.md)).
 `model/rov.fbx` (FBX satuan mm, 279 sub-mesh; masalah transform di-fix via assimp
 `aiProcess_PreTransformVertices`) dikonversi ke `meshes/rov.stl` (~237k segitiga, 12 MB)
 → menurunkan rate kamera (~22→10 Hz). **Kedua file sudah dihapus dari repo**; model aktif
-= primitif ringan di `hydroships.urdf.xacro`. (Catatan lama "`model/rov.fbx` 48 MB dibiarkan
+= primitif ringan di `rov_kki2026_new_design.urdf.xacro`. (Catatan lama "`model/rov.fbx` 48 MB dibiarkan
 di repo" **tidak berlaku lagi** — sudah dihapus.)
 
 ### `<suppress_initial_attach>` (tidak valid di Fortress)

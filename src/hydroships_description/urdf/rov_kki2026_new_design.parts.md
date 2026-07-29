@@ -105,7 +105,7 @@ Verifikasi: setelah transform, keenam titik berjarak 3,4–8,5 mm dari permukaan
 mesh (sebelumnya, dengan koordinat desain lama, 8–108 mm).
 
 **Sudah sinkron (2026-07-28).** Tabel `THRUSTERS` di
-`hydroships_control/allocation.py`, `hydroships.urdf.xacro`, dan model ini
+`hydroships_control/allocation.py`, rov_kki2026_new_design.urdf.xacro, dan model ini
 kini memakai angka yang sama, dijaga oleh
 `hydroships_control/test/test_thruster_urdf_sync.py`.
 
@@ -168,10 +168,10 @@ badan ROV tampak tenggelam sebagian ke lantai — itu harga dari apung yang
 benar. Pakai `collision_mode:=hull` kalau yang dibutuhkan kontak/visual
 (tapi apungnya 4× salah).
 
-## Kompatibilitas dengan hydroships.urdf.xacro
+## Kompatibilitas dengan rov_kki2026_new_design.urdf.xacro
 
 Nama link/joint/topic di xacro sudah disamakan dengan model produksi
-`hydroships.urdf.xacro`, jadi bisa dipakai bergantian tanpa mengubah
+`rov_kki2026_new_design.urdf.xacro`, jadi bisa dipakai bergantian tanpa mengubah
 `hydroships_control` / `hydroships_gazebo`. Ke-14 link produksi ada semua
 (`base_link`, `thruster_1..6`, `imu_link`, `depth_link`,
 `camera_front_link`, `camera_bottom_link`, `gripper_base`,
@@ -183,7 +183,7 @@ Parameter fisik (massa, densitas fluida, koefisien hidrodinamika) dibaca
 dari `config/rov_params.yaml` yang sama. Yang berbeda: visual/collision
 memakai mesh CAD, inersia diturunkan dari mesh (bukan dari box), posisi
 thruster terukur, dan diameter propeller kini mengikuti **kelas** hasil ukur
-(T200 surge → 0,076 m; T100 heave/sway → 0,048 m). Di `hydroships.urdf.xacro`
+(T200 surge → 0,076 m; T100 heave/sway → 0,048 m). Di `rov_kki2026_new_design.urdf.xacro`
 pembagian 0,076/0,048 mengikuti nomor urut, bukan kelas, sehingga
 `thruster_3` dan `thruster_4` dapat diameter berbeda padahal unitnya sama.
 

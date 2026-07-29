@@ -37,7 +37,7 @@ class GripperLogic:
       offset_timeout: umur maks sinyal qr_offset agar dianggap segar (s).
       jaw_open/close: target sudut kedua jari (rad) saat terbuka/menutup
                       (kosmetik). Harus berada dalam limit joint URDF
-                      [-0.1, 0.5] — lihat hydroships.urdf.xacro.
+                      [-0.1, 0.5] — lihat rov_kki2026_new_design.urdf.xacro.
     """
 
     def __init__(self, max_offset=0.30, min_size=0.12, offset_timeout=1.5,
@@ -117,7 +117,7 @@ class GripperLogic:
 
         gz-sim Fortress SELALU meng-attach DetachableJoint saat load (payload
         langsung nge-lock ke ROV sejak sim jalan; tak bisa ditahan lewat SDF —
-        lihat catatan di hydroships.urdf.xacro & PROBLEM.md). Node menerbitkan
+        lihat catatan di rov_kki2026_new_design.urdf.xacro & PROBLEM.md). Node menerbitkan
         SATU pesan detach saat startup untuk memaksa lepas kondisi attached
         bawaan itu, sebelum menerima perintah open/close apa pun.
 

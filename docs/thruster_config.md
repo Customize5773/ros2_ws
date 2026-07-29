@@ -6,7 +6,6 @@ Rotasi: roll (Mx, sekitar x), pitch (My, sekitar y), yaw (Mz, sekitar z).
 Geometri ini adalah sumber kebenaran tunggal dan **harus identik** di tiga tempat
 (konsistensi masih manual/duplikat — lihat catatan):
 
-- `hydroships_description/urdf/hydroships.urdf.xacro` (model primitif box)
 - `hydroships_description/urdf/rov_kki2026_new_design.urdf.xacro` (model mesh CAD)
 - `hydroships_control/allocation.py` (konstanta `THRUSTERS`, modul murni yang dipakai
   node `thruster_allocator`)

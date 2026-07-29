@@ -1,6 +1,6 @@
 """Uji qr_ey_target: koreksi offset kamera bawah -> gripper (APPROACH_QR).
 
-Kamera bawah ada di x=+0.02 dan gripper_base di x=+0.18 (hydroships.urdf.xacro),
+Kamera bawah ada di x=+0.02 dan gripper_base di x=+0.18 (rov_kki2026_new_design.urdf.xacro),
 jadi gripper 0.16 m DI DEPAN kamera. Memusatkan QR di kamera (ey=0) membuat
 gripper selalu melewati payload sejauh itu. `qr_ey_target` menghitung di mana QR
 HARUS tampak supaya gripper-lah yang tepat di atas QR.

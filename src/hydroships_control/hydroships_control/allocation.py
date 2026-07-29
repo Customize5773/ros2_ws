@@ -2,13 +2,13 @@
 """Geometri thruster & Thrust Allocation Matrix HYDROships (modul murni).
 
 Dipisah dari node ROS agar bisa diuji tanpa rclpy. Konstanta di sini HARUS
-konsisten dengan urdf/hydroships.urdf.xacro dan docs/thruster_config.md.
+konsisten dengan urdf/rov_kki2026_new_design.urdf.xacro dan docs/thruster_config.md.
 """
 
 import numpy as np
 
 # (posisi [m], arah dorong unit) tiap thruster di FRAME BODY ROS (x=maju, y=kiri,
-# z=atas). Urutan = thruster_1..6. HARUS konsisten dgn urdf/hydroships.urdf.xacro
+# z=atas). Urutan = thruster_1..6. HARUS konsisten dgn urdf/rov_kki2026_new_design.urdf.xacro
 # dan urdf/rov_kki2026_new_design.urdf.xacro.
 #
 # SUMBER (2026-07-28): posisi & sumbu DIUKUR dari CAD

@@ -20,7 +20,7 @@ def test_start_open_not_attached():
 
 def test_jaw_targets_within_urdf_joint_limits():
     # Kedua jari dikontrol nilai yg sama; nilai itu harus muat di limit revolute
-    # gripper_left_joint/gripper_right_joint di hydroships.urdf.xacro [-0.1, 0.5].
+    # gripper_left_joint/gripper_right_joint di rov_kki2026_new_design.urdf.xacro [-0.1, 0.5].
     g = GripperLogic()
     for angle in (g.jaw_open, g.jaw_close):
         assert -0.1 <= angle <= 0.5

@@ -55,6 +55,15 @@ class GripperController(Node):
         self.pub_jaw_right = self.create_publisher(Float64, '/hydroships/gripper_right/cmd', 10)
         self.pub_attach = self.create_publisher(Empty, '/hydroships/gripper/attach', 10)
         self.pub_detach = self.create_publisher(Empty, '/hydroships/gripper/detach', 10)
+        # Payload spawn AWAL static (aman thd jarak ROV - lihat payload_spawner).
+        # Sebelum attach fisik sungguhan kita minta payload_spawner respawn-kan
+        # dynamic (ROV sudah dekat/aman di titik ini -> auto-attach gz kecil &
+        # aman), baru publish attach_topic setelah konfirmasi diterima.
+        self.pub_request_dynamic = self.create_publisher(
+            Empty, '/hydroships/payload/request_dynamic', 10)
+        self.create_subscription(
+            Empty, '/hydroships/payload/made_dynamic', self._on_made_dynamic, 10)
+        self._pending_attach = False
         self.create_subscription(String, '/hydroships/gripper/command', self._on_cmd, 10)
         self.create_subscription(PointStamped, '/hydroships/qr_offset', self._on_offset, 10)
 
@@ -126,10 +135,21 @@ class GripperController(Node):
             return
         self._apply_jaw()
         if action['joint'] == 'attach':
-            self.pub_attach.publish(Empty())
+            # Jangan attach langsung: minta payload jadi dynamic dulu (aman,
+            # ROV sudah dekat di titik ini) - attach_topic dipublish setelah
+            # konfirmasi made_dynamic (lihat _on_made_dynamic).
+            self._pending_attach = True
+            self.pub_request_dynamic.publish(Empty())
         elif action['joint'] == 'detach':
             self.pub_detach.publish(Empty())
         self.get_logger().info('gripper %s: %s' % (action['state'], action['reason']))
+
+    def _on_made_dynamic(self, _msg: Empty):
+        if not self._pending_attach:
+            return
+        self._pending_attach = False
+        self.pub_attach.publish(Empty())
+        self.get_logger().info('payload dynamic dikonfirmasi -> attach fisik dipublish')
 
 
 def main(args=None):

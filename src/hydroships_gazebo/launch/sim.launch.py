@@ -138,8 +138,8 @@ def _launch_setup(context, *args, **kwargs):
         launch_arguments={'gz_args': gz_args}.items(),
     )
 
-    # Proses xacro -> URDF string. (hydroships.urdf.xacro)
-    xacro_file = os.path.join(pkg_description, 'urdf', 'hydroships.urdf.xacro')
+    # Proses xacro -> URDF string. (rov_kki2026_new_design.urdf.xacro)
+    xacro_file = os.path.join(pkg_description, 'urdf', 'rov_kki2026_new_design.urdf.xacro')
     robot_desc = xacro.process_file(xacro_file).toxml()
 
     rsp = Node(
@@ -251,8 +251,11 @@ def generate_launch_description():
                               description='Posisi Y spawn ROV (m) bila rov_random_spawn=false.'),
         DeclareLaunchArgument('rov_z', default_value='-0.5',
                               description='Kedalaman spawn ROV (m, negatif = di bawah permukaan).'),
-        DeclareLaunchArgument('rov_wall_margin', default_value='0.5',
-                              description='Jarak aman ROV dari dinding fisik (+-rov_arena_half).'),
+        DeclareLaunchArgument('rov_wall_margin', default_value='0.8',
+                              description='Jarak aman ROV dari dinding fisik (+-rov_arena_half). '
+                                          '0.8 -> clearance objek nyata ~0.45m stlh yaw jitter '
+                                          '(hull ROV ~0.30m worst-case); 0.5 lama hanya sisakan '
+                                          '~0.15m & memicu ODE aabbBound assert saat spawn.'),
         DeclareLaunchArgument('spawn_seed', default_value='',
                               description='Isi utk fix seed pose spawn acak '
                                           '(replay/debug); kosong = acak penuh tiap launch.'),

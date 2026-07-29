@@ -1,6 +1,6 @@
 # rov_params.yaml — Parameter FISIK ROV HYDROships (KKI 2026)
 # ==========================================================================
-# Dipisah dari hydroships.urdf.xacro agar massa, CoG/CoB, inertia, dan
+# Dipisah dari rov_kki2026_new_design.urdf.xacro agar massa, CoG/CoB, inertia, dan
 # koefisien hidrodinamika bisa diganti TANPA menyunting URDF langsung.
 # URDF memuat file ini via xacro.load_yaml('../config/rov_params.yaml').
 #

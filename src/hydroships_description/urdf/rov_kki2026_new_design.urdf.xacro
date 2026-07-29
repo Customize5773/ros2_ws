@@ -1,8 +1,7 @@
 <?xml version="1.0"?>
 <!--
   ROV KKI 2026 — NEW DESIGN (revisi FIXXXX)
-  Model URDF/xacro berbasis GEOMETRI CAD NYATA, alternatif dari
-  hydroships.urdf.xacro yang memakai primitif box/cylinder.
+  Model URDF/xacro berbasis GEOMETRI CAD NYATA, menggantikan model primitif box/cylinder sebelumnya.
 
   Frame konvensi ROS (REP-103): x maju (surge), y kiri (sway), z atas (heave).
 
@@ -35,7 +34,7 @@
   koordinatnya tidak sebanding dengan file ini.
 
   ==================== KOMPATIBILITAS ====================
-  Nama link, joint, topic, dan plugin sama dengan hydroships.urdf.xacro
+  Nama link, joint, topic, dan plugin sama dengan rov_kki2026_new_design.urdf.xacro
   (thruster_1..6, imu_link, depth_link, camera_front_link,
   camera_bottom_link, gripper_base, gripper_finger_left/right), jadi bisa
   dipakai bergantian tanpa menyentuh hydroships_control / hydroships_gazebo.
@@ -43,7 +42,7 @@
   supaya topic /model/hydroships/odometry tetap cocok dengan bridge.
 
   ==================== STATUS SINKRONISASI (2026-07-28) ====================
-  SUDAH sinkron di ketiga tempat — model ini, hydroships.urdf.xacro, dan
+  SUDAH sinkron di ketiga tempat — model ini, rov_kki2026_new_design.urdf.xacro, dan
   hydroships_control/allocation.py: posisi & sumbu 6 thruster, penomoran,
   kelas/diameter propeller, massa total, inertia, dan volume tergeser.
   Keduanya membaca config/rov_params.yaml yang sama.
@@ -102,7 +101,7 @@
   <xacro:property name="marker_radius" value="0.008"/>
 
   <!-- ============= Parameter FISIK dari config/rov_params.yaml =============
-       Sumber sama dengan hydroships.urdf.xacro supaya kedua model memakai
+       Sumber sama dengan rov_kki2026_new_design.urdf.xacro supaya kedua model memakai
        massa & koefisien hidrodinamika identik. -->
   <xacro:property name="rp" value="${xacro.load_yaml('../config/rov_params.yaml')}"/>
   <xacro:property name="vehicle_mass" value="${rp['vehicle_mass']}"/>
@@ -113,7 +112,7 @@
 
   <!-- Massa link tambahan model ini: 6 thruster + 2 jari + 6 frame referensi.
        base_link mendapat sisanya, supaya massa TOTAL = vehicle_mass persis
-       sama dengan hydroships.urdf.xacro meski link tambahannya berbeda. -->
+       sama dengan rov_kki2026_new_design.urdf.xacro meski link tambahannya berbeda. -->
   <xacro:property name="finger_mass" value="0.06"/>
   <xacro:property name="frame_mass" value="0.001"/>
   <xacro:property name="aux_mass" value="${6*thruster_mass + 2*finger_mass + 6*frame_mass}"/>
@@ -237,7 +236,8 @@
 
   <!-- ==================== Macro frame referensi ==================== -->
   <xacro:macro name="ref_frame" params="name parent xyz:='0 0 0' rpy:='0 0 0'
-                                        color:='0.5 0.5 0.5 1.0'">
+                                        color:='0.5 0.5 0.5 1.0'
+                                        mass:=${frame_mass} inertia_diag:='1e-7'">
     <link name="${name}">
       <xacro:if value="${show_frame_markers}">
         <visual>
@@ -247,9 +247,17 @@
         </visual>
       </xacro:if>
       <inertial>
-        <!-- massa diabaikan: frame referensi; massa aslinya sudah di base_mass -->
-        <mass value="${frame_mass}"/>
-        <inertia ixx="1e-7" ixy="0" ixz="0" iyy="1e-7" iyz="0" izz="1e-7"/>
+        <!-- massa diabaikan: frame referensi; massa aslinya sudah di base_mass.
+             mass/inertia_diag override-able (lihat gripper_base): link yg
+             DIPERTAHANKAN terpisah di SDF (preserveFixedJoint) tak boleh
+             sekecil 1e-7 - rasio massa/inersia ekstrem thd base_link (6.2kg)
+             membuat solver DART meledak di step pertama (ODE aabbBound
+             assert), independen dari posisi ROV di dunia. Link yg DILEBUR
+             (tanpa preserveFixedJoint) aman pakai default kecil krn cuma
+             ikut perhitungan aljabar merge, tak pernah jadi rigid body nyata. -->
+        <mass value="${mass}"/>
+        <inertia ixx="${inertia_diag}" ixy="0" ixz="0"
+                 iyy="${inertia_diag}" iyz="0" izz="${inertia_diag}"/>
       </inertial>
     </link>
     <joint name="${name}_joint" type="fixed">
@@ -293,7 +301,7 @@
        Enam unit dikenali dari mesh lewat connected-component analysis:
        rumah thruster = bongkah kompak 45-110 mm, arah dorong = normal
        cakram propeller/duct terdekat. Penomoran mengikuti Gambar 2.9/2.10
-       dokumen desain (penulis, 2026). IDENTIK dengan hydroships.urdf.xacro
+       dokumen desain (penulis, 2026). IDENTIK dengan rov_kki2026_new_design.urdf.xacro
        dan hydroships_control/allocation.py.
 
          nama        peran               kelas  duct terukur   putaran
@@ -416,8 +424,14 @@
        terpanggang di mesh base_link sehingga visual jari hanya muncul bila
        show_frame_markers=true — kinematikanya tetap benar.
        Sudut 0 = TERTUTUP, naik = MEMBUKA; mirroring lewat tanda axis. -->
+  <!-- mass/inertia_diag dinaikkan dari default 1e-7 - link ini DIPERTAHANKAN
+       terpisah (preserveFixedJoint di bawah), jadi jadi rigid body nyata di
+       DART, bukan sekadar ikut merge aljabar. Rasio ekstrem thd base_link
+       (6.2kg) menyebabkan constraint solver meledak (lihat catatan macro
+       ref_frame). Nilai baru masih <0.2% massa/inersia total kendaraan. -->
   <xacro:ref_frame name="gripper_base" parent="base_link"
-                   xyz="0.260 -0.034 -0.096" rpy="0 0 0" color="0.85 0.7 0.1 1.0"/>
+                   xyz="0.260 -0.034 -0.096" rpy="0 0 0" color="0.85 0.7 0.1 1.0"
+                   mass="0.05" inertia_diag="1e-4"/>
 
   <!-- Cegah sdformat melebur gripper_base ke base_link saat URDF->SDF:
        plugin DetachableJoint butuh link ini berdiri sendiri di SDF. -->
@@ -527,7 +541,7 @@
   <!-- Satu plugin Thruster per propeller -> /hydroships/thruster_i/thrust.
        Diameter kini mengikuti KELAS hasil ukur: T200 (surge) duct 90 mm ->
        0,076 m; T100 (heave & sway) prop 66,6 mm -> 0,048 m. Di
-       hydroships.urdf.xacro pembagian 0,076/0,048 mengikuti nomor urut,
+       rov_kki2026_new_design.urdf.xacro pembagian 0,076/0,048 mengikuti nomor urut,
        bukan kelas, sehingga thruster_3 & _4 dapat diameter berbeda padahal
        unitnya sama. Diameter mempengaruhi gaya per perintah — kalau ingin
        dinamika persis sama dgn model lama, samakan lagi nilainya. -->

@@ -28,8 +28,18 @@
       <real_time_factor>1.0</real_time_factor>
     </physics>
 
+    <!-- collision_detector=bullet: hindari bug ODE "aabbBound" assert
+         (dxHashSpace::collide integer-overflow, libode.so.8) - lihat
+         catatan sama di kki_arena.sdf. -->
     <plugin filename="gz-sim-physics-system"
-            name="gz::sim::systems::Physics"/>
+            name="gz::sim::systems::Physics">
+      <engine>
+        <filename>gz-physics-dartsim-plugin</filename>
+      </engine>
+      <dart>
+        <collision_detector>bullet</collision_detector>
+      </dart>
+    </plugin>
     <plugin filename="gz-sim-user-commands-system"
             name="gz::sim::systems::UserCommands"/>
     <plugin filename="gz-sim-scene-broadcaster-system"
@@ -192,38 +202,38 @@
       <link name="gantungan">
         <collision name="mount_collision">
           <pose>0.03 0 0.10 0 1.5708 0</pose>
-          <geometry><cylinder><radius>0.0125</radius><length>0.06</length></cylinder></geometry>
+          <geometry><cylinder><radius>0.013</radius><length>0.06</length></cylinder></geometry>
         </collision>
         <visual name="mount_visual">
           <pose>0.03 0 0.10 0 1.5708 0</pose>
-          <geometry><cylinder><radius>0.0125</radius><length>0.06</length></cylinder></geometry>
+          <geometry><cylinder><radius>0.013</radius><length>0.06</length></cylinder></geometry>
           <material><ambient>0.7 0.7 0.72 1</ambient><diffuse>0.8 0.8 0.82 1</diffuse></material>
         </visual>
         <collision name="riser_collision">
           <pose>0.06 0 -0.175 0 0 0</pose>
-          <geometry><cylinder><radius>0.0125</radius><length>0.55</length></cylinder></geometry>
+          <geometry><cylinder><radius>0.013</radius><length>0.55</length></cylinder></geometry>
         </collision>
         <visual name="riser_visual">
           <pose>0.06 0 -0.175 0 0 0</pose>
-          <geometry><cylinder><radius>0.0125</radius><length>0.55</length></cylinder></geometry>
+          <geometry><cylinder><radius>0.013</radius><length>0.55</length></cylinder></geometry>
           <material><ambient>0.7 0.7 0.72 1</ambient><diffuse>0.8 0.8 0.82 1</diffuse></material>
         </visual>
         <collision name="bottom_collision">
           <pose>0.10 0 -0.45 0 1.5708 0</pose>
-          <geometry><cylinder><radius>0.0125</radius><length>0.08</length></cylinder></geometry>
+          <geometry><cylinder><radius>0.013</radius><length>0.08</length></cylinder></geometry>
         </collision>
         <visual name="bottom_visual">
           <pose>0.10 0 -0.45 0 1.5708 0</pose>
-          <geometry><cylinder><radius>0.0125</radius><length>0.08</length></cylinder></geometry>
+          <geometry><cylinder><radius>0.013</radius><length>0.08</length></cylinder></geometry>
           <material><ambient>0.7 0.7 0.72 1</ambient><diffuse>0.8 0.8 0.82 1</diffuse></material>
         </visual>
         <collision name="tip_collision">
           <pose>0.14 0 -0.39 0 0 0</pose>
-          <geometry><cylinder><radius>0.0125</radius><length>0.12</length></cylinder></geometry>
+          <geometry><cylinder><radius>0.013</radius><length>0.12</length></cylinder></geometry>
         </collision>
         <visual name="tip_visual">
           <pose>0.14 0 -0.39 0 0 0</pose>
-          <geometry><cylinder><radius>0.0125</radius><length>0.12</length></cylinder></geometry>
+          <geometry><cylinder><radius>0.013</radius><length>0.12</length></cylinder></geometry>
           <material><ambient>0.7 0.7 0.72 1</ambient><diffuse>0.8 0.8 0.82 1</diffuse></material>
         </visual>
       </link>
@@ -235,38 +245,38 @@
       <link name="gantungan">
         <collision name="mount_collision">
           <pose>0.03 0 0.10 0 1.5708 0</pose>
-          <geometry><cylinder><radius>0.0125</radius><length>0.06</length></cylinder></geometry>
+          <geometry><cylinder><radius>0.013</radius><length>0.06</length></cylinder></geometry>
         </collision>
         <visual name="mount_visual">
           <pose>0.03 0 0.10 0 1.5708 0</pose>
-          <geometry><cylinder><radius>0.0125</radius><length>0.06</length></cylinder></geometry>
+          <geometry><cylinder><radius>0.013</radius><length>0.06</length></cylinder></geometry>
           <material><ambient>0.7 0.7 0.72 1</ambient><diffuse>0.8 0.8 0.82 1</diffuse></material>
         </visual>
         <collision name="riser_collision">
           <pose>0.06 0 -0.175 0 0 0</pose>
-          <geometry><cylinder><radius>0.0125</radius><length>0.55</length></cylinder></geometry>
+          <geometry><cylinder><radius>0.013</radius><length>0.55</length></cylinder></geometry>
         </collision>
         <visual name="riser_visual">
           <pose>0.06 0 -0.175 0 0 0</pose>
-          <geometry><cylinder><radius>0.0125</radius><length>0.55</length></cylinder></geometry>
+          <geometry><cylinder><radius>0.013</radius><length>0.55</length></cylinder></geometry>
           <material><ambient>0.7 0.7 0.72 1</ambient><diffuse>0.8 0.8 0.82 1</diffuse></material>
         </visual>
         <collision name="bottom_collision">
           <pose>0.10 0 -0.45 0 1.5708 0</pose>
-          <geometry><cylinder><radius>0.0125</radius><length>0.08</length></cylinder></geometry>
+          <geometry><cylinder><radius>0.013</radius><length>0.08</length></cylinder></geometry>
         </collision>
         <visual name="bottom_visual">
           <pose>0.10 0 -0.45 0 1.5708 0</pose>
-          <geometry><cylinder><radius>0.0125</radius><length>0.08</length></cylinder></geometry>
+          <geometry><cylinder><radius>0.013</radius><length>0.08</length></cylinder></geometry>
           <material><ambient>0.7 0.7 0.72 1</ambient><diffuse>0.8 0.8 0.82 1</diffuse></material>
         </visual>
         <collision name="tip_collision">
           <pose>0.14 0 -0.39 0 0 0</pose>
-          <geometry><cylinder><radius>0.0125</radius><length>0.12</length></cylinder></geometry>
+          <geometry><cylinder><radius>0.013</radius><length>0.12</length></cylinder></geometry>
         </collision>
         <visual name="tip_visual">
           <pose>0.14 0 -0.39 0 0 0</pose>
-          <geometry><cylinder><radius>0.0125</radius><length>0.12</length></cylinder></geometry>
+          <geometry><cylinder><radius>0.013</radius><length>0.12</length></cylinder></geometry>
           <material><ambient>0.7 0.7 0.72 1</ambient><diffuse>0.8 0.8 0.82 1</diffuse></material>
         </visual>
       </link>
@@ -278,38 +288,38 @@
       <link name="gantungan">
         <collision name="mount_collision">
           <pose>0.03 0 0.10 0 1.5708 0</pose>
-          <geometry><cylinder><radius>0.0125</radius><length>0.06</length></cylinder></geometry>
+          <geometry><cylinder><radius>0.013</radius><length>0.06</length></cylinder></geometry>
         </collision>
         <visual name="mount_visual">
           <pose>0.03 0 0.10 0 1.5708 0</pose>
-          <geometry><cylinder><radius>0.0125</radius><length>0.06</length></cylinder></geometry>
+          <geometry><cylinder><radius>0.013</radius><length>0.06</length></cylinder></geometry>
           <material><ambient>0.7 0.7 0.72 1</ambient><diffuse>0.8 0.8 0.82 1</diffuse></material>
         </visual>
         <collision name="riser_collision">
           <pose>0.06 0 -0.175 0 0 0</pose>
-          <geometry><cylinder><radius>0.0125</radius><length>0.55</length></cylinder></geometry>
+          <geometry><cylinder><radius>0.013</radius><length>0.55</length></cylinder></geometry>
         </collision>
         <visual name="riser_visual">
           <pose>0.06 0 -0.175 0 0 0</pose>
-          <geometry><cylinder><radius>0.0125</radius><length>0.55</length></cylinder></geometry>
+          <geometry><cylinder><radius>0.013</radius><length>0.55</length></cylinder></geometry>
           <material><ambient>0.7 0.7 0.72 1</ambient><diffuse>0.8 0.8 0.82 1</diffuse></material>
         </visual>
         <collision name="bottom_collision">
           <pose>0.10 0 -0.45 0 1.5708 0</pose>
-          <geometry><cylinder><radius>0.0125</radius><length>0.08</length></cylinder></geometry>
+          <geometry><cylinder><radius>0.013</radius><length>0.08</length></cylinder></geometry>
         </collision>
         <visual name="bottom_visual">
           <pose>0.10 0 -0.45 0 1.5708 0</pose>
-          <geometry><cylinder><radius>0.0125</radius><length>0.08</length></cylinder></geometry>
+          <geometry><cylinder><radius>0.013</radius><length>0.08</length></cylinder></geometry>
           <material><ambient>0.7 0.7 0.72 1</ambient><diffuse>0.8 0.8 0.82 1</diffuse></material>
         </visual>
         <collision name="tip_collision">
           <pose>0.14 0 -0.39 0 0 0</pose>
-          <geometry><cylinder><radius>0.0125</radius><length>0.12</length></cylinder></geometry>
+          <geometry><cylinder><radius>0.013</radius><length>0.12</length></cylinder></geometry>
         </collision>
         <visual name="tip_visual">
           <pose>0.14 0 -0.39 0 0 0</pose>
-          <geometry><cylinder><radius>0.0125</radius><length>0.12</length></cylinder></geometry>
+          <geometry><cylinder><radius>0.013</radius><length>0.12</length></cylinder></geometry>
           <material><ambient>0.7 0.7 0.72 1</ambient><diffuse>0.8 0.8 0.82 1</diffuse></material>
         </visual>
       </link>
@@ -321,38 +331,38 @@
       <link name="gantungan">
         <collision name="mount_collision">
           <pose>0.03 0 0.10 0 1.5708 0</pose>
-          <geometry><cylinder><radius>0.0125</radius><length>0.06</length></cylinder></geometry>
+          <geometry><cylinder><radius>0.013</radius><length>0.06</length></cylinder></geometry>
         </collision>
         <visual name="mount_visual">
           <pose>0.03 0 0.10 0 1.5708 0</pose>
-          <geometry><cylinder><radius>0.0125</radius><length>0.06</length></cylinder></geometry>
+          <geometry><cylinder><radius>0.013</radius><length>0.06</length></cylinder></geometry>
           <material><ambient>0.7 0.7 0.72 1</ambient><diffuse>0.8 0.8 0.82 1</diffuse></material>
         </visual>
         <collision name="riser_collision">
           <pose>0.06 0 -0.175 0 0 0</pose>
-          <geometry><cylinder><radius>0.0125</radius><length>0.55</length></cylinder></geometry>
+          <geometry><cylinder><radius>0.013</radius><length>0.55</length></cylinder></geometry>
         </collision>
         <visual name="riser_visual">
           <pose>0.06 0 -0.175 0 0 0</pose>
-          <geometry><cylinder><radius>0.0125</radius><length>0.55</length></cylinder></geometry>
+          <geometry><cylinder><radius>0.013</radius><length>0.55</length></cylinder></geometry>
           <material><ambient>0.7 0.7 0.72 1</ambient><diffuse>0.8 0.8 0.82 1</diffuse></material>
         </visual>
         <collision name="bottom_collision">
           <pose>0.10 0 -0.45 0 1.5708 0</pose>
-          <geometry><cylinder><radius>0.0125</radius><length>0.08</length></cylinder></geometry>
+          <geometry><cylinder><radius>0.013</radius><length>0.08</length></cylinder></geometry>
         </collision>
         <visual name="bottom_visual">
           <pose>0.10 0 -0.45 0 1.5708 0</pose>
-          <geometry><cylinder><radius>0.0125</radius><length>0.08</length></cylinder></geometry>
+          <geometry><cylinder><radius>0.013</radius><length>0.08</length></cylinder></geometry>
           <material><ambient>0.7 0.7 0.72 1</ambient><diffuse>0.8 0.8 0.82 1</diffuse></material>
         </visual>
         <collision name="tip_collision">
           <pose>0.14 0 -0.39 0 0 0</pose>
-          <geometry><cylinder><radius>0.0125</radius><length>0.12</length></cylinder></geometry>
+          <geometry><cylinder><radius>0.013</radius><length>0.12</length></cylinder></geometry>
         </collision>
         <visual name="tip_visual">
           <pose>0.14 0 -0.39 0 0 0</pose>
-          <geometry><cylinder><radius>0.0125</radius><length>0.12</length></cylinder></geometry>
+          <geometry><cylinder><radius>0.013</radius><length>0.12</length></cylinder></geometry>
           <material><ambient>0.7 0.7 0.72 1</ambient><diffuse>0.8 0.8 0.82 1</diffuse></material>
         </visual>
       </link>

@@ -19,8 +19,18 @@
       <real_time_factor>1.0</real_time_factor>
     </physics>
 
+    <!-- collision_detector=bullet: hindari bug ODE "aabbBound" assert
+         (dxHashSpace::collide integer-overflow, libode.so.8) - lihat
+         catatan sama di kki_arena.sdf. -->
     <plugin filename="gz-sim-physics-system"
-            name="gz::sim::systems::Physics"/>
+            name="gz::sim::systems::Physics">
+      <engine>
+        <filename>gz-physics-dartsim-plugin</filename>
+      </engine>
+      <dart>
+        <collision_detector>bullet</collision_detector>
+      </dart>
+    </plugin>
     <plugin filename="gz-sim-user-commands-system"
             name="gz::sim::systems::UserCommands"/>
     <plugin filename="gz-sim-scene-broadcaster-system"

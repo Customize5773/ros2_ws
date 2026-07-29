@@ -7,8 +7,7 @@ thruster/sensor/gripper, dan TF tree. Tidak menjalankan fisika apa pun.
   ros2 launch hydroships_description display_kki2026.launch.py
 
 Argumen:
-  model            urdf/rov_kki2026_new_design.urdf.xacro (default) atau
-                   urdf/hydroships.urdf.xacro untuk membandingkan model box.
+model            urdf/rov_kki2026_new_design.urdf.xacro (default, CAD mesh)
   markers          true -> tampilkan bola penanda di tiap frame referensi.
   collision_mode   hull (default) | box — lihat catatan APUNG di xacro.
   gui              true (default) -> joint_state_publisher_gui utk gripper.

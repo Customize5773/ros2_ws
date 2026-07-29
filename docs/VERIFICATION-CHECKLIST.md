@@ -65,7 +65,7 @@ Format: `[ ]` deskripsi — cara verifikasi — file/commit terkait.
 
 - [ ] **Pemetaan label hook A/B/C/D → sisi kolam** & pengacakan posisi (A=−Y/B=+Y/C=+X/D=−X sementara). — `worlds/kki_arena.sdf`.
 - [ ] **Geometri hook Ø25 mm** (silinder J, z terendah −0.45) cukup untuk uji sangkut nyata. — `worlds/kki_arena.sdf`.
-- [ ] **Arah bow (haluan)** — cek `bow_yaw` di GUI (footprint ~persegi, tak bisa ditebak bbox). — `hydroships.urdf.xacro`.
+- [ ] **Arah bow (haluan)** — cek `bow_yaw` di GUI (footprint ~persegi, tak bisa ditebak bbox). — `rov_kki2026_new_design.urdf.xacro`.
 - [ ] **Kalibrasi kamera fisik ROV** (OPEN, gap hardware) — intrinsics sim ≠ kalibrasi
   hardware; jangan pakai K sim untuk estimasi jarak riil sampai kalibrasi kamera fisik tersedia. — `qr_detector.py`.
 - [ ] **Data fisik ROV asli** — massa/inertia/koefisien hidrodinamika masih `[estimate]`;
