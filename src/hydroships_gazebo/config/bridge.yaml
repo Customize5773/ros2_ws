@@ -14,6 +14,12 @@
   gz_type_name: "gz.msgs.Clock"
   direction: GZ_TO_ROS
 
+- ros_topic_name: "/hydroships/gripper/detach"
+  gz_topic_name: "/model/hydroships/detachable_joint/detach"
+  ros_type_name: "std_msgs/msg/Empty"
+  gz_type_name: "ignition.msgs.Empty"
+  direction: ROS_TO_GZ
+  
 # ---- Odometry ROV (pose & twist) : Gazebo -> ROS ----
 - ros_topic_name: "/hydroships/odom"
   gz_topic_name: "/model/hydroships/odometry"

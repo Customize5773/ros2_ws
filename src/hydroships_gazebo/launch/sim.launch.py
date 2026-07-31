@@ -118,7 +118,7 @@ def _launch_setup(context, *args, **kwargs):
         get_package_share_directory('hydroships_gazebo'),
         'models', 'payload', 'model.sdf')
 
-    bottom_offset = 0.3   # m, turun dari center ROV (sesuaikan sampai pas)
+    bottom_offset = 0.5   # m, turun dari center ROV (sesuaikan sampai pas)
     px = float(x)
     py = float(y)
     pz = float(z) - bottom_offset

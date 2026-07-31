@@ -53,7 +53,7 @@ WALL_HEADING_DEG = {'A': 270.0, 'B': 90.0, 'C': 0.0, 'D': 180.0}
 
 
 class St(Enum):
-    IDLE = auto(); DIVE = auto(); APPROACH_QR = auto(); GRAB = auto()
+    IDLE = auto(); DIVE = auto(); BACKOFF = auto(); APPROACH_QR = auto(); GRAB = auto()
     NAV_WALL = auto(); HANG = auto(); AUTO_RELEASE = auto(); DONE = auto(); ABORT = auto()
 
 
@@ -77,15 +77,18 @@ class MissionFSM(Node):
         p('approach_kp', 90.0)       # N/m gain posisi XY -> gaya horizontal
         p('approach_kd', 70.0)       # N/(m/s) redaman kecepatan (cegah overshoot)
         p('approach_fmax', 16.0)     # N batas gaya approach
-        p('approach_tol', 0.06)      # m radius "sudah di atas payload"
+        p('approach_tol', 0.12)      # m radius "sudah di atas payload"
         p('wall_dist', 2.30)         # m jarak pusat->target wall (standoff; hook ~2.4 m)
         p('hook_dist', 0.30)         # m jarak target di depan hook (lebih dekat dari wall_dist)
         p('hook_lateral_offset', 0.0)  # m, koreksi geser samping ke hook (+/- sesuai arah)
         p('nav_tol', 0.20)           # m radius "tiba di wall/hook"
+        p('hook_tol', 0.08)          # m radius lebih ketat khusus utk HANG (presisi di hook)
         p('nav_fmax', 22.0)          # N batas gaya navigasi holonomik
         p('hold_settle_s', 2.0)      # s harus tetap di dalam tol sebelum dianggap "stabil"
         # timeout per state (s)
         p('t_dive', 20.0); p('t_scan', 45.0); p('t_grab', 10.0); p('t_nav', 30.0)
+        p('backoff_duration_s', 2.0)   # s lama mundur sebelum putar balik ke QR
+        p('backoff_force', -15.0)      # N gaya mundur (negatif = mundur)
         p('t_hang', 20.0); p('t_surface', 20.0); p('t_wait_trigger', 600.0)
         p('t_release', 30.0)
 
@@ -104,10 +107,13 @@ class MissionFSM(Node):
         self.approach_kd = float(g('approach_kd'))
         self.approach_fmax = float(g('approach_fmax'))
         self.approach_tol = float(g('approach_tol'))
+        self.backoff_duration_s = float(g('backoff_duration_s'))
+        self.backoff_force = float(g('backoff_force'))
         self.wall_dist = float(g('wall_dist'))
         self.hook_dist = float(g('hook_dist'))
         self.hook_lateral_offset = float(g('hook_lateral_offset'))
         self.nav_tol = float(g('nav_tol'))
+        self.hook_tol = float(g('hook_tol'))
         self.nav_fmax = float(g('nav_fmax'))
         self.hold_settle_s = float(g('hold_settle_s'))
         self.T = {k: float(g('t_' + k)) for k in
@@ -128,6 +134,8 @@ class MissionFSM(Node):
         self.pub_qr_request = self.create_publisher(Empty, '/hydroships/qr_request', 10)
         self._qr_requested = False
         self._detach_sent = False
+        self._first_dive_done = False
+        self._locked_yaw = None
 
         # State
         self.depth = None
@@ -189,7 +197,7 @@ class MissionFSM(Node):
         self.pub_manual.publish(t)
 
     def _goto_xy_yaw_first(self, tx, ty, fmax=None, yaw_gate_deg=15.0,
-                            freeze_dist=0.08, slow_dist=1.5):
+                            freeze_dist=0.08, slow_dist=2.0):
         """Non-holonomik: putar dulu menghadap target, baru maju (surge saja,
         tanpa sway). Gaya di-TAPER mulai slow_dist (mengecil linear sampai
         freeze_dist) agar ROV melambat sebelum tiba, tak slam. Dalam
@@ -288,13 +296,31 @@ class MissionFSM(Node):
     # ---- state handlers ----
     def _st_dive(self):
         self._set_depth(self.scan_depth)
-        self._set_heading(0.0)
+        if not self._first_dive_done:
+            self._set_heading(0.0)   # dive pertama: belum ada heading sebelumnya
         if self.depth is not None and self.depth >= self.scan_depth - self.depth_tol:
             self._set_surge(0.0)
             self.get_logger().info('Kedalaman scan tercapai (%.2fm)' % self.depth)
-            self._to(St.APPROACH_QR)
+            if self._first_dive_done:
+                self._to(St.BACKOFF)
+            else:
+                self._first_dive_done = True
+                self._to(St.APPROACH_QR)
         elif self._elapsed() > self.T['dive']:
             self.get_logger().error('DIVE timeout'); self._to(St.ABORT)
+
+    def _st_backoff(self):
+        """Mundur sejenak LURUS ke arah heading saat ini (dikunci sekali di
+        awal state, tak ikut heading DIVE yg menuju 0) sebelum putar balik
+        ke QR — beri jarak agar putaran 180° tak langsung nabrak wall/hook."""
+        if self._locked_yaw is None:
+            self._locked_yaw = self.yaw if self.yaw is not None else 0.0
+        self._set_depth(self.scan_depth)
+        self._set_heading(self._locked_yaw)
+        self._set_surge(self.backoff_force, 0.0)
+        if self._elapsed() > self.backoff_duration_s:
+            self._set_surge(0.0)
+            self._to(St.APPROACH_QR)
 
     def _st_approach_qr(self):
         """Misi 1 (SIMPLIFIED): QR detection dilewati sementara (lihat
@@ -302,6 +328,11 @@ class MissionFSM(Node):
         tetap posisikan diri di atas payload dulu sebelum lanjut."""
         self._set_depth(self.scan_depth)
         dist = self._goto_xy_yaw_first(self.payload_x, self.payload_y)
+        if int(self._elapsed() * 2) % 6 == 0:
+            self.get_logger().info(
+                'APPROACH_QR dbg: dist=%.2f x=%.2f y=%.2f yaw=%.1f target=(%.2f,%.2f)'
+                % (dist, self.x or -99, self.y or -99,
+                   math.degrees(self.yaw or 0), self.payload_x, self.payload_y))
         if dist < self.approach_tol:
             if self._wall_idx >= len(self._wall_sequence):
                 self.get_logger().info('Semua wall selesai, misi tuntas.')
@@ -361,7 +392,7 @@ class MissionFSM(Node):
         self._set_depth(self.hook_depth)
         self._set_heading(target_heading)
         dist = self._goto_xy(tx, ty, fmax=self.nav_fmax)
-        if dist < self.nav_tol:
+        if dist < self.hook_tol:
             if self._hold_since is None:
                 self._hold_since = self._now()
             if self._now() - self._hold_since >= self.hold_settle_s:
@@ -429,7 +460,7 @@ class MissionFSM(Node):
             self._set_depth(self.hook_depth)
             self._set_heading(target_heading)
             dist = self._goto_xy(tx, ty, fmax=self.nav_fmax)
-            if dist < self.nav_tol:
+            if dist < self.hook_tol:
                 if self._hold_since is None:
                     self._hold_since = self._now()
                 if self._now() - self._hold_since >= self.hold_settle_s:
