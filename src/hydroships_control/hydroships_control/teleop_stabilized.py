@@ -122,9 +122,15 @@ def main(args=None):
         node.fx = node.fy = 0.0
         node.publish_manual()
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
-        node.destroy_node()
+        # Hentikan context DULU supaya rclpy.spin(node) di thread lain berhenti
+        # sendiri, baru join thread itu, baru destroy_node. Urutan lama
+        # (destroy_node -> shutdown) membiarkan thread spin memakai node/context
+        # yang sudah dihancurkan -> race condition -> "terminate called without
+        # an active exception" / crash saat keluar (tombol x).
         if rclpy.ok():
             rclpy.shutdown()
+        thread.join(timeout=2.0)
+        node.destroy_node()
 
 
 if __name__ == '__main__':
