@@ -75,7 +75,7 @@ class Stabilizer(Node):
         self.declare_parameter('roll.out_limit', 15.0)
         # Feedforward untuk mengimbangi gaya apung bersih (N, negatif = dorong turun).
         self.declare_parameter('buoyancy_ff', -1.45)
-        self.declare_parameter('target_depth', -0.7)
+        self.declare_parameter('target_depth', -0.1)
         self.declare_parameter('target_heading', 0.0)
         self.declare_parameter('target_pitch', 0.0)
         self.declare_parameter('target_roll', 0.0)

@@ -39,7 +39,7 @@ stabilizer:
     # Gaya apung bersih ~ +1.45 N (ke atas); feedforward mendorong turun.
     buoyancy_ff: -1.45
 
-    target_depth: -0.7     # meter, negatif = di bawah permukaan
+    target_depth: -0.1     # meter, negatif = di bawah permukaan
     target_heading: 0.0    # radian
     target_pitch: 0.0      # radian
     target_roll: 0.0       # radian
