@@ -5,10 +5,13 @@
   Frame konvensi ROS (REP-103): x maju (surge), y kiri (sway), z atas (heave).
 
   Catatan penyederhanaan M1:
-    * Rangka dimodelkan sebagai satu kotak solid 0.345 x 0.345 x 0.286 m.
-      Volume perpindahan air kotak ~0.0340 m^3 -> gaya apung setara ~34.05 kg.
-      Massa total (base + 6 thruster) dibuat SEDIKIT DI BAWAH itu supaya ROV
-      apung pelan saat thruster mati (near-neutral, sedikit positif).
+    * Bbox visual/mounting (body_x/y/z) = 0.345 x 0.345 x 0.286 m, TAPI collision
+      box sumber buoyancy (buoy_x/y/z, dari rov_params.yaml: buoyancy_collision)
+      diskalakan LEBIH KECIL: rangka ROV asli berongga, volume perpindahan air
+      efektif hanya dari kompartemen tersegel, bukan seluruh bbox luar.
+      Massa total (base + 6 thruster + gripper, ~8.7 kg) dibuat SEDIKIT DI BAWAH
+      massa air yg dipindahkan collision box itu supaya ROV apung pelan saat
+      thruster mati (near-neutral, sedikit positif).
       Ini placeholder yang di-tune di M2, BUKAN massa ROV asli.
     * Koefisien hidrodinamika memakai nilai acuan tipe BlueROV2 (di-tune belakangan).
 
@@ -42,6 +45,9 @@
   <xacro:property name="base_mass" value="${rp['base_mass']}"/>
   <xacro:property name="thruster_mass" value="${rp['thruster_mass']}"/>
   <xacro:property name="fluid_density" value="${rp['fluid_density']}"/>
+  <xacro:property name="buoy_x" value="${rp['buoyancy_collision']['x']}"/>
+  <xacro:property name="buoy_y" value="${rp['buoyancy_collision']['y']}"/>
+  <xacro:property name="buoy_z" value="${rp['buoyancy_collision']['z']}"/>
 
   <xacro:property name="cog" value="${rp['cog']}"/>
 
@@ -117,13 +123,16 @@
       </material>
     </visual>
     <!-- Collision box dipakai plugin Buoyancy untuk menghitung volume perpindahan.
+         Ukuran (buoy_x/y/z) SENGAJA lebih kecil dari bbox visual/mounting body_x/y/z
+         (rangka ROV asli berongga, volume perpindahan efektif hanya dari
+         kompartemen tersegel); lihat rov_params.yaml: buoyancy_collision.
          Origin digeser ke atas sebesar cob.z (relatif thd inertial origin/CoG di atas)
          agar CoB (centroid box ini) berada di atas CoG -> metacentric height positif,
          restoring moment pasif utk pitch/roll (lihat rov_params.yaml: cob). -->
     <collision>
       <origin xyz="${rp['cob']['x']} ${rp['cob']['y']} ${rp['cob']['z']}" rpy="0 0 0"/>
       <geometry>
-        <box size="${body_x} ${body_y} ${body_z}"/>
+        <box size="${buoy_x} ${buoy_y} ${buoy_z}"/>
       </geometry>
     </collision>
   </link>

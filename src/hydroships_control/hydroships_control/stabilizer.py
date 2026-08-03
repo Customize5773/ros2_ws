@@ -74,8 +74,8 @@ class Stabilizer(Node):
         self.declare_parameter('roll.integral_limit', 5.0)
         self.declare_parameter('roll.out_limit', 15.0)
         # Feedforward untuk mengimbangi gaya apung bersih (N, negatif = dorong turun).
-        # Lihat gains.yaml: dgn base_mass=8.3kg, batas fisik thruster vertikal (~-120N).
-        self.declare_parameter('buoyancy_ff', -120.0)
+        # Lihat gains.yaml: near-neutral setelah collision box buoyancy diskalakan.
+        self.declare_parameter('buoyancy_ff', -0.3)
         self.declare_parameter('target_depth', -0.1)
         self.declare_parameter('target_heading', 0.0)
         self.declare_parameter('target_pitch', 0.0)
