@@ -277,7 +277,7 @@
        BUKAN gesekan jari. DUA JARI opposing (kiri/kanan) di sini KOSMETIK
        (indikator visual buka/tutup) — digerakkan SEREMPAK dari satu nilai sudut.
        Dipasang di MUKA DEPAN ROV, menjorok ke arah depan (+X). Lihat PROBLEM.md. -->
-  <xacro:property name="grip_mass" value="0.12"/>
+  <xacro:property name="grip_mass" value="0.08"/>
 
   <!-- Body gripper di muka depan ROV, menjorok ke depan (+X). -->
   <link name="gripper_base">
@@ -322,7 +322,7 @@
     <link name="gripper_finger_${side}">
       <inertial>
         <origin xyz="0.04 0 0" rpy="0 0 0"/>
-        <mass value="0.06"/>
+        <mass value="0.01"/>
         <inertia ixx="6.0e-6" ixy="0.0" ixz="0.0" iyy="3.6e-5" iyz="0.0" izz="3.4e-5"/>
       </inertial>
       <visual>

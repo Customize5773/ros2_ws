@@ -36,8 +36,14 @@ stabilizer:
       integral_limit: 5.0
       out_limit: 15.0      # batas |Mx| (N*m)
 
-    # Gaya apung bersih ~ +1.45 N (ke atas); feedforward mendorong turun.
-    buoyancy_ff: -1.45
+    # Gaya apung bersih setelah base_mass diturunkan ke 8.3 kg + gripper 0.1 kg
+    # (total ~8.7 kg dgn thruster) sementara volume hull TETAP (~34.04 kg air
+    # terpindah) -> net apung ke atas ~+248.6 N. Thruster vertikal (1,2,6) hanya
+    # sanggup ~3x40N=120N dorong-turun gabungan (lihat allocation.py MIN_THRUST),
+    # jadi -248.6N TIDAK bisa dicapai. buoyancy_ff diset ke batas maksimum yang
+    # secara fisik sanggup dihasilkan; ROV akan tetap cenderung mengapung naik
+    # (residual ~+128.6N tak terkompensasi) sampai desain hull/ballast direvisi.
+    buoyancy_ff: -120.0
 
     target_depth: -0.1     # meter, negatif = di bawah permukaan
     target_heading: 0.0    # radian

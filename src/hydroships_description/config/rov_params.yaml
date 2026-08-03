@@ -20,9 +20,7 @@
 # ==========================================================================
 
 # --- Massa ---
-base_mass: 33.6          # kg   [estimate] near-neutral; dipilih agar total
-                         #      (base+6 thruster) sedikit di bawah massa air
-                         #      terpindah (~34.04 kg) -> apung pelan saat mati.
+base_mass: 8.3           # kg   [measured] bobot ROV (tanpa gripper/thruster).
 thruster_mass: 0.05      # kg   [estimate] massa tiap link thruster.
 
 # --- Massa jenis fluida (air kolam) ---
@@ -41,12 +39,12 @@ cog: {x: 0.0, y: 0.0, z: 0.0}   # m  [estimate] origin = pusat bbox.
 cob: {x: 0.0, y: 0.0, z: 0.02}  # m  [estimate] sedikit di atas CoG (stabil).
 
 # --- Tensor inertia base_link di CoG (kg*m^2) ---
-# [estimate] diturunkan dari box pejal 0.345 x 0.345 x 0.286 m @ base_mass
-# via scripts/estimate_mass_inertia.py (self-test menjaga konsistensi).
+# [estimate] diturunkan dari box pejal 0.345 x 0.345 x 0.286 m @ base_mass=8.3 kg
+# via scripts/estimate_mass_inertia.py --dims 0.345 0.345 0.286 --mass 8.3
 inertia:
-  ixx: 0.56230
-  iyy: 0.56230
-  izz: 0.66654
+  ixx: 0.13890
+  iyy: 0.13890
+  izz: 0.16465
   ixy: 0.0
   ixz: 0.0
   iyz: 0.0
