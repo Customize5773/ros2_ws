@@ -27,6 +27,17 @@ thruster_mass: 0.05      # kg   [estimate] massa tiap link thruster.
 fluid_density: 1000.0    # kg/m^3  [measured] air tawar; dipakai plugin
                          #         Hydrodynamics & Thruster.
 
+# --- Dimensi collision box untuk BUOYANCY (bukan bbox visual/mounting body_x/y/z
+# di urdf.xacro) ---
+# Rangka ROV asli berongga (frame terbuka), bukan kotak solid penuh; volume
+# perpindahan air efektif hanya berasal dari kompartemen tersegel (elektronik +
+# busa apung), jadi dibuat LEBIH KECIL dari bbox luar 0.345x0.345x0.286 m.
+# Diskalakan (faktor ~0.635, rasio sisi sama dgn bbox luar) agar massa air
+# terpindah (~8.73 kg) mendekati massa total sistem (~8.7 kg: base 8.3 + 6
+# thruster 0.3 + gripper 0.1) -> near-neutral, sedikit positif (sama filosofi
+# desain M1, lihat catatan di atas urdf.xacro). GANTI bila hull final berbeda.
+buoyancy_collision: {x: 0.219, y: 0.219, z: 0.182}
+
 # --- Center of Gravity (offset dari origin base_link) ---
 cog: {x: 0.0, y: 0.0, z: 0.0}   # m  [estimate] origin = pusat bbox.
 
@@ -50,27 +61,33 @@ inertia:
   iyz: 0.0
 
 # --- Koefisien hidrodinamika (model Fossen) ---
-# SEMUA [estimate]: nilai acuan tipe BlueROV2, BUKAN ROV HYDROships nyata.
-# Ganti dgn hasil identifikasi (uji tarik / CFD) saat tersedia.
+# SEMUA [estimate]: nilai acuan tipe BlueROV2 (~33.6 kg), diskalakan proporsional
+# dgn rasio massa (8.3/33.6 ~ 0.247) setelah base_mass diturunkan ke 8.3 kg.
+# PENTING: koefisien ini (terutama added_mass) TIDAK BOLEH lebih besar dari
+# base_mass -- kalau added_mass >> massa benda, simulator jadi numerically stiff
+# dan gz-sim-physics (ODE/dartsim) bisa crash ("aabbBound" assertion) di step
+# awal karena solver kontak/constraint tak sanggup menangani rasio massa efektif
+# yg ekstrem. Ganti dgn hasil identifikasi (uji tarik / CFD) saat tersedia; kalau
+# base_mass diubah lagi, SKALAKAN ULANG semua nilai di bawah dgn rasio yg sama.
 # Tanda negatif = gaya reaktif melawan gerak (konvensi plugin gz Hydrodynamics).
 added_mass:            # gaya reaktif ~ percepatan
-  xDotU: -6.36
-  yDotV: -7.12
-  zDotW: -18.68
-  kDotP: -0.189
-  mDotQ: -0.135
-  nDotR: -0.222
+  xDotU: -1.571
+  yDotV: -1.759
+  zDotW: -4.614
+  kDotP: -0.0467
+  mDotQ: -0.0334
+  nDotR: -0.0548
 linear_damping:        # gaya reaktif ~ kecepatan
-  xU: -11.7
-  yV: -20.0
-  zW: -31.9
-  kP: -25.0
-  mQ: -44.0
-  nR: -5.0
+  xU: -2.890
+  yV: -4.940
+  zW: -7.880
+  kP: -6.176
+  mQ: -10.869
+  nR: -1.235
 quadratic_damping:     # gaya reaktif ~ kecepatan*|kecepatan|
-  xUabsU: -18.18
-  yVabsV: -21.66
-  zWabsW: -36.99
-  kPabsP: -1.55
-  mQabsQ: -1.55
-  nRabsR: -1.55
+  xUabsU: -4.491
+  yVabsV: -5.351
+  zWabsW: -9.137
+  kPabsP: -0.383
+  mQabsQ: -0.383
+  nRabsR: -0.383
