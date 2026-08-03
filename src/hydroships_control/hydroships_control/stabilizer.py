@@ -6,7 +6,7 @@ lalu menggabung dengan perintah manual dari pilot/autonomy. Output berupa wrench
 body ke /hydroships/cmd_vel (dikonsumsi thruster_allocator).
 
 Fitur & Proteksi Utama:
-- Fail-Safe E-STOP: Default AKTIF saat node pertama kali nyala sampai dapat 'False'.
+- Fail-Safe E-STOP: Default NON-AKTIF untuk kemudahan pengujian simulasi.
 - Sanitasi Input/Output: Validasi math.isfinite() ketat untuk cegah NaN/inf merusak PID.
 - Watchdog & Jump-Reset: Fallback ke manual jika sensor stale, serta auto-reset PID 
   jika terjadi lonjakan setpoint drastis.
@@ -98,8 +98,11 @@ class Stabilizer(Node):
         self.declare_parameter('buoyancy_ff', -1.45)
         self.declare_parameter('target_depth', -1.0)
         self.declare_parameter('target_heading', 0.0)
-        self.declare_parameter('enable_depth_hold', False)
-        self.declare_parameter('enable_heading_hold', False)
+        
+        # FIX: Diubah ke True agar mode hold langsung aktif
+        self.declare_parameter('enable_depth_hold', True)
+        self.declare_parameter('enable_heading_hold', True)
+        
         self.declare_parameter('manual_timeout', 0.5)
         self.declare_parameter('odom_timeout', 0.5)
 
@@ -139,8 +142,8 @@ class Stabilizer(Node):
         self.last_manual_time = None
         self.last_odom_time = None
 
-        # FAIL-SAFE: Estop aktif sampai menerima sinyal False eksplisit
-        self.estop = True
+        # FIX: E-STOP non-aktif secara default untuk simulasi
+        self.estop = False
 
         # ---- Publisher & Subscriber ----
         self.pub = self.create_publisher(Twist, '/hydroships/cmd_vel', 10)
@@ -160,9 +163,7 @@ class Stabilizer(Node):
 
         rate = gp('rate').value
         self.timer = self.create_timer(1.0 / rate, self.on_timer)
-        self.get_logger().warn(
-            'Stabilizer siap, TAPI estop dianggap AKTIF sampai '
-            'menerima pesan eksplisit False di /hydroships/estop.')
+        self.get_logger().info('Stabilizer siap dan sistem dalam kondisi ARMED (E-STOP non-aktif).')
 
     # ---- Helper Functions ----
     def _update_depth_pid_bounds(self, new_limit=None, new_ff=None):
@@ -232,9 +233,7 @@ class Stabilizer(Node):
     def on_param_change(self, params):
         try:
             # Validasi SEMUA parameter numerik: wajib finite (bukan NaN/inf),
-            # dan untuk subset tertentu wajib > 0. Cek `<= 0.0` saja TIDAK
-            # cukup karena perbandingan dengan NaN selalu False di Python --
-            # NaN akan lolos begitu saja lewat validasi lama.
+            # dan untuk subset tertentu wajib > 0.
             for p in params:
                 name, val = p.name, p.value
                 if name in _POSITIVE_NUMERIC_PARAMS or name in _FINITE_ONLY_NUMERIC_PARAMS:
