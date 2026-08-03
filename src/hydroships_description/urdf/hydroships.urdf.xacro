@@ -116,9 +116,12 @@
         <color rgba="0.15 0.15 0.18 1.0"/>
       </material>
     </visual>
-    <!-- Collision box dipakai plugin Buoyancy untuk menghitung volume perpindahan. -->
+    <!-- Collision box dipakai plugin Buoyancy untuk menghitung volume perpindahan.
+         Origin digeser ke atas sebesar cob.z (relatif thd inertial origin/CoG di atas)
+         agar CoB (centroid box ini) berada di atas CoG -> metacentric height positif,
+         restoring moment pasif utk pitch/roll (lihat rov_params.yaml: cob). -->
     <collision>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="${rp['cob']['x']} ${rp['cob']['y']} ${rp['cob']['z']}" rpy="0 0 0"/>
       <geometry>
         <box size="${body_x} ${body_y} ${body_z}"/>
       </geometry>
