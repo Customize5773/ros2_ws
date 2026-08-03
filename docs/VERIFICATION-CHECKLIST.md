@@ -41,9 +41,13 @@ Format: `[ ]` deskripsi — cara verifikasi — file/commit terkait.
 
 ## Prioritas 3 — Autonomy & servo hook
 
-- [ ] **APPROACH_HOOK servo konvergen** — `ros2 topic echo /hydroships/hook_offset`;
-  amati ROV servo (sway+surge+koreksi-depth) menuju hook di render kamera depan; cek fallback
-  timed tak dipakai kecuali deteksi hilang. — `hook_detector.py`, `hook_logic.hook_servo`, `mission_fsm._st_approach_hook`, commit `499ab31`/`acac770`.
+- [ ] **APPROACH_HOOK servo konvergen** — `start_state:=APPROACH_HOOK start_wall:=B`;
+  `ros2 topic echo /hydroships/hook_offset`; amati ROV servo (sway+surge+koreksi-depth)
+  menuju hook di render kamera depan sampai `|ex|,|ey| < hook_center_tol` &
+  `size > hook_size_stop`, lalu `-> AUTO_RELEASE`. — `hook_detector.py`, `hook_logic.hook_servo`, `mission_fsm._st_approach_hook`.
+- [ ] **Fallback open-loop APPROACH_HOOK** — matikan proses `hook_detector` di tengah
+  approach: cek log warn "tak ada deteksi hook, pakai target odometri" dan state tetap
+  MAJU ke `AUTO_RELEASE` (tidak abort). — `mission_fsm._hook_fresh`, param `hook_max_age`.
 - [ ] **Deteksi hook di kamera sim** — verifikasi `hook_detector` mendeteksi hook arena;
   tuning ambang (`min_area`, CLAHE) untuk glare/kekeruhan/kontras render. — `hook_detector.py` params.
 - [ ] **Tuning gain PD servo hook** — `hook_kp_*`/`hook_kd_*` (estimasi) disetel dari perilaku sim. — `mission_fsm.py` params.

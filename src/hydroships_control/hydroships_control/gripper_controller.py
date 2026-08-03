@@ -1,7 +1,8 @@
 """gripper_controller — node manipulator ROV (rancang ulang M5, DetachableJoint).
 
 Menerima perintah semantik open/close (kontrak GUI/autonomy dipertahankan) lalu:
-  * menggerakkan jari kosmetik 1 DOF (Float64 -> JointPositionController gz), dan
+  * menggerakkan DUA jari kosmetik opposing (Float64 -> JointPositionController gz;
+    nilai identik ke kiri & kanan, mirroring dari tanda axis di URDF), dan
   * memicu **gz-sim DetachableJoint** attach/detach (std_msgs/Empty -> gz.msgs.Empty
     via bridge) untuk grasp fisik yang andal (bukan gesekan jari versi lama).
 
@@ -12,7 +13,8 @@ aman (dinilai dari /hydroships/qr_offset). Logika keputusan ada di gripper_logic
 Kontrak topic (lihat docs/ARCHITECTURE.md — tak mengubah interface lama yg dipakai):
     /hydroships/gripper/command   (std_msgs/String  "open"|"close")   -> masuk
     /hydroships/qr_offset         (geometry_msgs/PointStamped)         -> masuk
-    /hydroships/gripper_jaw/cmd   (std_msgs/Float64, rad)              -> keluar (bridge->gz)
+    /hydroships/gripper_left/cmd  (std_msgs/Float64, rad)              -> keluar (bridge->gz)
+    /hydroships/gripper_right/cmd (std_msgs/Float64, rad)              -> keluar (bridge->gz)
     /hydroships/gripper/attach    (std_msgs/Empty)                     -> keluar (bridge->gz)
     /hydroships/gripper/detach    (std_msgs/Empty)                     -> keluar (bridge->gz)
 """
@@ -33,7 +35,7 @@ class GripperController(Node):
         p('max_offset', 0.30)       # |offset x/y| maks agar "di atas payload"
         p('min_size', 0.12)         # ukuran-tampak QR min (proxy dekat)
         p('offset_timeout', 1.5)    # umur maks qr_offset (s)
-        p('jaw_open', 0.6)          # sudut jari terbuka (rad)
+        p('jaw_open', 0.35)         # sudut jari terbuka (rad; <= upper limit URDF 0.5)
         p('jaw_close', 0.0)         # sudut jari menutup (rad)
         # Auto-detach startup kini DIPICU TOPIK /hydroships/payload/spawned (dari
         # payload_spawner) — detach terjadi SETELAH payload muncul di dunia, bukan
@@ -49,7 +51,8 @@ class GripperController(Node):
             offset_timeout=float(g('offset_timeout')),
             jaw_open=float(g('jaw_open')), jaw_close=float(g('jaw_close')))
 
-        self.pub_jaw = self.create_publisher(Float64, '/hydroships/gripper_jaw/cmd', 10)
+        self.pub_jaw_left = self.create_publisher(Float64, '/hydroships/gripper_left/cmd', 10)
+        self.pub_jaw_right = self.create_publisher(Float64, '/hydroships/gripper_right/cmd', 10)
         self.pub_attach = self.create_publisher(Empty, '/hydroships/gripper/attach', 10)
         self.pub_detach = self.create_publisher(Empty, '/hydroships/gripper/detach', 10)
         self.create_subscription(String, '/hydroships/gripper/command', self._on_cmd, 10)
@@ -85,8 +88,10 @@ class GripperController(Node):
         self.logic.update_offset(msg.point.x, msg.point.y, msg.point.z, stamp)
 
     def _apply_jaw(self):
+        # Nilai sama untuk kedua jari: arah tutup dibedakan oleh tanda axis di URDF.
         m = Float64(); m.data = float(self.logic.jaw_target)
-        self.pub_jaw.publish(m)
+        self.pub_jaw_left.publish(m)
+        self.pub_jaw_right.publish(m)
 
     def _on_payload_spawned(self, _msg: Empty):
         # Payload sudah muncul di dunia (dari payload_spawner) -> lepas attach bawaan

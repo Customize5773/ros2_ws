@@ -20,11 +20,37 @@ stabilizer:
       integral_limit: 5.0
       out_limit: 15.0      # batas |Mz| (N*m)
 
-    # Gaya apung bersih ~ +1.45 N (ke atas); feedforward mendorong turun.
-    buoyancy_ff: -1.45
+    # Pitch/roll-hold: lapisan robustness ringan (koreksi kecil), restoring
+    # moment pasif utama berasal dari CoB di atas CoG (lihat rov_params.yaml).
+    pitch:
+      kp: 6.0
+      ki: 0.3
+      kd: 3.0
+      integral_limit: 5.0
+      out_limit: 15.0      # batas |My| (N*m)
 
-    target_depth: -1.0     # meter, negatif = di bawah permukaan
+    roll:
+      kp: 6.0
+      ki: 0.3
+      kd: 3.0
+      integral_limit: 5.0
+      out_limit: 15.0      # batas |Mx| (N*m)
+
+    # Gaya apung bersih setelah base_mass diturunkan ke 8.3 kg + gripper 0.1 kg
+    # (total ~8.7 kg dgn thruster) sementara volume hull TETAP (~34.04 kg air
+    # terpindah) -> net apung ke atas ~+248.6 N. Thruster vertikal (1,2,6) hanya
+    # sanggup ~3x40N=120N dorong-turun gabungan (lihat allocation.py MIN_THRUST),
+    # jadi -248.6N TIDAK bisa dicapai. buoyancy_ff diset ke batas maksimum yang
+    # secara fisik sanggup dihasilkan; ROV akan tetap cenderung mengapung naik
+    # (residual ~+128.6N tak terkompensasi) sampai desain hull/ballast direvisi.
+    buoyancy_ff: -120.0
+
+    target_depth: -0.1     # meter, negatif = di bawah permukaan
     target_heading: 0.0    # radian
+    target_pitch: 0.0      # radian
+    target_roll: 0.0       # radian
 
     enable_depth_hold: true
     enable_heading_hold: true
+    enable_pitch_hold: true
+    enable_roll_hold: true

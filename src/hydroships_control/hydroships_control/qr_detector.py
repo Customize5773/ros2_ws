@@ -39,6 +39,7 @@ from std_msgs.msg import String
 from geometry_msgs.msg import PointStamped
 
 from hydroships_control.qr_logic import robust_decode, parse_wall, offset_from_points
+from hydroships_control.image_util import image_msg_to_bgr
 
 
 class QRDetector(Node):
@@ -94,43 +95,11 @@ class QRDetector(Node):
             '[intrinsics SIM, bukan kalibrasi hardware]'
             % (frame, k[0, 0], k[1, 1], k[0, 2], k[1, 2], msg.width, msg.height))
 
-    @staticmethod
-    def _channels(enc):
-        """Jumlah channel per piksel sesuai encoding (untuk hitung row stride)."""
-        if enc in ('mono8', '8UC1'):
-            return 1
-        return 3                                 # rgb8/bgr8/fallback
-
-    def _reshape_with_step(self, buf, h, w, ch, step):
-        """Reshape buffer Image menghormati msg.step (row stride).
-
-        sensor_msgs/Image.step = byte per baris. Banyak publisher (mis. ros_gz
-        bridge) MENAMBAH padding di akhir tiap baris agar align memori, jadi
-        step bisa > width*channels. Kalau kita reshape polos ke (h, w, ch)
-        dgn asumsi step == width*channels, byte padding ikut terbaca dan seluruh
-        gambar TERGESER diagonal per baris (decode QR gagal diam-diam). Di sini:
-        bila step cocok tanpa padding -> reshape langsung; bila step lebih besar
-        -> reshape ke (h, step) lalu potong width*channels byte pertama tiap baris
-        (buang padding) sebelum reshape ke (h, w, ch)."""
-        row_bytes = w * ch
-        step = int(step) if step else row_bytes
-        if step <= row_bytes or (h * step) > buf.size:
-            # Tak ada padding (atau step tak masuk akal) -> packing rapat.
-            flat = buf[:h * row_bytes]
-        else:
-            flat = buf[:h * step].reshape(h, step)[:, :row_bytes].reshape(-1)
-        img = flat.reshape(h, w, ch)
-        return img[:, :, 0] if ch == 1 else img
-
     def _to_cv(self, msg: Image):
+        # Decode (termasuk penanganan row-stride msg.step) ada di image_util,
+        # dipakai bersama hook_detector.
         try:
-            buf = np.frombuffer(msg.data, dtype=np.uint8)
-            h, w, enc = msg.height, msg.width, msg.encoding
-            ch = self._channels(enc)
-            img = self._reshape_with_step(buf, h, w, ch, msg.step)
-            if enc == 'rgb8':
-                img = img[:, :, ::-1]              # RGB -> BGR
-            return np.ascontiguousarray(img)
+            return image_msg_to_bgr(msg)
         except Exception as e:
             self.get_logger().warn(f'decode image gagal: {e}', throttle_duration_sec=5.0)
             return None

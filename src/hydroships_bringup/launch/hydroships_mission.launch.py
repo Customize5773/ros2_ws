@@ -21,6 +21,7 @@ from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 
 
 def generate_launch_description():
@@ -53,14 +54,27 @@ def generate_launch_description():
         executable='mission_fsm',
         output='screen',
         parameters=[{'use_sim_time': True, 'start_state': start_state,
-                      'start_wall': start_wall}],
+                      'start_wall': start_wall,
+                      'scan_depth': ParameterValue(LaunchConfiguration('scan_depth'),
+                                                   value_type=float),
+                      'cam_gripper_dx': ParameterValue(
+                          LaunchConfiguration('cam_gripper_dx'), value_type=float),
+                      'hook_size_stop': ParameterValue(
+                          LaunchConfiguration('hook_size_stop'), value_type=float),
+                      'hook_center_tol': ParameterValue(
+                          LaunchConfiguration('hook_center_tol'), value_type=float),
+                      'hook_max_age': ParameterValue(
+                          LaunchConfiguration('hook_max_age'), value_type=float),
+                      't_approach': ParameterValue(
+                          LaunchConfiguration('t_approach'), value_type=float)}],
     )
 
     return LaunchDescription([
         DeclareLaunchArgument('headless', default_value='false'),
         DeclareLaunchArgument('world', default_value='kki_arena.sdf'),
         DeclareLaunchArgument('start_state', default_value='DIVE',
-                              description='State awal FSM (DIVE/GRAB/NAV_WALL/.../AUTO_RELEASE).'),
+                              description='State awal FSM (DIVE/GRAB/NAV_WALL/HANG/SURFACE/'
+                                          'WAIT_TRIGGER/APPROACH_HOOK/AUTO_RELEASE).'),
         DeclareLaunchArgument('start_wall', default_value='',
                               description='Seed manual wall A/B/C/D utk testing start_state '
                                           'mid-FSM (NAV_WALL/HANG/SURFACE/APPROACH_HOOK/AUTO_RELEASE).'),
@@ -78,6 +92,33 @@ def generate_launch_description():
         DeclareLaunchArgument('rov_z', default_value='-0.5'),
         DeclareLaunchArgument('rov_wall_margin', default_value='0.5'),
         DeclareLaunchArgument('rov_arena_half', default_value='2.55'),
+        # Tuning kamera bawah: kedalaman scan menentukan lebar petak pandang
+        # (h_cam = 0.714 - scan_depth), jadi menentukan pula seberapa besar QR di
+        # frame DAN apakah offset gripper masih muat. Lihat komentar scan_depth
+        # di mission_fsm.py. cam_gripper_dx=0.0 mengembalikan perilaku lama
+        # (QR dipusatkan di kamera, bukan di gripper) untuk pembanding A/B.
+        DeclareLaunchArgument('scan_depth', default_value='0.30',
+                              description='Kedalaman scan QR (m). Naikkan angka = '
+                                          'lebih dalam = QR lebih besar tapi petak '
+                                          'pandang menyempit.'),
+        DeclareLaunchArgument('cam_gripper_dx', default_value='0.16',
+                              description='Jarak gripper di depan kamera bawah (m). '
+                                          '0.0 = perilaku lama (tanpa koreksi).'),
+        # Tuning APPROACH_HOOK (visual servo hook lewat kamera depan). Naikkan
+        # hook_size_stop = berhenti lebih dekat ke hook; turunkan hook_center_tol
+        # = tuntut pemusatan lebih ketat (butuh deteksi lebih stabil).
+        DeclareLaunchArgument('hook_size_stop', default_value='0.35',
+                              description='Ukuran-tampak hook (sqrt(area)/lebar frame) '
+                                          'yg dianggap "cukup dekat".'),
+        DeclareLaunchArgument('hook_center_tol', default_value='0.15',
+                              description='Toleransi |ex|,|ey| ternormalisasi utk '
+                                          '"hook terpusat".'),
+        DeclareLaunchArgument('hook_max_age', default_value='1.0',
+                              description='Umur maks deteksi hook (s) sebelum '
+                                          'APPROACH_HOOK jatuh ke target odometri.'),
+        DeclareLaunchArgument('t_approach', default_value='25.0',
+                              description='Timeout APPROACH_HOOK (s); habis waktu = '
+                                          'lanjut AUTO_RELEASE, bukan abort.'),
         stabilized,
         mission,
     ])

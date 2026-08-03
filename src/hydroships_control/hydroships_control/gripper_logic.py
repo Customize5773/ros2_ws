@@ -12,8 +12,9 @@ DESAIN BARU (rancang ulang M5) — beda dari gripper lama:
     jangkauan aman — diverifikasi dari sinyal ``/hydroships/qr_offset`` (offset
     piksel ternormalisasi + ukuran-tampak QR sebagai proxy jarak). Ini mencegah
     attach "dari jauh" yang menyeret payload menembus air (artefak sim).
-  * Jari (1 DOF sederhana) hanya KOSMETIK/indikator visual buka-tutup; grasp
-    sesungguhnya oleh DetachableJoint.
+  * Dua jari opposing (masing-masing 1 DOF) hanya KOSMETIK/indikator visual
+    buka-tutup dan digerakkan SEREMPAK — karena itu sudutnya cukup disimpan
+    sebagai satu skalar ``jaw_target``; grasp sesungguhnya oleh DetachableJoint.
 
 Kontrak semantik dipertahankan demi kompatibilitas GUI/autonomy:
     perintah "open"/"close" di /hydroships/gripper/command (String).
@@ -34,11 +35,13 @@ class GripperLogic:
       min_size      : ukuran-tampak QR minimum (fraksi sisi frame) agar dianggap
                       cukup dekat untuk attach (besar = dekat).
       offset_timeout: umur maks sinyal qr_offset agar dianggap segar (s).
-      jaw_open/close: target sudut jari (rad) saat terbuka/menutup (kosmetik).
+      jaw_open/close: target sudut kedua jari (rad) saat terbuka/menutup
+                      (kosmetik). Harus berada dalam limit joint URDF
+                      [-0.1, 0.5] — lihat hydroships.urdf.xacro.
     """
 
     def __init__(self, max_offset=0.30, min_size=0.12, offset_timeout=1.5,
-                 jaw_open=0.6, jaw_close=0.0):
+                 jaw_open=0.35, jaw_close=0.0):
         self.max_offset = float(max_offset)
         self.min_size = float(min_size)
         self.offset_timeout = float(offset_timeout)

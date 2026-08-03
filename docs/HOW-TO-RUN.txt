@@ -19,6 +19,11 @@ Ringkas: (0) prasyarat -> (1) build -> (2) source -> (3) run -> (4) uji.
 - Cara aman memasang semua dependensi paket (dijalankan di root workspace):
       cd ~/ros2_ws
       rosdep install --from-paths src --ignore-src -r -y
+- Kalau python3-opencv tidak tersedia/gagal via apt, pasang dependensi Python
+  lewat pip (opencv-python + numpy, sama seperti di README.md):
+      cd ~/ros2_ws
+      pip install -r requirements.txt
+  Cek `cv2` sudah kebaca: python3 -c "import cv2; print(cv2.__version__)"
 
 Catatan GPU: sensor kamera (gz-sim-sensors, ogre2) butuh render. Di mesin tanpa
 GPU/EGL, pakai mode headless (lihat argumen 'headless' di bawah) atau kamera bisa
@@ -54,8 +59,9 @@ Folder build/ install/ log/ sengaja di-gitignore; regenerasi dgn colcon build.
        ros2 launch hydroships_gazebo sim.launch.py world:=kki_arena.sdf
   (default world sim.launch.py = pool_empty.sdf; pakai kki_arena.sdf utk arena lomba.)
   Setelah spawn, verifikasi visual: body gripper (kotak kuning 0.10×0.10×0.06 m)
-  harus terlihat di muka depan ROV (x≈0.18 m). Jari gripper menjorok ke depan
-  (+X) sebagai persegi panjang kuning 0.12 m.
+  harus terlihat di muka depan ROV (x≈0.18 m). DUA jari kuning (masing-masing
+  0.08 m) menjorok ke depan (+X) dari body, satu di sisi kiri (y≈-0.025 m) dan
+  satu di sisi kanan (y≈+0.025 m) — bentuk gripper penjepit.
 
   ── 3B. SIM + STABILISASI + KENDALI MANUAL (teleop) (SIMULASI AIR KOLAM TIDAK ADA)───────────────────────────
   Menyalakan: sim + thruster_allocator + stabilizer (depth-hold & heading-hold).
@@ -72,6 +78,13 @@ Folder build/ install/ log/ sengaja di-gitignore; regenerasi dgn colcon build.
        ros2 launch hydroships_bringup hydroships_mission.launch.py start_state:=NAV_WALL start_wall:=B
        ros2 launch hydroships_bringup hydroships_mission.launch.py start_state:=NAV_WALL start_wall:=C
        ros2 launch hydroships_bringup hydroships_mission.launch.py start_state:=NAV_WALL start_wall:=D
+            # Uji NAV_WALL → HANG → SURFACE tanpa lewat fase awal
+                ros2 launch hydroships_bringup hydroships_mission.launch.py \
+                  start_state:=NAV_WALL start_wall:=B
+            # Samakan dengan ROV spawn manual di dekat wall B
+                ros2 launch hydroships_bringup hydroships_mission.launch.py \
+                    start_state:=NAV_WALL start_wall:=B \
+                    rov_random_spawn:=false rov_x:=0.0 rov_y:=2.0 rov_z:=-0.5
    Payload QR di-spawn otomatis RANDOM (A/B/C/D + posisi acak dalam bounds arena)
    oleh node payload_spawner setiap launch. Pilih huruf/posisi eksplisit:
        ros2 launch hydroships_bringup hydroships_mission.launch.py qr_letter:=B
@@ -98,10 +111,15 @@ Folder build/ install/ log/ sengaja di-gitignore; regenerasi dgn colcon build.
 --------------------------------------------------------------------------------
   headless:=true      -> gz sim tanpa GUI (server saja); untuk CI / mesin tanpa GPU.
   world:=kki_arena.sdf -> arena lomba (default mission/stabilized). Alt: pool_empty.sdf.
-  start_state:=DIVE   -> (mission) state awal FSM: DIVE/APPROACH_QR/SCAN_QR/GRAB/
-                         NAV_WALL/HANG/SURFACE/DOCK/APPROACH_HOOK/AUTO_RELEASE.
+  start_state:=DIVE   -> (mission) state awal FSM: DIVE/APPROACH_QR/GRAB/NAV_WALL/
+                         HANG/SURFACE/WAIT_TRIGGER/APPROACH_HOOK/AUTO_RELEASE.
   start_wall:=A       -> (mission) seed wall target A/B/C/D utk testing mid-state
                          (NAV_WALL/HANG/SURFACE/APPROACH_HOOK/AUTO_RELEASE).
+  hook_size_stop:=0.35 hook_center_tol:=0.15 hook_max_age:=1.0 t_approach:=25.0
+                      -> (mission) tuning visual servo APPROACH_HOOK ke hook.
+                         hook_size_stop naik = berhenti lebih dekat; hook_center_tol
+                         turun = pemusatan lebih ketat; deteksi lebih tua dari
+                         hook_max_age = fallback ke target odometri.
   rov_random_spawn:=true -> (default) spawn ROV ACAK dekat salah satu dinding kolam
                          (posisi kontes, beda tiap run). false = pakai rov_x/rov_y/rov_z.
   rov_x:=1.0 rov_y:=-1.0 rov_z:=-0.5 -> posisi manual spawn ROV (dipakai bila
@@ -110,6 +128,8 @@ Folder build/ install/ log/ sengaja di-gitignore; regenerasi dgn colcon build.
   rov_arena_half:=2.55 -> setengah lebar kolam (dinding di +-nilai ini).
   spawn_delay:=3.0    -> jeda (detik) sebelum spawn ROV; naikkan bila mesin lambat
                          (cegah race: service create belum siap).
+  spawn_seed:=42      -> fix seed pose spawn acak supaya run bisa diulang persis
+                         (replay/debug). KOSONG (default) = acak penuh tiap launch.
   qr_letter:=B        -> (mission/stabilized/sim) huruf QR payload A/B/C/D.
                          KOSONG (default) = random + posisi acak dalam bounds arena.
   payload_x:=0.5      -> posisi X payload (m); dipakai bila qr_letter di-set eksplisit.
@@ -173,14 +193,16 @@ ros2 launch hydroships_bringup hydroships_gui.launch.py \
 
   e) GRIPPER BODY (mode 3A/3C): verifikasi body gripper terlihat di Gazebo
      di muka depan ROV (kotak kuning 0.10×0.10×0.06 m di x≈0.18 m).
-     Jari gripper menjorok ke depan (+X) sebagai persegi panjang kuning 0.12 m.
+     Dua jari kuning 0.08 m menjorok ke depan (+X) di sisi kiri & kanan body.
 
   f) GRIPPER MECHANISME (mode 3C): selama misi, di state GRAB periksa:
        ros2 topic echo /hydroships/gripper/attach
        ros2 topic echo /hydroships/gripper/detach
      Payload harus ter-attach saat ROV di atasnya, dan ter-detach saat AUTO_RELEASE.
-     Jari gripper bergerak (buka/tutup) sesuai perintah:
-       ros2 topic echo /hydroships/gripper_jaw/cmd
+     Kedua jari bergerak serempak (menjepit/membuka) sesuai perintah — kedua
+     topik ini harus menerbitkan nilai IDENTIK (0.35 = buka, 0.0 = tutup):
+       ros2 topic echo /hydroships/gripper_left/cmd
+       ros2 topic echo /hydroships/gripper_right/cmd
 
 
 --------------------------------------------------------------------------------
@@ -197,6 +219,20 @@ ros2 launch hydroships_bringup hydroships_gui.launch.py \
 
 - Kamera hitam / sim berat / crash render di mesin tanpa GPU:
     Pakai headless:=true, atau jalankan di mesin ber-GPU.
+
+- QR tidak terdeteksi walau kamera & unit test normal (KNOWN ISSUE):
+    Gejala di log qr_detector, umumnya saat headless:
+      [WARN] DECODE GAGAL: QR tak terdeteksi (pts=None)
+      [WARN] DECODE GAGAL: QR terdeteksi (pts ada) tapi decode kosong
+    Ini bisa muncul walaupun /hydroships/camera_bottom/image_raw dan camera_info
+    mengalir normal dan unit test QR (test_qr_logic.py) semuanya lolos — test
+    memakai fixture frame, bukan hasil render headless. Penyebabnya di sisi
+    render/pencahayaan sim, bukan di logika decode. Yang bisa dicoba:
+      1) Jalankan TANPA headless (headless:=false) supaya render penuh.
+      2) Turunkan ketinggian scan biar QR lebih besar di frame, mis. scan_depth
+         lebih dekat ke payload.
+      3) Untuk menguji FSM tanpa menunggu deteksi, suntik hasil QR manual:
+           ros2 topic pub -1 /hydroships/qr_result std_msgs/msg/String "{data: 'A'}"
 
 - Model gagal spawn (service create belum siap):
     Naikkan spawn_delay, mis. spawn_delay:=6.0.
@@ -230,8 +266,9 @@ cd ~/ros2_ws
 source /opt/ros/humble/setup.bash
 source install/setup.bash
 ros2 run hydroships_control teleop_stabilized
- -> ros2 run hydroships_control teleop_stabilized --ros-args -r /cmd_vel:=/hydroships/cmd_vel -p use_sim_time:=true
- -> ros2 run hydroships_control teleop_stabilized --ros-args -r /cmd_vel:=/hydroships/manual/cmd -p use_sim_time:=true
+ -> ros2 run hydroships_control teleop_stabilized --ros-args -p use_sim_time:=true
+    (teleop_stabilized sudah publish ke /hydroships/manual/cmd secara native,
+     jadi tidak perlu remap. Remap /cmd_vel hanya relevan utk teleop_keyboard.)
 
 TERMINAL 3: CHECK IF KEYBOARD SEND DATA (LINEAR/ANGULAR)
 ~
