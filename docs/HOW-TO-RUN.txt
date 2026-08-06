@@ -168,8 +168,8 @@ Folder build/ install/ log/ sengaja di-gitignore; regenerasi dgn colcon build.
   rov_arena_half:=2.55 -> setengah lebar kolam (dinding di +-nilai ini).
   spawn_delay:=3.0    -> jeda (detik) sebelum spawn ROV; naikkan bila mesin lambat
                          (cegah race: service create belum siap).
-  spawn_seed:=42      -> fix seed pose spawn acak supaya run bisa diulang persis
-                         (replay/debug). KOSONG (default) = acak penuh tiap launch.
+   spawn_seed:=42      -> fix seed pose spawn acak supaya run bisa diulang persis
+                          (replay/debug). KOSONG (default) = acak penuh tiap launch.
    qr_letter:=B        -> (mission/stabilized/sim) huruf QR payload A/B/C/D.
                           KOSONG (default) = random + posisi acak dalam bounds arena.
    payload_x:=0.5      -> posisi X payload (m); dipakai bila qr_letter di-set eksplisit.
