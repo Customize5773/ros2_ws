@@ -1,0 +1,56 @@
+# Konfigurasi teleop_gamepad (Logitech F310, skema gaya QGroundControl/ArduSub).
+#
+# Index axis/button di bawah berasal dari config joystick eksternal (X-input,
+# Linux). Verifikasi ulang dengan `ros2 topic echo /joy` sebelum dipakai —
+# mapping fisik bisa berbeda tergantung driver/kernel, terutama D-pad/tombol
+# tambahan. Skala -1000..1000 dari config asal (unit internal QGC) TIDAK
+# dipakai di sini; expo curve diterapkan pada axis mentah [-1,1] lalu discale
+# ke unit fisik (N, N*m, rad/s, m/s) oleh teleop_gamepad.py.
+#
+# Tombol tanpa backend di hydroships_control (mode_poshold, arm, disarm,
+# mount_tilt_up/down, gain_inc/dec) dibaca tapi hanya di-log — tidak publish
+# ke topic manapun sampai backend-nya tersedia.
+teleop_gamepad:
+  ros__parameters:
+    publish_rate: 10.0
+    joy_topic: /joy
+    deadzone: 0.12
+    expo: 1.6
+    max_force: 20.0          # N, untuk Fx/Fy/Fz
+    max_torque: 5.0           # N*m, untuk Mz (mode manual)
+    max_heading_rate: 1.0     # rad/s, skala axis yaw di mode depth_hold/poshold
+    max_depth_rate: 0.5       # m/s, skala axis heave di mode depth_hold/poshold
+
+    axes:
+      yaw: 0        # Axis R
+      heave: 1      # Axis Z
+      surge: 2      # Axis Y
+      sway: 3       # Axis X
+    axes_invert_heave: true
+    axes_invert_sway: true
+
+    buttons_shift: 16
+
+    buttons_regular_mode_poshold: 0
+    buttons_regular_mode_manual: 1
+    buttons_regular_emergency_stop: 2
+    buttons_regular_mode_depth_hold: 3
+    buttons_regular_mount_tilt_up: 4
+    buttons_regular_grip_close: 5
+    buttons_regular_mount_tilt_down: 6
+    buttons_regular_grip_open: 7
+    buttons_regular_disarm: 8
+    buttons_regular_arm: 9
+    buttons_regular_gain_dec: 12
+    buttons_regular_gain_inc: 13
+
+    buttons_shift_gain_dec: 12
+    buttons_shift_gain_inc: 13
+    buttons_shift_mount_tilt_up: 14
+    buttons_shift_mount_tilt_down: 15
+
+    cmd_vel_topic: /hydroships/cmd_vel
+    manual_cmd_topic: /hydroships/manual/cmd
+    depth_setpoint_topic: /hydroships/setpoint/depth
+    heading_setpoint_topic: /hydroships/setpoint/heading
+    gripper_cmd_topic: /hydroships/gripper/command
