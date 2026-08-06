@@ -25,8 +25,8 @@
     "semantic_hash": ""
   },
   "src/hydroships_bringup/launch/hydroships_mission.launch.py": {
-    "mtime": 1785230478.1531188,
-    "ast_hash": "e22d69f5d0140e6680e92dddff0d4bd4",
+    "mtime": 1785227574.908892,
+    "ast_hash": "72f67b2ccda68a27d1642c381108f372",
     "semantic_hash": ""
   },
   "src/hydroships_bringup/launch/hydroships_sim.launch.py": {
@@ -85,8 +85,8 @@
     "semantic_hash": ""
   },
   "src/hydroships_control/hydroships_control/mission_fsm.py": {
-    "mtime": 1785230452.174202,
-    "ast_hash": "f9fc5b3095ca627902270e8ff8245f73",
+    "mtime": 1785226096.3388343,
+    "ast_hash": "4cbc66cbb7801a07c11270d378c5fd8e",
     "semantic_hash": ""
   },
   "src/hydroships_control/hydroships_control/pid.py": {
@@ -195,8 +195,8 @@
     "semantic_hash": ""
   },
   "docs/ARCHITECTURE.md": {
-    "mtime": 1785230629.2908044,
-    "ast_hash": "3e96ee78eee1015a578cd4a07482eea3",
+    "mtime": 1785222217.674188,
+    "ast_hash": "174de397a642d002885d1a3f17dbd0f3",
     "semantic_hash": ""
   },
   "docs/GUI-INTEGRATION.md": {
@@ -205,8 +205,8 @@
     "semantic_hash": ""
   },
   "docs/HOW-TO-RUN.txt": {
-    "mtime": 1785230634.1026597,
-    "ast_hash": "e6f63c203d64fb49255c6f35e3a2befe",
+    "mtime": 1785222260.4255397,
+    "ast_hash": "e9f60b2cf5053f379691b348d66b112f",
     "semantic_hash": ""
   },
   "docs/thruster_config.md": {
@@ -254,6 +254,56 @@
     "ast_hash": "e1d58fb83cd87fd142c30dad2c64708e",
     "semantic_hash": ""
   },
+  "Gambar ROV/Back-View.jpeg": {
+    "mtime": 1783469423.038337,
+    "ast_hash": "2b2da4c75a16e18d0e4ff2f26cb35081",
+    "semantic_hash": ""
+  },
+  "Gambar ROV/Bottom-View.jpeg": {
+    "mtime": 1783469423.0393372,
+    "ast_hash": "3c8b69784c8535a7ce0da6a37b111165",
+    "semantic_hash": ""
+  },
+  "Gambar ROV/Dimensi Keseluruhan ROV Hydroship.png": {
+    "mtime": 1783469423.040337,
+    "ast_hash": "dc0dc1ba4d41cbf5851ebfa4c191849c",
+    "semantic_hash": ""
+  },
+  "Gambar ROV/Front-View.jpeg": {
+    "mtime": 1783469423.040337,
+    "ast_hash": "6e47c137b227d45a91c9151b50f7af43",
+    "semantic_hash": ""
+  },
+  "Gambar ROV/Jumlah dan Penempatan Thurster Tampak Atas.png": {
+    "mtime": 1783469423.041337,
+    "ast_hash": "5e30350cbc05a7a406716187ba8bf573",
+    "semantic_hash": ""
+  },
+  "Gambar ROV/Konfigurasi Arah Putaran Propeller & Arah Gaya Thruster ROV.png": {
+    "mtime": 1783469423.0423372,
+    "ast_hash": "9fe56b8c90e5e6d1cf49d637f5861aea",
+    "semantic_hash": ""
+  },
+  "Gambar ROV/Left-View.jpeg": {
+    "mtime": 1783469423.0423372,
+    "ast_hash": "436e32803d406ba6076f8412fcb98b09",
+    "semantic_hash": ""
+  },
+  "Gambar ROV/Right-View.jpeg": {
+    "mtime": 1783469423.043337,
+    "ast_hash": "4f58a06bf696bfc122ded6e8f3b35495",
+    "semantic_hash": ""
+  },
+  "Gambar ROV/Top-View.jpeg": {
+    "mtime": 1783469423.043337,
+    "ast_hash": "f50bd369e3ee3bfd1cd2e29b71a047a7",
+    "semantic_hash": ""
+  },
+  "Gambar ROV/surge-roll-yaw-heave-pitch-sway-ROV.png": {
+    "mtime": 1783469423.044337,
+    "ast_hash": "3b9afc1b392d6f74be057d1fd0b51629",
+    "semantic_hash": ""
+  },
   "docs/thruster_topview.png": {
     "mtime": 1783385755.7570243,
     "ast_hash": "a4d1a130bbacd6496a0c674fb382c8f2",
@@ -270,13 +320,13 @@
     "semantic_hash": ""
   },
   "docs/STATUS.md": {
-    "mtime": 1785230610.1233943,
-    "ast_hash": "c485360a151ee0a7a646777c01e2166c",
+    "mtime": 1785222236.6028917,
+    "ast_hash": "72cefded9ae9418ce850f8e5e17f7d53",
     "semantic_hash": ""
   },
   "docs/VERIFICATION-CHECKLIST.md": {
-    "mtime": 1785230615.3772304,
-    "ast_hash": "331dec88d18b18d928cd4324f5b8ab34",
+    "mtime": 1785207522.11751,
+    "ast_hash": "cfae0d1bfaf52d99140727918779ba90",
     "semantic_hash": ""
   },
   "docs/HYDRO-ROV-Hull+ThrusterLayout.png": {
@@ -327,56 +377,6 @@
   "src/hydroships_control/test/test_qr_ey_target.py": {
     "mtime": 1785225752.232261,
     "ast_hash": "5e5a706d9bcfec39bb7e5e6e8cf45d33",
-    "semantic_hash": ""
-  },
-  "DOKUMENTASI ROV/Back-View.jpeg": {
-    "mtime": 1783469423.038337,
-    "ast_hash": "2b2da4c75a16e18d0e4ff2f26cb35081",
-    "semantic_hash": ""
-  },
-  "DOKUMENTASI ROV/Bottom-View.jpeg": {
-    "mtime": 1783469423.0393372,
-    "ast_hash": "3c8b69784c8535a7ce0da6a37b111165",
-    "semantic_hash": ""
-  },
-  "DOKUMENTASI ROV/Dimensi Keseluruhan ROV Hydroship.png": {
-    "mtime": 1783469423.040337,
-    "ast_hash": "dc0dc1ba4d41cbf5851ebfa4c191849c",
-    "semantic_hash": ""
-  },
-  "DOKUMENTASI ROV/Front-View.jpeg": {
-    "mtime": 1783469423.040337,
-    "ast_hash": "6e47c137b227d45a91c9151b50f7af43",
-    "semantic_hash": ""
-  },
-  "DOKUMENTASI ROV/Jumlah dan Penempatan Thurster Tampak Atas.png": {
-    "mtime": 1783469423.041337,
-    "ast_hash": "5e30350cbc05a7a406716187ba8bf573",
-    "semantic_hash": ""
-  },
-  "DOKUMENTASI ROV/Konfigurasi Arah Putaran Propeller & Arah Gaya Thruster ROV.png": {
-    "mtime": 1783469423.0423372,
-    "ast_hash": "9fe56b8c90e5e6d1cf49d637f5861aea",
-    "semantic_hash": ""
-  },
-  "DOKUMENTASI ROV/Left-View.jpeg": {
-    "mtime": 1783469423.0423372,
-    "ast_hash": "436e32803d406ba6076f8412fcb98b09",
-    "semantic_hash": ""
-  },
-  "DOKUMENTASI ROV/Right-View.jpeg": {
-    "mtime": 1783469423.043337,
-    "ast_hash": "4f58a06bf696bfc122ded6e8f3b35495",
-    "semantic_hash": ""
-  },
-  "DOKUMENTASI ROV/Top-View.jpeg": {
-    "mtime": 1783469423.043337,
-    "ast_hash": "f50bd369e3ee3bfd1cd2e29b71a047a7",
-    "semantic_hash": ""
-  },
-  "DOKUMENTASI ROV/surge-roll-yaw-heave-pitch-sway-ROV.png": {
-    "mtime": 1783469423.044337,
-    "ast_hash": "3b9afc1b392d6f74be057d1fd0b51629",
     "semantic_hash": ""
   }
 }

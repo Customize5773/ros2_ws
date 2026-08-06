@@ -5,15 +5,27 @@
   Frame konvensi ROS (REP-103): x maju (surge), y kiri (sway), z atas (heave).
 
   Catatan penyederhanaan M1:
-    * Bbox visual/mounting (body_x/y/z) = 0.345 x 0.345 x 0.286 m, TAPI collision
-      box sumber buoyancy (buoy_x/y/z, dari rov_params.yaml: buoyancy_collision)
-      diskalakan LEBIH KECIL: rangka ROV asli berongga, volume perpindahan air
-      efektif hanya dari kompartemen tersegel, bukan seluruh bbox luar.
-      Massa total (base + 6 thruster + gripper, ~8.7 kg) dibuat SEDIKIT DI BAWAH
-      massa air yg dipindahkan collision box itu supaya ROV apung pelan saat
-      thruster mati (near-neutral, sedikit positif).
-      Ini placeholder yang di-tune di M2, BUKAN massa ROV asli.
+    * Visual tetap primitif (box/cylinder) supaya ringan; lihat
+      rov_kki2026_new_design.urdf.xacro untuk versi bermesh CAD.
     * Koefisien hidrodinamika memakai nilai acuan tipe BlueROV2 (di-tune belakangan).
+
+  DISINKRONKAN DENGAN CAD (2026-07-28)
+    Dimensi, posisi/sumbu thruster, massa, inertia, dan volume collision kini
+    diturunkan dari "DOKUMENTASI ROV/@ROV KKI 2026 NEW DESIGN.stl" lewat
+    hydroships_description/scripts/measure_cad_frames.py, dan penomoran
+    thruster mengikuti Gambar 2.9/2.10 dokumen desain (penulis, 2026).
+    Model ini dan rov_kki2026_new_design.urdf.xacro kini memakai geometri
+    thruster, massa, dan inertia yang IDENTIK — bedanya hanya visual
+    (primitif vs mesh CAD). allocation.py sudah ikut disinkronkan.
+
+    Volume collision SENGAJA jauh lebih kecil dari bbox: ROV ini rangka
+    TERBUKA, air mengalir menembusnya, jadi volume air yang benar-benar
+    tergeser hanya 0.006644 m^3 (bahan padat + rongga tabung enclosure),
+    bukan 0.0508 m^3 seperti kotak penuh. Kotak collision di bawah disetel
+    agar volumenya tepat sama dgn angka terukur itu, dan pusatnya 0.02 m di
+    atas CoG supaya CoB > CoG (stabil). Konsekuensi: saat menyentuh dasar
+    kolam, badan ROV akan tampak tenggelam sebagian ke lantai — itu harga
+    dari apung yang benar. Lihat rov_kki2026_new_design.parts.md.
 
   PARAMETER FISIK TER-EKSTERNAL: massa, CoG/CoB, tensor inertia, & 18 koefisien
   hidrodinamika kini dibaca dari config/rov_params.yaml (via xacro.load_yaml)
@@ -27,9 +39,14 @@
 <robot name="hydroships" xmlns:xacro="http://www.ros.org/wiki/xacro">
 
   <!-- ============================ Parameter ============================ -->
-  <xacro:property name="body_x" value="0.345"/>
-  <xacro:property name="body_y" value="0.345"/>
-  <xacro:property name="body_z" value="0.286"/>
+  <!-- bbox ROV terukur dari CAD (m). -->
+  <xacro:property name="body_x" value="0.5079"/>
+  <xacro:property name="body_y" value="0.3469"/>
+  <xacro:property name="body_z" value="0.2959"/>
+
+  <!-- Kotak collision = volume air TERGESER terukur (0.006644 m^3), bukan bbox.
+       Tebal = 0.006644 / (body_x * body_y). Pusat 0.02 m di atas CoG. -->
+  <xacro:property name="cob_z" value="0.02"/>
 
   <!-- (bow_yaw dulu untuk memutar mesh; visual kini primitif dgn haluan tetap +X.) -->
 
@@ -42,12 +59,22 @@
        (share/pkg/urdf), keduanya bersebelahan dgn .../config. -->
   <xacro:property name="rp" value="${xacro.load_yaml('../config/rov_params.yaml')}"/>
 
-  <xacro:property name="base_mass" value="${rp['base_mass']}"/>
+  <xacro:property name="vehicle_mass" value="${rp['vehicle_mass']}"/>
+  <xacro:property name="displaced_volume" value="${rp['displaced_volume']}"/>
   <xacro:property name="thruster_mass" value="${rp['thruster_mass']}"/>
+
+  <!-- Massa link tambahan model ini (gripper + 2 jari + 6 thruster). base_link
+       mendapat sisanya, supaya massa TOTAL = vehicle_mass persis sama dengan
+       rov_kki2026_new_design.urdf.xacro meski link tambahannya berbeda. -->
+  <xacro:property name="grip_mass" value="0.12"/>
+  <xacro:property name="finger_mass" value="0.06"/>
+  <xacro:property name="aux_mass" value="${6*thruster_mass + grip_mass + 2*finger_mass}"/>
+  <xacro:property name="base_mass" value="${vehicle_mass - aux_mass}"/>
+
+  <!-- Volume collision link tambahan; dikurangkan dari kotak base_link supaya
+       TOTAL volume collision = displaced_volume terukur. -->
+  <xacro:property name="aux_volume" value="${0.10*0.10*0.06 + 2*(0.08*0.016*0.03)}"/>
   <xacro:property name="fluid_density" value="${rp['fluid_density']}"/>
-  <xacro:property name="buoy_x" value="${rp['buoyancy_collision']['x']}"/>
-  <xacro:property name="buoy_y" value="${rp['buoyancy_collision']['y']}"/>
-  <xacro:property name="buoy_z" value="${rp['buoyancy_collision']['z']}"/>
 
   <xacro:property name="cog" value="${rp['cog']}"/>
 
@@ -123,16 +150,11 @@
       </material>
     </visual>
     <!-- Collision box dipakai plugin Buoyancy untuk menghitung volume perpindahan.
-         Ukuran (buoy_x/y/z) SENGAJA lebih kecil dari bbox visual/mounting body_x/y/z
-         (rangka ROV asli berongga, volume perpindahan efektif hanya dari
-         kompartemen tersegel); lihat rov_params.yaml: buoyancy_collision.
-         Origin digeser ke atas sebesar cob.z (relatif thd inertial origin/CoG di atas)
-         agar CoB (centroid box ini) berada di atas CoG -> metacentric height positif,
-         restoring moment pasif utk pitch/roll (lihat rov_params.yaml: cob). -->
+         Ukurannya = volume tergeser terukur, BUKAN bbox (lihat header). -->
     <collision>
-      <origin xyz="${rp['cob']['x']} ${rp['cob']['y']} ${rp['cob']['z']}" rpy="0 0 0"/>
+      <origin xyz="0 0 ${cob_z}" rpy="0 0 0"/>
       <geometry>
-        <box size="${buoy_x} ${buoy_y} ${buoy_z}"/>
+        <box size="${body_x} ${body_y} ${(displaced_volume - aux_volume) / (body_x * body_y)}"/>
       </geometry>
     </collision>
   </link>
@@ -183,28 +205,35 @@
     </joint>
   </xacro:macro>
 
-    <!-- ==================== Thruster positions (dari thruster_positions.csv) ==========
-         Posisi di FRAME BODY ROS (x=maju, y=kiri, z=atas), dikonversi dari CSV
-         (X=lateral kanan+, Y=fore/aft DEPAN negatif, Z=atas) via:
-             x_body = -Y_csv,  y_body = -X_csv,  z_body = Z_csv.
-         HARUS konsisten dgn hydroships_control/allocation.py (THRUSTERS).
-         (Perbaikan: dulu kolom CSV disalin mentah -> posisi terputar 90° -> yaw
-          near-singular. Setelah dikoreksi cond TAM ~20, yaw pulih. Lihat PROBLEM.md.)
+    <!-- ==================== Thruster positions (TERUKUR dari CAD) ==========
+         Posisi & sumbu diukur dari @ROV KKI 2026 NEW DESIGN.stl via
+         scripts/measure_cad_frames.py; penomoran mengikuti Gambar 2.9/2.10
+         dokumen desain (penulis, 2026). HARUS konsisten dgn
+         hydroships_control/allocation.py (THRUSTERS) dan docs/thruster_config.md.
 
-         Mapping & peran:
-           thruster_1 = T200-E (vertikal, kanan)
-           thruster_2 = T200-F (vertikal, kiri)
-           thruster_3 = T100-C (surge, depan-kanan)
-           thruster_4 = T100-A (surge, depan-kiri)
-           thruster_5 = T200-B (sway/menyamping, tengah-bawah)   [eks label T100-B]
-           thruster_6 = T100-D (vertikal, belakang-tengah)
-         Catatan: visual_rpy/visual_offset hanya kosmetik (orientasi silinder hias). -->
-    <xacro:thruster name="thruster_1" xyz="-0.0275 -0.1234 0.0142" axis="0.0 0.0 1.0" visual_rpy="0 0 0" visual_offset="0 0 0.008"/>
-    <xacro:thruster name="thruster_2" xyz="-0.0290 0.1228 0.0148" axis="0.0 0.0 1.0" visual_rpy="0 0 0" visual_offset="0 0 0.008"/>
-    <xacro:thruster name="thruster_3" xyz="0.1298 -0.1371 0.0336" axis="1.0 0.0 0.0" visual_rpy="0 1.5708 0" visual_offset="0.008 0 0"/>
-    <xacro:thruster name="thruster_4" xyz="0.1296 0.1371 0.0374" axis="1.0 0.0 0.0" visual_rpy="0 1.5708 0" visual_offset="0.008 0 0"/>
-    <xacro:thruster name="thruster_5" xyz="-0.0455 -0.0003 -0.0994" axis="0.0 1.0 0.0" visual_rpy="1.5708 0 0" visual_offset="0 0.008 0"/>
-    <xacro:thruster name="thruster_6" xyz="-0.1364 0.0003 0.0403" axis="0.0 0.0 1.0" visual_rpy="0 0 0" visual_offset="0 0 0.008"/>
+           nama        peran               kelas  duct terukur
+           thruster_1  surge kanan         T200   duct 90.1 mm
+           thruster_2  surge kiri          T200   duct 90.1 mm
+           thruster_3  heave haluan kanan  T100   prop 66.6 mm
+           thruster_4  heave haluan kiri   T100   prop 66.6 mm
+           thruster_5  heave buritan       T100   prop 66.6 mm
+           thruster_6  sway tengah-bawah   T100   prop 59.0 mm
+
+         Mapping LAMA menukar peran pasangan haluan <-> tengah (1,2 dikira
+         vertikal, 3,4 surge) dan menukar 5 <-> 6. CAD & Gambar 2.9 keduanya
+         menunjukkan sebaliknya. Setelah koreksi, cond(TAM) 19.7 -> 10.0 dan
+         gaya thruster utk wrench satuan pada DOF terlemah 9.25 N -> 4.06 N.
+
+         Arah putar propeller (Gambar 2.9): 1=CCW 2=CW 3=CCW 4=CW 5=CW 6=CCW
+         — tiap pasangan berlawanan agar torsi reaksi saling meniadakan.
+         Tanda sumbu masih perlu verifikasi bench (lihat allocation.py).
+         Catatan: visual_rpy/visual_offset hanya kosmetik. -->
+    <xacro:thruster name="thruster_1" xyz="-0.0291 -0.1188 0.0186" axis="1.0 0.0 0.0" visual_rpy="0 1.5708 0" visual_offset="0.008 0 0"/>
+    <xacro:thruster name="thruster_2" xyz="-0.0287 0.1274 0.0190"  axis="1.0 0.0 0.0" visual_rpy="0 1.5708 0" visual_offset="0.008 0 0"/>
+    <xacro:thruster name="thruster_3" xyz="0.1050 -0.1332 0.0592"  axis="0.0 0.0 1.0" visual_rpy="0 0 0"      visual_offset="0 0 0.008"/>
+    <xacro:thruster name="thruster_4" xyz="0.1053 0.1411 0.0550"   axis="0.0 0.0 1.0" visual_rpy="0 0 0"      visual_offset="0 0 0.008"/>
+    <xacro:thruster name="thruster_5" xyz="-0.1610 0.0037 0.0621"  axis="0.0 0.0 1.0" visual_rpy="0 0 0"      visual_offset="0 0 0.008"/>
+    <xacro:thruster name="thruster_6" xyz="-0.0700 0.0200 -0.0939" axis="0.0 1.0 0.0" visual_rpy="1.5708 0 0" visual_offset="0 0.008 0"/>
 
   <!-- ==================== Frame sensor (placeholder M3) ==================== -->
   <link name="imu_link"/>
@@ -286,8 +315,6 @@
        BUKAN gesekan jari. DUA JARI opposing (kiri/kanan) di sini KOSMETIK
        (indikator visual buka/tutup) — digerakkan SEREMPAK dari satu nilai sudut.
        Dipasang di MUKA DEPAN ROV, menjorok ke arah depan (+X). Lihat PROBLEM.md. -->
-  <xacro:property name="grip_mass" value="0.08"/>
-
   <!-- Body gripper di muka depan ROV, menjorok ke depan (+X). -->
   <link name="gripper_base">
     <inertial>
@@ -331,7 +358,7 @@
     <link name="gripper_finger_${side}">
       <inertial>
         <origin xyz="0.04 0 0" rpy="0 0 0"/>
-        <mass value="0.01"/>
+        <mass value="${finger_mass}"/>
         <inertia ixx="6.0e-6" ixy="0.0" ixz="0.0" iyy="3.6e-5" iyz="0.0" izz="3.4e-5"/>
       </inertial>
       <visual>
@@ -430,13 +457,16 @@
     </gazebo>
   </xacro:macro>
 
-  <!-- Horizontal ~ diameter 0.076 (kelas T200); vertikal ~ 0.048 (kelas T100). -->
-  <xacro:thruster_plugin name="thruster_1" diameter="0.076"/>
-  <xacro:thruster_plugin name="thruster_2" diameter="0.076"/>
-  <xacro:thruster_plugin name="thruster_3" diameter="0.076"/>
-  <xacro:thruster_plugin name="thruster_4" diameter="0.048"/>
-  <xacro:thruster_plugin name="thruster_5" diameter="0.048"/>
-  <xacro:thruster_plugin name="thruster_6" diameter="0.048"/>
+  <!-- Diameter mengikuti KELAS hasil ukur CAD: T200 (surge) duct 90 mm ->
+       0.076 m; T100 (heave & sway) prop 66.6 mm -> 0.048 m. Sebelumnya
+       pembagian 0.076/0.048 mengikuti nomor urut, bukan kelas, sehingga
+       dua unit identik bisa dapat diameter berbeda. -->
+  <xacro:thruster_plugin name="thruster_1" diameter="0.076"/>  <!-- T200 surge -->
+  <xacro:thruster_plugin name="thruster_2" diameter="0.076"/>  <!-- T200 surge -->
+  <xacro:thruster_plugin name="thruster_3" diameter="0.048"/>  <!-- T100 heave -->
+  <xacro:thruster_plugin name="thruster_4" diameter="0.048"/>  <!-- T100 heave -->
+  <xacro:thruster_plugin name="thruster_5" diameter="0.048"/>  <!-- T100 heave -->
+  <xacro:thruster_plugin name="thruster_6" diameter="0.048"/>  <!-- T100 sway  -->
 
   <!-- ============ Plugin manipulator (rancang ulang M5) ============ -->
   <!-- Kontrol posisi dua jari kosmetik: target sudut (rad) via gz.msgs.Double di

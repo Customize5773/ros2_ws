@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
-"""Stabilizer HYDROships (Milestone 2): depth-hold + heading-hold.
+"""Stabilizer HYDROships (Milestone 2): depth-hold + heading-hold + pitch/roll-hold.
 
-Membaca odometry, menahan KEDALAMAN (sumbu z) dan HEADING (yaw) memakai PID,
+Membaca odometry, menahan KEDALAMAN (z), HEADING (yaw), PITCH & ROLL memakai PID,
 lalu menggabung dengan perintah horizontal manual dari pilot/autonomy. Output
 berupa wrench body ke /hydroships/cmd_vel (dikonsumsi thruster_allocator).
 
 Aliran:
-    /hydroships/odom          (Odometry)  -> pengukuran z & yaw
-    /hydroships/manual/cmd    (Twist)     -> Fx, Fy, Mx, My manual (pass-through)
+    /hydroships/odom          (Odometry)  -> pengukuran z, roll, pitch, yaw
+    /hydroships/manual/cmd    (Twist)     -> Fx, Fy manual (pass-through)
     /hydroships/setpoint/depth   (Float64)-> target kedalaman (m, negatif = dalam)
     /hydroships/setpoint/heading (Float64)-> target yaw (rad)
         =>  /hydroships/cmd_vel (Twist = wrench)
 
-Fz & Mz berasal dari PID (saat hold aktif); komponen lain dari manual.
+Fz, Mx, My, Mz berasal dari PID (saat hold masing-masing aktif); Fx/Fy dari manual.
+Pitch/roll-hold adalah lapisan robustness ringan; restoring moment pasif utama
+berasal dari CoB di atas CoG (lihat rov_params.yaml: cob).
 """
 
 import math
@@ -33,6 +35,18 @@ def yaw_from_quaternion(q):
     return math.atan2(siny_cosp, cosy_cosp)
 
 
+def roll_pitch_from_quaternion(q):
+    """Ekstrak roll & pitch (rad) dari geometry_msgs/Quaternion."""
+    sinr_cosp = 2.0 * (q.w * q.x + q.y * q.z)
+    cosr_cosp = 1.0 - 2.0 * (q.x * q.x + q.y * q.y)
+    roll = math.atan2(sinr_cosp, cosr_cosp)
+
+    sinp = 2.0 * (q.w * q.y - q.z * q.x)
+    sinp = max(-1.0, min(1.0, sinp))
+    pitch = math.asin(sinp)
+    return roll, pitch
+
+
 class Stabilizer(Node):
     def __init__(self):
         super().__init__('stabilizer')
@@ -49,12 +63,27 @@ class Stabilizer(Node):
         self.declare_parameter('heading.kd', 4.0)
         self.declare_parameter('heading.integral_limit', 5.0)
         self.declare_parameter('heading.out_limit', 15.0)
+        self.declare_parameter('pitch.kp', 6.0)
+        self.declare_parameter('pitch.ki', 0.3)
+        self.declare_parameter('pitch.kd', 3.0)
+        self.declare_parameter('pitch.integral_limit', 5.0)
+        self.declare_parameter('pitch.out_limit', 15.0)
+        self.declare_parameter('roll.kp', 6.0)
+        self.declare_parameter('roll.ki', 0.3)
+        self.declare_parameter('roll.kd', 3.0)
+        self.declare_parameter('roll.integral_limit', 5.0)
+        self.declare_parameter('roll.out_limit', 15.0)
         # Feedforward untuk mengimbangi gaya apung bersih (N, negatif = dorong turun).
-        self.declare_parameter('buoyancy_ff', -1.45)
-        self.declare_parameter('target_depth', -1.0)
+        # Lihat gains.yaml: near-neutral setelah collision box buoyancy diskalakan.
+        self.declare_parameter('buoyancy_ff', -0.3)
+        self.declare_parameter('target_depth', -0.1)
         self.declare_parameter('target_heading', 0.0)
+        self.declare_parameter('target_pitch', 0.0)
+        self.declare_parameter('target_roll', 0.0)
         self.declare_parameter('enable_depth_hold', True)
         self.declare_parameter('enable_heading_hold', True)
+        self.declare_parameter('enable_pitch_hold', True)
+        self.declare_parameter('enable_roll_hold', True)
 
         gp = self.get_parameter
         self.depth_pid = PID(
@@ -67,16 +96,32 @@ class Stabilizer(Node):
             out_min=-gp('heading.out_limit').value,
             out_max=gp('heading.out_limit').value,
             integral_limit=gp('heading.integral_limit').value)
+        self.pitch_pid = PID(
+            gp('pitch.kp').value, gp('pitch.ki').value, gp('pitch.kd').value,
+            out_min=-gp('pitch.out_limit').value,
+            out_max=gp('pitch.out_limit').value,
+            integral_limit=gp('pitch.integral_limit').value)
+        self.roll_pid = PID(
+            gp('roll.kp').value, gp('roll.ki').value, gp('roll.kd').value,
+            out_min=-gp('roll.out_limit').value,
+            out_max=gp('roll.out_limit').value,
+            integral_limit=gp('roll.integral_limit').value)
 
         self.buoyancy_ff = gp('buoyancy_ff').value
         self.target_depth = gp('target_depth').value
         self.target_heading = gp('target_heading').value
+        self.target_pitch = gp('target_pitch').value
+        self.target_roll = gp('target_roll').value
         self.enable_depth = gp('enable_depth_hold').value
         self.enable_heading = gp('enable_heading_hold').value
+        self.enable_pitch = gp('enable_pitch_hold').value
+        self.enable_roll = gp('enable_roll_hold').value
 
         # ---- State ----
         self.cur_z = None
         self.cur_yaw = None
+        self.cur_pitch = None
+        self.cur_roll = None
         self.manual = Twist()
         self.last_time = None
 
@@ -94,12 +139,15 @@ class Stabilizer(Node):
         self.get_logger().info(
             f'Stabilizer aktif. depth_hold={self.enable_depth} '
             f'heading_hold={self.enable_heading} '
+            f'pitch_hold={self.enable_pitch} roll_hold={self.enable_roll} '
             f'target_depth={self.target_depth} m.')
 
     # ---- Callback ----
     def on_odom(self, msg: Odometry):
         self.cur_z = msg.pose.pose.position.z
         self.cur_yaw = yaw_from_quaternion(msg.pose.pose.orientation)
+        self.cur_roll, self.cur_pitch = roll_pitch_from_quaternion(
+            msg.pose.pose.orientation)
 
     def on_manual(self, msg: Twist):
         self.manual = msg
@@ -119,11 +167,9 @@ class Stabilizer(Node):
         self.last_time = now
 
         out = Twist()
-        # Horizontal & sikap lain: pass-through dari manual.
+        # Horizontal: pass-through dari manual.
         out.linear.x = self.manual.linear.x
         out.linear.y = self.manual.linear.y
-        out.angular.x = self.manual.angular.x
-        out.angular.y = self.manual.angular.y
 
         # Heave (Fz): depth-hold atau manual.
         if self.enable_depth and self.cur_z is not None:
@@ -131,6 +177,20 @@ class Stabilizer(Node):
             out.linear.z = self.depth_pid.update(err, self.cur_z, dt) + self.buoyancy_ff
         else:
             out.linear.z = self.manual.linear.z
+
+        # Roll (Mx): roll-hold atau manual.
+        if self.enable_roll and self.cur_roll is not None:
+            err = wrap_to_pi(self.target_roll - self.cur_roll)
+            out.angular.x = self.roll_pid.update(err, self.cur_roll, dt)
+        else:
+            out.angular.x = self.manual.angular.x
+
+        # Pitch (My): pitch-hold atau manual.
+        if self.enable_pitch and self.cur_pitch is not None:
+            err = wrap_to_pi(self.target_pitch - self.cur_pitch)
+            out.angular.y = self.pitch_pid.update(err, self.cur_pitch, dt)
+        else:
+            out.angular.y = self.manual.angular.y
 
         # Yaw (Mz): heading-hold atau manual.
         if self.enable_heading and self.cur_yaw is not None:

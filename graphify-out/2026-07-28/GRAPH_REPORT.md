@@ -1,16 +1,16 @@
 # Graph Report - ros2_ws  (2026-07-28)
 
 ## Corpus Check
-- 51 files · ~101,431 words
+- 51 files · ~100,682 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 483 nodes · 744 edges · 31 communities (23 shown, 8 thin omitted)
-- Extraction: 87% EXTRACTED · 13% INFERRED · 0% AMBIGUOUS · INFERRED: 99 edges (avg confidence: 0.78)
+- 477 nodes · 727 edges · 31 communities (23 shown, 8 thin omitted)
+- Extraction: 87% EXTRACTED · 13% INFERRED · 0% AMBIGUOUS · INFERRED: 97 edges (avg confidence: 0.78)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `b754a53d`
+- Built from commit: `99d990a8`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -44,11 +44,11 @@
 - 4.7 Sub-Kategori Remotely Operated Underwater Vehicle (ROV)
 
 ## God Nodes (most connected - your core abstractions)
-1. `MissionFSM` - 35 edges
+1. `MissionFSM` - 32 edges
 2. `GripperLogic` - 29 edges
 3. `GuiBridgeLogic` - 18 edges
-4. `hook_servo()` - 15 edges
-5. `PID` - 15 edges
+4. `PID` - 15 edges
+5. `hook_servo()` - 14 edges
 6. `GripperController` - 12 edges
 7. `_fresh()` - 12 edges
 8. `CHANGELOG — Riwayat Kronologis HYDROships (KKI 2026)` - 11 edges
@@ -73,12 +73,12 @@
 ## Communities (31 total, 8 thin omitted)
 
 ### Community 0 - "MissionFSM"
-Cohesion: 0.09
-Nodes (24): Enum, HookServoGains, Gain PD visual-servo APPROACH_HOOK (holonomik: sway+surge+depth-setpoint)., main(), MissionFSM, Node, Non-holonomik: putar dulu menghadap target, baru maju (surge saja,         tanpa, PD posisi HOLONOMIK: dorong ROV ke (tx,ty) dunia via gaya horizontal         bod (+16 more)
+Cohesion: 0.12
+Nodes (15): MissionFSM, Node, Non-holonomik: putar dulu menghadap target, baru maju (surge saja,         tanpa, PD posisi HOLONOMIK: dorong ROV ke (tx,ty) dunia via gaya horizontal         bod, Offset QR di frame kamera. qr_detector menerbitkan utk kamera BAWAH         maup, Pose payload sebenarnya dari spawner (payload di-random tiap run).         Tanpa, Metrik alignment sesungguhnya: jarak XY GRIPPER (bukan base_link) ke QR., Misi 1: dekati payload holonomik (tanpa terikat heading, cegah         osilasi s (+7 more)
 
 ### Community 1 - "GuiBridgeLogic"
-Cohesion: 0.06
-Nodes (33): GuiBridge, clamp(), GuiBridgeLogic, _num(), gui_bridge_logic — inti terjemahan GUI-ROV <-> ROS 2 (murni, tanpa ROS/UDP).  Re, yaw REP-103 (rad, CCW dari +x) -> heading GUI (derajat 0..360)., Susun dict telemetri utk GUI (JSON). Nilai None -> 0 agar GUI aman., Terjemahan stateless-ish GUI<->ROS. Simpan axis manual terakhir & status.      G (+25 more)
+Cohesion: 0.07
+Nodes (28): GuiBridge, clamp(), GuiBridgeLogic, _num(), gui_bridge_logic — inti terjemahan GUI-ROV <-> ROS 2 (murni, tanpa ROS/UDP).  Re, yaw REP-103 (rad, CCW dari +x) -> heading GUI (derajat 0..360)., Susun dict telemetri utk GUI (JSON). Nilai None -> 0 agar GUI aman., Terjemahan stateless-ish GUI<->ROS. Simpan axis manual terakhir & status.      G (+20 more)
 
 ### Community 2 - "GripperLogic"
 Cohesion: 0.10
@@ -97,8 +97,8 @@ Cohesion: 0.22
 Nodes (6): Empty, GripperController, main(), Node, gripper_controller — node manipulator ROV (rancang ulang M5, DetachableJoint)., String
 
 ### Community 6 - "hook_servo"
-Cohesion: 0.19
-Nodes (16): _clamp(), hook_servo(), hook_logic — helper murni deteksi/servo hook (tanpa ROS/cv2), agar testable.  Di, PD visual servo hook -> perintah gerak (fungsi MURNI, testable).      Args:, Uji hook_servo (PD visual servo APPROACH_HOOK) — fungsi murni, tanpa rclpy.  Ver, test_centered_far_moves_forward_only(), test_convergence_reduces_error_over_iterations(), test_depth_setpoint_clamped() (+8 more)
+Cohesion: 0.12
+Nodes (23): _clamp(), hook_servo(), HookServoGains, normalize_hook_offset(), hook_logic — helper murni deteksi/servo hook (tanpa ROS/cv2), agar testable.  Di, (center px, area px^2, ukuran frame) -> (ex, ey, size) ternormalisasi.      Konv, Gain PD visual-servo APPROACH_HOOK (holonomik: sway+surge+depth-setpoint)., PD visual servo hook -> perintah gerak (fungsi MURNI, testable).      Args: (+15 more)
 
 ### Community 7 - "test_qr_logic.py"
 Cohesion: 0.08
@@ -133,8 +133,8 @@ Cohesion: 0.29
 Nodes (5): DepthPublisher, main(), Node, Odometry, depth_publisher — turunkan KEDALAMAN ROV dari odometry (Milestone 3).  Di simula
 
 ### Community 15 - "test_qr_ey_target.py"
-Cohesion: 0.13
-Nodes (20): qr_ey_target(), Offset vertikal ternormalisasi tempat QR HARUS tampak di kamera bawah.      Grip, ey(), Uji qr_ey_target: koreksi offset kamera bawah -> gripper (APPROACH_QR).  Kamera, TAN harus = tan(atan(0.75 * tan(40°))) utk sensor 640x480, hFOV 80°., Depth operasional: h_cam=0.414, ½-tinggi=0.261 -> ey=-0.61 (aman)., Bukti kenapa scan_depth harus dinaikkan.      Pada 0.46, h_cam=0.254 -> ½-tinggi, Konvensi offset_from_points: ey<0 = QR di ATAS pusat = payload di DEPAN. (+12 more)
+Cohesion: 0.10
+Nodes (24): Enum, main(), qr_ey_target(), Offset vertikal ternormalisasi tempat QR HARUS tampak di kamera bawah.      Grip, St, yaw_from_quaternion(), ey(), Uji qr_ey_target: koreksi offset kamera bawah -> gripper (APPROACH_QR).  Kamera (+16 more)
 
 ### Community 17 - "sim.launch.py"
 Cohesion: 0.29
@@ -158,15 +158,15 @@ _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `GripperController` connect `QRDetector` to `GripperLogic`?**
   _High betweenness centrality (0.091) - this node is a cross-community bridge._
+- **Why does `MissionFSM` connect `MissionFSM` to `hook_servo`, `test_qr_ey_target.py`?**
+  _High betweenness centrality (0.081) - this node is a cross-community bridge._
 - **Why does `GripperLogic` connect `GripperLogic` to `QRDetector`?**
   _High betweenness centrality (0.077) - this node is a cross-community bridge._
 - **Are the 19 inferred relationships involving `GripperLogic` (e.g. with `GripperController` and `.__init__()`) actually correct?**
   _`GripperLogic` has 19 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 11 inferred relationships involving `GuiBridgeLogic` (e.g. with `GuiBridge` and `.__init__()`) actually correct?**
   _`GuiBridgeLogic` has 11 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 12 inferred relationships involving `hook_servo()` (e.g. with `._st_approach_hook()` and `test_centered_far_moves_forward_only()`) actually correct?**
-  _`hook_servo()` has 12 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 9 inferred relationships involving `PID` (e.g. with `Stabilizer` and `.__init__()`) actually correct?**
   _`PID` has 9 INFERRED edges - model-reasoned connections that need verification._
-- **What connects `ros2-ws`, `graphify`, `PROBLEM.md — pindah ke docs/` to the rest of the system?**
-  _47 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Are the 11 inferred relationships involving `hook_servo()` (e.g. with `test_centered_far_moves_forward_only()` and `test_convergence_reduces_error_over_iterations()`) actually correct?**
+  _`hook_servo()` has 11 INFERRED edges - model-reasoned connections that need verification._

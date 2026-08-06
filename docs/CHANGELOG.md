@@ -276,6 +276,77 @@ Commit hash & tanggal dari `git log` (rentang 2026-07-07 … 2026-07-17).
 
 ---
 
+## 2026-07-28
+
+- **[RESOLVED] Redesign gripper: jari tunggal → DUA JARI OPPOSING (tetap kosmetik).**
+  Jari kosmetik lama `gripper_jaw` memakai revolute sumbu **Y**, jadi mengayun naik-turun
+  di bidang XZ — terlihat seperti flap/scoop, bukan gripper yang menjepit. Diganti dua jari
+  `gripper_finger_left`/`gripper_finger_right` (box 0.08×0.016×0.03 m, massa 0.06 kg) dengan
+  revolute sumbu **Z** di pivot `(0.04, ∓0.025, 0)` relatif `gripper_base` → menjepit di
+  bidang XY seperti parallel gripper. Sudut `0.0` = tertutup, `0.35` = terbuka (limit joint
+  `[-0.1, 0.5]`; `jaw_open` diturunkan dari 0.6 agar muat). **Mirroring diurus tanda `axis`**
+  (kiri `0 0 -1`, kanan `0 0 1`) sehingga nilai Float64 yang **sama** dikirim ke kedua joint —
+  `GripperLogic.jaw_target` tetap **skalar tunggal**, API logic tak berubah sama sekali.
+  URDF pakai `xacro:macro` `gripper_finger` + `gripper_finger_plugin` (dua instance
+  `JointPositionController`, satu per joint — cara standar Fortress). Topik jari
+  `/hydroships/gripper_jaw/cmd` **diganti** `/hydroships/gripper_left/cmd` +
+  `/hydroships/gripper_right/cmd` (bridge.yaml, `Float64` ↔ `gz.msgs.Double`).
+  **Tidak berubah**: `DetachableJoint` (grasp fisik sesungguhnya), `preserveFixedJoint` pada
+  `gripper_base_joint`, kontrak `/hydroships/gripper/command` & `attach`/`detach`, `mission_fsm`,
+  GUI. **Ini BUKAN pemulihan gripper 2-jari lama** (lihat arsip di bawah) — jari baru tetap
+  murni kosmetik, tidak menahan payload lewat gesekan.
+  **[VERIFY]** runtime di sim: kedua jari terlihat & bergerak serempak, dan jari tidak
+  menutupi pusat frame kamera bawah (deteksi QR tetap jalan).
+
+- **[RESOLVED] `APPROACH_QR` navigasi ke pose payload ASLI + visual servo QR benar-benar
+  di-wire.** Investigasi "ROV susah di APPROACH_QR" menemukan bahwa beberapa fitur yang
+  sebelumnya dicatat `[RESOLVED]` di CHANGELOG **implementasinya tidak pernah ada** di
+  `mission_fsm.py` — variabel state-nya dideklarasikan tapi `create_subscription`-nya
+  hilang. Empat akar masalah, semua diverifikasi langsung ke kode:
+  - **RC4 (utama).** `self.payload_pose` dideklarasi tapi **tak pernah subscribe**
+    `/hydroships/payload_pose`; FSM selalu navigasi ke param statis `payload_x/y`
+    (default `0.4, 0.0`) padahal payload di-random tiap run → ROV berhenti di tempat
+    salah sehingga QR jarang masuk frame kamera bawah (log run lama didominasi
+    `DECODE GAGAL: QR tak terdeteksi (pts=None)`). Kini subscribe dgn QoS
+    `TRANSIENT_LOCAL` (menyamai publisher latched di `payload_spawner.py`); param
+    tinggal fallback sampai pesan tiba.
+  - **RC5.** `self.qr_off`/`qr_off_time` dideklarasi tapi **tak pernah subscribe**
+    `/hydroships/qr_offset` → visual servo centering yang dideskripsikan di CHANGELOG
+    tak pernah berjalan. Kini di-wire, dan **difilter `frame_id == 'camera_bottom_link'`**
+    — `qr_detector` menerbitkan offset untuk kamera **bawah maupun depan** di topic yang
+    sama, offset kamera depan akan menyesatkan servo saat memusatkan diri di atas payload.
+  - **RC6.** Hanya ada satu timeout `t_scan` (45 s, bukan 60 s; dan tidak ada state
+    `SCAN_QR` — `t_scan` cuma dipakai `APPROACH_QR`). Ditambah `t_nav_qr` (30 s) sebagai
+    pemicu **RECOVERY** — bukan abort: bila QR belum terbaca, setpoint depth dinaikkan
+    +0.10 m untuk memperlebar FOV kamera bawah (QR 12 cm mudah memenuhi frame & finder
+    pattern ter-crop saat terlalu rendah, lih. catatan `scan_depth` 0.62→0.46). Abort
+    tetap hanya di `t_scan`.
+  - **RC7.** `self._approach_move_t0` dead code (di-assign, tak pernah dibaca) — dihapus.
+
+  **Alur baru: pusatkan dulu, baru GRAB.** Saat QR terbaca, `self.wall` dikunci & skor m1
+  diberi, tapi FSM **tetap di APPROACH_QR** menjalankan servo sampai QR terpusat
+  (`|ex|,|ey| < qr_center_tol`) atau `dist < approach_tol` → jepitan lebih presisi.
+  Ini **menggantikan** perilaku sementara sebelumnya yang langsung `→ GRAB` begitu QR
+  terbaca (yang membuat servo praktis tak pernah terpakai). Fallback `wall_order` tetap
+  ada untuk kasus QR tak pernah terbaca. Flag `_wall_scored`/`_approach_recovered`
+  di-reset di `_to()` saat masuk `APPROACH_QR` karena misi berulang per payload
+  (`AUTO_RELEASE → DIVE → APPROACH_QR`).
+
+  **Catatan frame (rawan salah tanda).** `ex,ey` dari `offset_from_points` bersumbu
+  **CITRA** ternormalisasi `[-1..1]`, sedangkan `_goto_xy` menerima target **DUNIA**;
+  yaw ROV berubah terus sehingga pemetaan tetap akan salah arah saat ROV berputar.
+  Nudge dihitung di body-frame (`body_dx=-ey·k`, `body_dy=-ex·k`) lalu diputar dgn yaw.
+  **Salah tanda = umpan balik POSITIF (ROV menjauh dari payload)** — karena itu tanda
+  dibuat parameter eksplisit `qr_servo_sign` (default `+1.0`) dan `ex/ey` di-log tiap
+  siklus. Param baru: `t_nav_qr`, `qr_center_tol` (0.12), `qr_servo_gain` (0.15),
+  `qr_servo_sign`.
+  **[VERIFY]** runtime: (a) log `APPROACH_QR dbg` menampilkan `target=` pose payload
+  sebenarnya (mis. `(0.50,-1.20)`), bukan `(0.40,0.00)`; (b) `ex/ey` **mengecil** menuju 0
+  saat mendekat — bila **membesar**, balik `qr_servo_sign:=-1.0` sebelum mengubah logika
+  lain; (c) recovery depth-ascent memicu di 30 s saat QR tak terbaca.
+
+---
+
 ## Keputusan yang DIBATALKAN / diganti (arsip)
 
 Disimpan sebagai referensi agar tidak dihidupkan ulang tanpa sadar.

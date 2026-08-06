@@ -95,10 +95,17 @@
   gz_type_name: "gz.msgs.Double"
   direction: ROS_TO_GZ
 
-# ---- Manipulator (rancang ulang M5): DetachableJoint + jari kosmetik ----
-# Target sudut jari kosmetik (rad) : ROS -> Gazebo (JointPositionController).
-- ros_topic_name: "/hydroships/gripper_jaw/cmd"
-  gz_topic_name: "/hydroships/gripper_jaw/cmd"
+# ---- Manipulator (rancang ulang M5): DetachableJoint + dua jari kosmetik ----
+# Target sudut tiap jari (rad) : ROS -> Gazebo (JointPositionController).
+# Nilai kiri & kanan selalu identik; mirroring gerak dari tanda axis di URDF.
+- ros_topic_name: "/hydroships/gripper_left/cmd"
+  gz_topic_name: "/hydroships/gripper_left/cmd"
+  ros_type_name: "std_msgs/msg/Float64"
+  gz_type_name: "gz.msgs.Double"
+  direction: ROS_TO_GZ
+
+- ros_topic_name: "/hydroships/gripper_right/cmd"
+  gz_topic_name: "/hydroships/gripper_right/cmd"
   ros_type_name: "std_msgs/msg/Float64"
   gz_type_name: "gz.msgs.Double"
   direction: ROS_TO_GZ
