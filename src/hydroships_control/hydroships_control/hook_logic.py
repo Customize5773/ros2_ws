@@ -40,6 +40,7 @@ class HookServoGains:
     kd_sway: float = 30.0      # N per (m/s) redaman kecepatan sway (body vy)
     kp_depth: float = 0.25     # m per unit offset-y (geser setpoint kedalaman)
     size_stop: float = 0.35    # ukuran-tampak hook -> dianggap cukup dekat
+    size_taper_start: float = 0.20  # ukuran-tampak mulai melambat (sebelum size_stop)
     center_tol: float = 0.15   # |offset| dianggap "sejajar"
     fmax: float = 16.0         # N batas gaya horizontal (sway/surge)
     depth_range: float = 0.20  # m simpangan maks setpoint kedalaman dari hook_depth
@@ -69,7 +70,16 @@ def hook_servo(off, vx, vy, hook_depth, gains):
     ex, ey, size = float(off[0]), float(off[1]), float(off[2])
     g = gains
     e_size = g.size_stop - size                         # + = terlalu jauh -> maju
-    surge = _clamp(g.kp_surge * e_size - g.kd_surge * vx, -g.fmax, g.fmax)
+    # Taper: mulai kurangi gaya maju begitu size lewati size_taper_start, biar
+    # tak nabrak akibat momentum saat size baru menyentuh size_stop (mirip
+    # taper di mission_fsm._goto_xy_yaw_first).
+    taper_range = max(1e-3, g.size_stop - g.size_taper_start)
+    size_taper = 1.0 if size < g.size_taper_start else max(
+        0.0, (g.size_stop - size) / taper_range)
+    align_gate_ex = 0.5
+    align_taper = _clamp(1.0 - abs(ex) / align_gate_ex, 0.0, 1.0)
+    surge = _clamp(g.kp_surge * e_size * size_taper * align_taper - g.kd_surge * vx,
+                    -g.fmax, g.fmax)
     sway = _clamp(-g.kp_sway * ex - g.kd_sway * vy, -g.fmax, g.fmax)
     d_depth = _clamp(g.kp_depth * ey, -g.depth_range, g.depth_range)
     target_depth = hook_depth + d_depth
