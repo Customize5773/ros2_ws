@@ -12,8 +12,15 @@
 # ke topic manapun sampai backend-nya tersedia.
 teleop_gamepad:
   ros__parameters:
-    publish_rate: 10.0
+    publish_rate: 20.0
     joy_topic: /joy
+    # true  = semua perintah lewat /hydroships/manual/cmd + /hydroships/control_mode
+    #         (dipakai bersama hydroships_stabilized.launch.py yang menjalankan stabilizer).
+    # false = publish wrench langsung ke /hydroships/cmd_vel seperti teleop_keyboard
+    #         (dipakai bersama hydroships_sim.launch.py yang TANPA stabilizer).
+    # Dua publisher di /hydroships/cmd_vel akan saling berebut -> jangan set false
+    # saat stabilizer jalan.
+    route_through_stabilizer: true
     deadzone: 0.12
     expo: 1.6
     max_force: 20.0          # N, untuk Fx/Fy/Fz
@@ -21,13 +28,22 @@ teleop_gamepad:
     max_heading_rate: 1.0     # rad/s, skala axis yaw di mode depth_hold/poshold
     max_depth_rate: 0.5       # m/s, skala axis heave di mode depth_hold/poshold
 
+    # Konvensi ArduSub: Axis X = maju (surge), Axis Y = lateral (sway),
+    # Axis Z = throttle (heave), Axis R = yaw. Glyph arah di config asal
+    # (axis0 ↔, axis1 ↕, axis2 ↔, axis3 ↕) = left-X, left-Y, right-X, right-Y.
     axes:
-      yaw: 0        # Axis R
-      heave: 1      # Axis Z
-      surge: 2      # Axis Y
-      sway: 3       # Axis X
+      yaw: 0        # Axis R  (left stick  ↔)
+      heave: 1      # Axis Z  (left stick  ↕)
+      sway: 2       # Axis Y  (right stick ↔) - lateral
+      surge: 3      # Axis X  (right stick ↕) - maju/mundur
+    # PENTING: flag invert WAJIB diverifikasi dengan `ros2 topic echo /joy`.
+    # QGroundControl/SDL dan ROS `joy` memakai konvensi tanda yang berbeda untuk
+    # sumbu Y stick, jadi nilai dari config QGC tidak selalu berpindah apa adanya.
+    # Dorong stick MAJU -> linear.x harus positif; dorong KANAN -> ROV geser kanan.
+    axes_invert_yaw: false
     axes_invert_heave: true
-    axes_invert_sway: true
+    axes_invert_sway: false
+    axes_invert_surge: true
 
     buttons_shift: 16
 
@@ -54,3 +70,5 @@ teleop_gamepad:
     depth_setpoint_topic: /hydroships/setpoint/depth
     heading_setpoint_topic: /hydroships/setpoint/heading
     gripper_cmd_topic: /hydroships/gripper/command
+    control_mode_topic: /hydroships/control_mode
+    odom_topic: /hydroships/odom

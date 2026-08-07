@@ -49,7 +49,6 @@ Folder build/ install/ log/ sengaja di-gitignore; regenerasi dgn colcon build.
       source /opt/ros/humble/setup.bash
       source ~/ros2_ws/install/setup.bash
 
-
 --------------------------------------------------------------------------------
 3. MENJALANKAN — pilih salah satu skenario
 --------------------------------------------------------------------------------

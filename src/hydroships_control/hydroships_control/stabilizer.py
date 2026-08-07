@@ -23,9 +23,18 @@ import rclpy
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 from rclpy.node import Node
-from std_msgs.msg import Float64
+from std_msgs.msg import Float64, String
 
 from hydroships_control.pid import PID, wrap_to_pi
+
+# Mode kendali runtime (dikirim teleop_gamepad lewat /hydroships/control_mode).
+# Nilai = (depth_hold, heading_hold, pitch_hold, roll_hold). Pitch/roll selalu
+# aktif di mode ber-hold sebagai lapisan robustness; di manual pilot pegang penuh.
+CONTROL_MODES = {
+    'manual': (False, False, False, False),
+    'depth_hold': (True, False, True, True),
+    'poshold': (True, True, True, True),
+}
 
 
 def yaw_from_quaternion(q):
@@ -133,6 +142,11 @@ class Stabilizer(Node):
             Float64, '/hydroships/setpoint/depth', self.on_depth_sp, 10)
         self.create_subscription(
             Float64, '/hydroships/setpoint/heading', self.on_heading_sp, 10)
+        # Mode kendali runtime. Tanpa pesan di topic ini perilaku tetap memakai
+        # enable_*_hold dari gains.yaml, jadi teleop_stabilized & mission_fsm
+        # yang sudah ada tidak berubah.
+        self.create_subscription(
+            String, '/hydroships/control_mode', self.on_control_mode, 10)
 
         rate = gp('rate').value
         self.timer = self.create_timer(1.0 / rate, self.on_timer)
@@ -151,6 +165,46 @@ class Stabilizer(Node):
 
     def on_manual(self, msg: Twist):
         self.manual = msg
+
+    def on_control_mode(self, msg: String):
+        mode = msg.data.strip()
+        flags = CONTROL_MODES.get(mode)
+        if flags is None:
+            self.get_logger().warn(f'mode kendali tak dikenal: {msg.data!r}')
+            return
+
+        depth, heading, pitch, roll = flags
+        if (depth, heading, pitch, roll) == (
+                self.enable_depth, self.enable_heading,
+                self.enable_pitch, self.enable_roll):
+            return
+
+        # Reset integrator tiap hold yang BERUBAH status supaya windup dari mode
+        # sebelumnya tidak terbawa (mis. integral depth yang menumpuk saat manual).
+        for was, now, pid in (
+                (self.enable_depth, depth, self.depth_pid),
+                (self.enable_heading, heading, self.heading_pid),
+                (self.enable_pitch, pitch, self.pitch_pid),
+                (self.enable_roll, roll, self.roll_pid)):
+            if was != now:
+                pid.reset()
+
+        # Bumpless: saat hold baru dinyalakan, kunci target ke keadaan SAAT INI
+        # supaya tidak ada step besar melawan PID. Pertahanan kedua — teleop
+        # normalnya sudah mengirim setpoint sendiri saat ganti mode.
+        if depth and not self.enable_depth and self.cur_z is not None:
+            self.target_depth = self.cur_z
+        if heading and not self.enable_heading and self.cur_yaw is not None:
+            self.target_heading = self.cur_yaw
+
+        self.enable_depth = depth
+        self.enable_heading = heading
+        self.enable_pitch = pitch
+        self.enable_roll = roll
+        self.get_logger().info(
+            f'mode kendali -> {mode} (depth_hold={depth} heading_hold={heading} '
+            f'pitch_hold={pitch} roll_hold={roll} '
+            f'target_depth={self.target_depth:.2f} m)')
 
     def on_depth_sp(self, msg: Float64):
         self.target_depth = msg.data
