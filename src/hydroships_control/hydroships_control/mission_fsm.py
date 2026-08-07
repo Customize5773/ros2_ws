@@ -123,7 +123,7 @@ class MissionFSM(Node):
         p('approach_kd', 140.0)       # N/(m/s) redaman kecepatan (cegah overshoot)
         p('approach_fmax', 16.0)     # N batas gaya approach
         p('approach_tol', 0.06)      # m radius "sudah di atas payload"
-        p('wall_dist', 2.30)         # m jarak pusat->target wall (standoff; hook ~2.4 m)
+        p('wall_dist', 2.15)         # m jarak pusat->target wall (standoff; hook ~2.4 m)
         p('hook_dist', 0.30)         # m jarak target di depan hook (lebih dekat dari wall_dist)
         p('hook_lateral_offset', 0.0)  # m, koreksi geser samping ke hook (+/- sesuai arah)
         p('nav_tol', 0.20)           # m radius "tiba di wall/hook"
@@ -240,9 +240,8 @@ class MissionFSM(Node):
         # payload sudah nempel ke ROV sejak spawn (DetachableJoint).
         # Detach = publish Empty ke topic ini.
         self.pub_detach = self.create_publisher(Empty, '/hydroships/gripper/detach', 10)
-        self.pub_qr_request = self.create_publisher(Empty, '/hydroships/qr_request', 10)
-        self._qr_requested = False
         self._detach_sent = False
+        self._hook_backoff_done = False
 
         # State
         self.depth = None
@@ -267,6 +266,7 @@ class MissionFSM(Node):
         self.state = St.IDLE
         self.t_state = self._now()
         self._hold_since = None
+        self._locked_yaw = None
         self._trigger_received = False
         try:
             self._start_state = St[g('start_state')]
@@ -308,6 +308,8 @@ class MissionFSM(Node):
         self.state = s
         self.t_state = self._now()
         self._hold_since = None
+        if s is St.APPROACH_HOOK:
+            self._hook_backoff_done = False
         if s is St.APPROACH_QR:
             # Misi berulang per payload (AUTO_RELEASE -> DIVE -> APPROACH_QR):
             # tanpa reset, payload ke-2 dst langsung dianggap sudah ber-wall.
@@ -466,9 +468,19 @@ class MissionFSM(Node):
     def _st_dive(self):
         self._set_depth(self.scan_depth)
         self._set_heading(0.0)
-        if self.depth is not None and self.depth >= self.scan_depth - self.depth_tol:
+        depth_ok = self.depth is not None and self.depth >= self.scan_depth - self.depth_tol
+        # Jangan transisi ke APPROACH_QR sebelum payload_pose (latched, dari
+        # payload_spawner via TimerAction) benar-benar tiba -- kalau tidak,
+        # APPROACH_QR mulai navigasi ke payload_x/y fallback statis (bukan posisi
+        # spawn asli yg di-random tiap run) selama beberapa detik sebelum pesan
+        # latched itu nyampe, bikin ROV "ngacak lalu ngebut" ke target salah.
+        if depth_ok and self.payload_pose is None and int(self._elapsed() * 2) % 20 == 0:
+            self.get_logger().info(
+                'DIVE: kedalaman OK, menunggu /hydroships/payload_pose...')
+        if depth_ok and self.payload_pose is not None:
             self._set_surge(0.0)
-            self.get_logger().info('Kedalaman scan tercapai (%.2fm)' % self.depth)
+            self.get_logger().info('Kedalaman scan tercapai (%.2fm), payload_pose siap'
+                                   % self.depth)
             self._to(St.APPROACH_QR)
         elif self._elapsed() > self.T['dive']:
             self.get_logger().error('DIVE timeout'); self._to(St.ABORT)
@@ -501,6 +513,9 @@ class MissionFSM(Node):
 
         Wall diambil dari QR asli (/hydroships/qr_result) begitu terbaca segar;
         fallback ke urutan wall_order kalau QR tak pernah terbaca."""
+        if self._locked_yaw is None:
+            self._locked_yaw = self.yaw if self.yaw is not None else 0.0
+        self._set_heading(self._locked_yaw)
         depth_target = self.scan_depth
         qr_seen = self.qr_wall is not None and (self._now() - self.qr_time) < self.qr_max_age
 
@@ -535,25 +550,24 @@ class MissionFSM(Node):
         # gripper, bukan base_link. Tanpa ini fallback "dist < approach_tol"
         # menempatkan base_link di atas QR -> gripper meleset 0.18 m.
         tx, ty = self.payload_x, self.payload_y
-        if self.yaw is not None:
-            tx -= self.gripper_base_dx * math.cos(self.yaw)
-            ty -= self.gripper_base_dx * math.sin(self.yaw)
+        tx -= self.gripper_base_dx * math.cos(self._locked_yaw)
+        ty -= self.gripper_base_dx * math.sin(self._locked_yaw)
         off_fresh = (self.qr_off is not None
                      and (self._now() - self.qr_off_time) < self.qr_max_age)
         dist_raw = math.hypot((self.x or 0.0) - tx, (self.y or 0.0) - ty)
-        servoing = off_fresh and dist_raw < 0.3 and self.yaw is not None
+        servoing = off_fresh and dist_raw < 0.3
         if servoing:
             ex, ey, _size = self.qr_off
             k = self.qr_servo_gain * self.qr_servo_sign
             # Error diukur terhadap ey_target, bukan terhadap 0.
             body_dx = -(ey - ey_target) * k   # ey>ey_target: QR terlalu ke belakang
             body_dy = -ex * k                 # ex>0: QR di kanan pusat -> geser kanan
-            c, s = math.cos(self.yaw), math.sin(self.yaw)
+            c, s = math.cos(self._locked_yaw), math.sin(self._locked_yaw)
             tx += body_dx * c - body_dy * s
             ty += body_dx * s + body_dy * c
 
         dist = self._goto_xy(tx, ty)
-        if int(self._elapsed() * 2) % 6 == 0:
+        if int(self._elapsed() * 2) % 20 == 0:
             off_txt = ('ex=%+.2f ey=%+.2f' % (self.qr_off[0], self.qr_off[1])
                        if self.qr_off is not None else 'ex=-- ey=--')
             h_cam = max(0.05, abs(self.qr_floor_z) - depth_target - self.cam_bottom_dz)
@@ -626,11 +640,13 @@ class MissionFSM(Node):
         dist = self._goto_xy_yaw_first(tx, ty, fmax=self.nav_fmax)
         if dist < self.nav_tol:
             self._set_heading(target_heading)   # sudah tiba, baru hadapkan ke wall
-        if int(self._elapsed() * 2) % 6 == 0:
+        if int(self._elapsed() * 2) % 20 == 0:
+            ex_dbg, ey_dbg = tx - (self.x or 0), ty - (self.y or 0)
+            target_yaw_dbg = math.degrees(math.atan2(ey_dbg, ex_dbg))
             self.get_logger().info(
-                'NAV_WALL dbg: dist=%.2f x=%.2f y=%.2f yaw=%.1f target=(%.2f,%.2f)'
+                'NAV_WALL dbg: dist=%.2f x=%.2f y=%.2f yaw=%.1f target_yaw=%.1f target=(%.2f,%.2f)'
                 % (dist, self.x or -99, self.y or -99,
-                   math.degrees(self.yaw or 0), tx, ty))
+                   math.degrees(self.yaw or 0), target_yaw_dbg, tx, ty))
         if dist < self.nav_tol:
             self._set_surge(0.0)
             speed = math.hypot(self.vx, self.vy)
@@ -665,10 +681,14 @@ class MissionFSM(Node):
             self.get_logger().error('HANG timeout'); self._to(St.ABORT)
 
     def _st_surface(self):
-        """Misi 4 (REMOTELY): naik & bersandar di sisi dinding payload."""
-        self._set_heading(0.0)
+        """Misi 4 (REMOTELY): naik & bersandar di sisi dinding payload.
+        Heading TETAP menghadap wall (sama seperti HANG) — jangan reset ke 0,
+        itu bikin ROV putar mendadak saat mulai naik."""
+        if self.wall is None: self._to(St.ABORT); return
+        target_heading = math.radians(WALL_HEADING_DEG[self.wall])
+        self._set_heading(target_heading)
 
-        yaw_err = abs(wrap_to_pi(0.0 - self.yaw)) if self.yaw is not None else math.pi
+        yaw_err = abs(wrap_to_pi(target_heading - self.yaw)) if self.yaw is not None else math.pi
         if yaw_err > self.yaw_tol:
             brake_kd = 40.0
             bx = -brake_kd * self.vx
@@ -696,9 +716,12 @@ class MissionFSM(Node):
 
     def _st_wait_trigger(self):
         """Menunggu pilot menekan trigger setelah bersandar di dinding.
-        Selama menunggu, tahan posisi (depth permukaan, heading tetap)."""
+        Selama menunggu, tahan posisi (depth permukaan, heading TETAP
+        menghadap wall — sama seperti SURFACE/HANG, jangan reset ke 0)."""
+        if self.wall is None: self._to(St.ABORT); return
+        target_heading = math.radians(WALL_HEADING_DEG[self.wall])
         self._set_depth(self.depth_surface)
-        self._set_heading(0.0)
+        self._set_heading(target_heading)
         self._set_surge(0.0, 0.0)
         if self._trigger_received:
             self.get_logger().info('Mulai misi pelepasan payload AUTONOMOUS')
@@ -715,6 +738,21 @@ class MissionFSM(Node):
         Payload masih dijepit di sini — detach baru terjadi di AUTO_RELEASE."""
         if self.wall is None: self._to(St.ABORT); return
         self._set_heading(math.radians(WALL_HEADING_DEG[self.wall]))
+
+        # Backoff dikit dulu sebelum servo hook -- cegah agresif nabrak,
+        # kasih jarak servo lihat hook dari lebih jauh.
+        if not self._hook_backoff_done:
+            self._set_depth(self.hook_depth)
+            self._set_surge(-8.0, 0.0)   # dorong mundur pelan, fixed
+            if self._hold_since is None:
+                self._hold_since = self._now()
+            if self._now() - self._hold_since >= 1.2:   # s durasi backoff
+                self._hook_backoff_done = True
+                self._hold_since = None
+                self._set_surge(0.0, 0.0)
+                self.get_logger().info('APPROACH_HOOK: backoff selesai, mulai servo')
+            return
+
         off = self._hook_fresh()
 
         if off is not None:
@@ -752,7 +790,7 @@ class MissionFSM(Node):
             else:
                 self._hold_since = None
 
-        if int(self._elapsed() * 2) % 6 == 0:
+        if int(self._elapsed() * 2) % 20 == 0:
             self.get_logger().info(
                 'APPROACH_HOOK dbg: off=%s depth=%.2f'
                 % (off, self.depth if self.depth is not None else -99.0))
