@@ -1,16 +1,20 @@
 # Gain PID stabilizer HYDROships (Milestone 2).
-# Titik awal yang wajar untuk model M1 (near-neutral, massa ~33.9 kg).
+# Titik awal untuk model M1: near-neutral, massa ~8.7 kg (base_mass 8.3 + 6
+# thruster + gripper, lihat hydroships_description/config/rov_params.yaml).
+# Massa efektif heave ~13 kg setelah added mass (zDotW -4.614).
 # Setel ulang setelah massa/koefisien hidrodinamika di-tune ke ROV asli.
 stabilizer:
   ros__parameters:
     use_sim_time: true
     rate: 20.0
 
+    # Diturunkan dari 60/8/40 (ilim 30) yang disetel untuk perkiraan massa lama
+    # ~33.9 kg — terlalu agresif untuk badan ~8.7 kg dan ikut menyebabkan osilasi.
     depth:
-      kp: 60.0 # Diturunkan sedikit (dari 60.0) agar tidak terlalu agresif
-      ki: 8.0  # Diturunkan sedikit (dari 8.0) agar tidak mengakumulasi error terlalu cepat
-      kd: 40.0 # Dinaikkan (dari 40.0) untuk memperkuat fungsi "rem" otomatis
-      integral_limit: 30.0
+      kp: 35.0
+      ki: 4.0
+      kd: 30.0
+      integral_limit: 15.0
       out_limit: 60.0      # batas |Fz| (N)
 
     heading:

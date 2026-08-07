@@ -31,6 +31,7 @@ setup(
             'teleop_keyboard = hydroships_control.teleop_keyboard:main',
             'stabilizer = hydroships_control.stabilizer:main',
             'teleop_stabilized = hydroships_control.teleop_stabilized:main',
+            'teleop_gamepad = hydroships_control.teleop_gamepad:main',
             'depth_publisher = hydroships_control.depth_publisher:main',
             'mission_fsm = hydroships_control.mission_fsm:main',
             'qr_detector = hydroships_control.qr_detector:main',

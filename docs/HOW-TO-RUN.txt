@@ -49,7 +49,6 @@ Folder build/ install/ log/ sengaja di-gitignore; regenerasi dgn colcon build.
       source /opt/ros/humble/setup.bash
       source ~/ros2_ws/install/setup.bash
 
-
 --------------------------------------------------------------------------------
 3. MENJALANKAN — pilih salah satu skenario
 --------------------------------------------------------------------------------
@@ -105,10 +104,50 @@ Folder build/ install/ log/ sengaja di-gitignore; regenerasi dgn colcon build.
       ros2 launch hydroships_bringup hydroships_gui.launch.py \
           gui_host:=192.168.2.1 cmd_port:=14550 telem_port:=14551
 
+  ── 3E. SIM + TELEOP KEYBOARD 6-DOF LANGSANG ─────────────────────────────────
+  Menyalakan: sim + allocator + teleop_keyboard (kendali langsung wrench 6-DOF,
+  bypass stabilizer). Bila stabilizer berjalan di terminal lain, teleop_keyboard
+  tetap bisa competing ke /hydroships/cmd_vel — matikan stabilizer untuk menghindari
+  konflik.
+      ros2 launch hydroships_bringup hydroships_sim.launch.py
+  Lalu DI TERMINAL KEDUA:
+      ros2 run hydroships_control teleop_keyboard
+  Tombol w/s/a/d = surge, a/d = sway, i/k = heave, j/l = yaw, u/o = roll,
+  t/g = pitch, spasi = stop. Lihat docstring teleop_keyboard.py untuk detail.
+
+  ── 3F. HEADLESS (SERVER SAJA, TANPA GUI) ─────────────────────────────────────
+  Untuk CI, cloud, atau mesin tanpa GPU/EGL. Semua skenario di atas bisa
+  dijalankan headless dengan menambahkan headless:=true:
+      ros2 launch hydroships_bringup hydroships_sim.launch.py headless:=true
+      ros2 launch hydroships_bringup hydroships_stabilized.launch.py headless:=true
+      ros2 launch hydroships_bringup hydroships_mission.launch.py headless:=true
+      ros2 launch hydroships_bringup hydroships_gui.launch.py headless:=true
+  Catatan: kamera tetap publish image_raw, tetapi render headless bisa membuat
+  QR deteksi gagal (lihat Troubleshooting bagian QR).
+
+  ── 3G. REPRODUCIBLE SPAWN (DEBUG/REPLAY) ─────────────────────────────────────
+  Untuk testing yang konsisten, pakai spawn_seed untuk mengunci posisi spawn
+  ROV. Kosong (default) = acak penuh tiap launch.
+      ros2 launch hydroships_bringup hydroships_mission.launch.py spawn_seed:=42
+  Untuk spawn manual pada posisi tetap (mis. dekat wall B untuk uji NAV_WALL):
+      ros2 launch hydroships_bringup hydroships_mission.launch.py \
+          start_state:=NAV_WALL start_wall:=B \
+          rov_random_spawn:=false rov_x:=0.0 rov_y:=2.0 rov_z:=-0.5
+
+  ── 3H. MID-MISSION START dengan TUNING APPROACH_HOOK ────────────────────────
+  FSM bisa dimulai dari state tengah untuk isolasi testing. Contoh: mulai
+  langsung di APPROACH_HOOK dengan tuning parameter visual servo:
+      ros2 launch hydroships_bringup hydroships_mission.launch.py \
+          start_state:=APPROACH_HOOK \
+          hook_size_stop:=0.40 hook_center_tol:=0.10 hook_max_age:=2.0 t_approach:=30.0
+  State lain yang bisa di-start: DIVE, APPROACH_QR, GRAB, NAV_WALL, HANG,
+  SURFACE, WAIT_TRIGGER, AUTO_RELEASE. Untuk NAV_WALL/HANG/SURFACE bisa
+  ditambah start_wall:=A/B/C/D.
+
 
 --------------------------------------------------------------------------------
 4. ARGUMEN LAUNCH (opsional, tambahkan di belakang perintah, format arg:=nilai)
---------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
   headless:=true      -> gz sim tanpa GUI (server saja); untuk CI / mesin tanpa GPU.
   world:=kki_arena.sdf -> arena lomba (default mission/stabilized). Alt: pool_empty.sdf.
   start_state:=DIVE   -> (mission) state awal FSM: DIVE/APPROACH_QR/GRAB/NAV_WALL/
@@ -116,10 +155,10 @@ Folder build/ install/ log/ sengaja di-gitignore; regenerasi dgn colcon build.
   start_wall:=A       -> (mission) seed wall target A/B/C/D utk testing mid-state
                          (NAV_WALL/HANG/SURFACE/APPROACH_HOOK/AUTO_RELEASE).
   hook_size_stop:=0.35 hook_center_tol:=0.15 hook_max_age:=1.0 t_approach:=25.0
-                      -> (mission) tuning visual servo APPROACH_HOOK ke hook.
-                         hook_size_stop naik = berhenti lebih dekat; hook_center_tol
-                         turun = pemusatan lebih ketat; deteksi lebih tua dari
-                         hook_max_age = fallback ke target odometri.
+                       -> (mission) tuning visual servo APPROACH_HOOK ke hook.
+                          hook_size_stop naik = berhenti lebih dekat; hook_center_tol
+                          turun = pemusatan lebih ketat; deteksi lebih tua dari
+                          hook_max_age = fallback ke target odometri.
   rov_random_spawn:=true -> (default) spawn ROV ACAK dekat salah satu dinding kolam
                          (posisi kontes, beda tiap run). false = pakai rov_x/rov_y/rov_z.
   rov_x:=1.0 rov_y:=-1.0 rov_z:=-0.5 -> posisi manual spawn ROV (dipakai bila
@@ -134,15 +173,13 @@ Folder build/ install/ log/ sengaja di-gitignore; regenerasi dgn colcon build.
                          KOSONG (default) = random + posisi acak dalam bounds arena.
   payload_x:=0.5      -> posisi X payload (m); dipakai bila qr_letter di-set eksplisit.
   payload_y:=-1.2     -> posisi Y payload (m); dipakai bila qr_letter di-set eksplisit.
+  scan_depth:=0.30     -> (mission) kedalaman scan QR (m). Lebih dalam = QR lebih besar
+                         tapi petak pandang menyempit.
+  cam_gripper_dx:=0.16 -> (mission) koreksi offset kamera bawah ke gripper (m).
+                          0.0 = QR dipusatkan di kamera (tanpa koreksi).
 
 Contoh gabungan:
   ros2 launch hydroships_bringup hydroships_mission.launch.py headless:=true world:=kki_arena.sdf
-
-Argumen launch (default cocok GUI-ROV: cmd 14550, telem 14551):
-
-ros2 launch hydroships_bringup hydroships_gui.launch.py \
-    gui_host:=192.168.2.1 cmd_port:=14550 telem_port:=14551
-# atau headless:=true / world:=pool_empty.sdf
 
 
 --------------------------------------------------------------------------------
@@ -250,35 +287,46 @@ ros2 launch hydroships_bringup hydroships_gui.launch.py \
 
 
 --------------------------------------------------------------------------------
-9. CONTOH SESI MULTI-TERMINAL (teleop + cek allocator)
---------------------------------------------------------------------------------
-TERMINAL 1: MAIN SIMULASI
-cd ~/ros2_ws
-source /opt/ros/humble/setup.bash
-colcon build --symlink-install
-source install/setup.bash
-ros2 launch hydroships_bringup hydroships_sim.launch.py #run Simulasi Dasar (Top-Level ROV)
-ros2 launch hydroships_bringup hydroships_mission.launch.py  #run Misi Autonomous (Milestone 6)
-ros2 launch hydroships_bringup hydroships_stabilized.launch.py #run Mode Stabilisasi Manual (Milestone 2)
+9. CONTOH SESI MULTI-TERMINAL
+-------------------------------------------------------------------------------
+Prasyarat di setiap terminal:
+    cd ~/ros2_ws
+    source /opt/ros/humble/setup.bash
+    source install/setup.bash
 
-TERMINAL 2: CONTROL SIMULASI
-cd ~/ros2_ws
-source /opt/ros/humble/setup.bash
-source install/setup.bash
-ros2 run hydroships_control teleop_stabilized
- -> ros2 run hydroships_control teleop_stabilized --ros-args -p use_sim_time:=true
-    (teleop_stabilized sudah publish ke /hydroships/manual/cmd secara native,
-     jadi tidak perlu remap. Remap /cmd_vel hanya relevan utk teleop_keyboard.)
+┌─ CONTOH A: SIM + STABILISASI + TELEOP (skenario 3B) ────────────────────────┐
+│ TERMINAL 1:                                                                    │
+│   ros2 launch hydroships_bringup hydroships_stabilized.launch.py               │
+│ TERMINAL 2:                                                                    │
+│   ros2 run hydroships_control teleop_stabilized                                 │
+│ TERMINAL 3: (opsional, cek aliran data)                                        │
+│   ros2 topic echo /hydroships/cmd_vel                                           │
+└───────────────────────────────────────────────────────────────────────────────┘
 
-TERMINAL 3: CHECK IF KEYBOARD SEND DATA (LINEAR/ANGULAR)
-~
-ros2 topic echo /hydroships/cmd_vel
+┌─ CONTOH B: SIM + TELEOP KEYBOARD 6-DOF (skenario 3E) ───────────────────────┐
+│ TERMINAL 1:                                                                    │
+│   ros2 launch hydroships_bringup hydroships_sim.launch.py                      │
+│ TERMINAL 2:                                                                    │
+│   ros2 run hydroships_control teleop_keyboard                                   │
+│ TERMINAL 3: (opsional, cek aliran data)                                        │
+│   ros2 topic echo /hydroships/thruster_1/thrust                                │
+└───────────────────────────────────────────────────────────────────────────────┘
 
-TERMINAL 4: CHECK IF PROGRAM ALLOCATOR RESPONS
-~
-ros2 topic echo /hydroships/thruster_1/thrust
+┌─ CONTOH C: MISI AUTONOMOUS (skenario 3C) ───────────────────────────────────┐
+│ TERMINAL 1:                                                                    │
+│   ros2 launch hydroships_bringup hydroships_mission.launch.py                  │
+│ TERMINAL 2: (opsional, suntik QR manual bila deteksi gagal)                    │
+│   ros2 topic pub -1 /hydroships/qr_result std_msgs/msg/String "{data: 'A'}"    │
+│ TERMINAL 3: (opsional, cek state FSM)                                          │
+│   ros2 topic echo /hydroships/fsm_state                                         │
+└───────────────────────────────────────────────────────────────────────────────┘
 
----
+┌─ CONTOH D: GUI BRIDGE (skenario 3D) ────────────────────────────────────────┐
+│ TERMINAL 1:                                                                    │
+│   ros2 launch hydroships_bringup hydroships_gui.launch.py                      │
+│ TERMINAL 2: (laptop GUI, server.js harus sudah berjalan)                        │
+│   # pastikan server.js mendengarkan port 14551                                 │
+└───────────────────────────────────────────────────────────────────────────────┘
 
 
 ================================================================================
