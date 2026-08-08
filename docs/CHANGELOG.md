@@ -470,6 +470,53 @@ utk memisahkan verifikasi hook dari bug NAV_WALL di bawah, lalu `hydroships_gui.
   (3) Tuning konvergensi servo `APPROACH_HOOK`. (4) Uji QR B/C/D & kalibrasi gain GUI
   (non-blocking, [VERIFY]/[OPEN] lama tetap berlaku).
 
+## 2026-08-08 — [RESOLVED] Akar `DIVE timeout` = model apung, bukan controller.
+Investigasi P0-1a→e; DIVE `CLOSED`, tag `p0-1-baseline`
+
+Ringkasan penuh + seluruh angka: **[P0-1-BASELINE.md](P0-1-BASELINE.md)**.
+
+Metodologi: diagnosis berlapis dgn gerbang anti-kontaminasi per run, tanpa mengubah satu
+pun parameter kendali. Setiap tahap memisahkan satu pertanyaan: P0-1a (rantai kendali) →
+P0-1b (aktuator open-loop) → P0-1c.1 (audit trim statis) → P0-1c.2/.3 (koreksi) →
+P0-1c.4 (infrastruktur uji) → P0-1d (karakterisasi bersih) → P0-1e (regresi tertutup).
+
+- **`9219735`** — **[RESOLVED] Gripper tidak lagi menyumbang volume apung.** Plugin
+  `gz-sim-buoyancy-system` menurunkan volume perpindahan air dari geometri `<collision>`;
+  `gripper_base` + kedua jari punya collision box sehingga ikut menghasilkan gaya apung
+  yang tak pernah masuk neraca `rov_params.yaml`. Akibatnya net apung **+6.92 N** (bukan
+  +0.28 N, 24.7×) dan CoB bergeser **+13.6 mm** ke haluan → momen bow-up 1.04 N·m melawan
+  momen pemulih maks 1.69 N·m → trim pasif **31.5°**. Contact fisik gripper tak dibutuhkan
+  (grasp = DetachableJoint + proximity visual, jari kosmetik), jadi collision dihapus
+  mengikuti idiom thruster. Terukur setelah: net apung +0.28 N, trim +4.44°/+3.58°.
+- **`8d6c49c`** — **[RESOLVED] `cob.x` disejajarkan dgn CoG sistem** (0.0 → 0.00237 m).
+  `cog` di YAML adalah origin inersial `base_link`, **bukan** CoG sistem — massa gripper di
+  haluan menggesernya ke x = +2.37 mm. Sisa lengan parasit itu menutup trim: prediksi 0.0°,
+  terukur **−0.02° / −0.01°**.
+- **`0941cd4`** — **[RESOLVED] Nama world diambil dari isi SDF, bukan nama file.**
+  `create -world <nama>` memakai nama yang dideklarasikan di SDF; `sim.launch.py`
+  menurunkannya dari nama file. `pool_empty.sdf` memakai `<world name="pool">` dan
+  `kki_arena_test.sdf` memakai `<world name="kki_arena">` → 2 dari 3 world tak pernah
+  spawn ROV, **gagal tanpa error yang terlihat**. Kode-keluar node `create` kini
+  dilaporkan lewat `OnProcessExit`.
+
+**Hasil regresi DIVE** (4 run: 3 random spawn + 1 deterministik, `kki_arena`, stack penuh):
+lolos **4/4**, ambang 0.24 m tercapai **1.65–1.76 s** dari anggaran 20 s, pitch maks
+**0.30°**, roll maks **0.19°**, fidelity allocator **99.4%**, thrust puncak **2.44 N** dari
+batas 50 N, tanpa saturasi & tanpa kontak. Pembanding baseline gagal (2026-08-06 dst.):
+timeout 20 s, kedalaman mentok ~0.215 m, pitch divergen −33°, thrust 16–19 N.
+
+**[DEFERRED] TAM tidak berubah dan TIDAK terbukti benar** — P0-1 hanya menunjukkan kopling
+Fz→My bukan blocker pada titik operasi DIVE yang diuji. Celah `INCONCLUSIVE` yang sengaja
+tidak diekstrapolasi: B/B′ pada −10/−14 N, kontribusi individual T2/T6 (jendela bersih
+terpotong kontak lantai), dan skala thrust absolut η.
+
+**[OPEN] Status lama GRAB & NAV_WALL tidak lagi valid sebagai deskripsi.** Dalam jendela
+60 s pasca-DIVE, FSM berlanjut `APPROACH_QR → GRAB → NAV_WALL → HANG → SURFACE →
+WAIT_TRIGGER` tanpa ABORT di keempat run — tetapi **"berjalan tanpa ABORT" bukan acceptance
+evidence**. Ketiganya menunggu karakterisasi P0-2/P0-3/P0-4; jangan dicatat sebagai selesai.
+
+Skrip eksperimen disimpan di `tools/p0-experiments/` agar P0-1d/P0-1e dapat direproduksi.
+
 ---
 
 ## Keputusan yang DIBATALKAN / diganti (arsip)

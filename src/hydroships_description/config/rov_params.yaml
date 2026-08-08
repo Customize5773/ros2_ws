@@ -36,6 +36,22 @@ fluid_density: 1000.0    # kg/m^3  [measured] air tawar; dipakai plugin
 # terpindah (~8.73 kg) mendekati massa total sistem (~8.7 kg: base 8.3 + 6
 # thruster 0.3 + gripper 0.1) -> near-neutral, sedikit positif (sama filosofi
 # desain M1, lihat catatan di atas urdf.xacro). GANTI bila hull final berbeda.
+#
+# PENTING — neraca ini hanya sahih selama base_link adalah SATU-SATUNYA link ROV
+# yang punya <collision>. Plugin gz Buoyancy menghitung volume perpindahan dari
+# geometri <collision>, jadi setiap link yang diberi collision ikut menghasilkan
+# gaya apung. Karena itu thruster DAN gripper sengaja tanpa collision di
+# urdf.xacro. Riwayat: ketiga link gripper sempat punya collision -> menambah
+# 0.677 kg air terpindah di haluan (x=+0.18..0.26 m) sehingga net apung jadi
+# +6.92 N (bukan +0.28 N) dan CoB bergeser +13.6 mm ke depan -> momen bow-up
+# 1.04 N*m melawan momen pemulih maks 1.69 N*m -> ROV trim ~31 deg bow-up dan
+# dorongan "vertikal" terproyeksi jadi gerak horizontal. Jangan tambahkan
+# <collision> ke link ROV tanpa menghitung ulang neraca di bawah.
+#
+# Neraca yang berlaku sekarang:
+#   terpindah 0.008729 m^3 = 8.729 kg -> apung 85.63 N
+#   berat     8.700 kg               -> 85.35 N
+#   net apung = +0.28 N ke atas (dikompensasi stabilizer buoyancy_ff = -0.3 N)
 buoyancy_collision: {x: 0.219, y: 0.219, z: 0.182}
 
 # --- Center of Gravity (offset dari origin base_link) ---
@@ -47,7 +63,12 @@ cog: {x: 0.0, y: 0.0, z: 0.0}   # m  [estimate] origin = pusat bbox.
 # volume collision-box, jadi menggeser origin box = menggeser CoB efektif.
 # CoB di atas CoG (z>0) -> metacentric height positif -> restoring moment pasif
 # utk pitch/roll (mencegah ROV drift pitch/roll tanpa batas saat hold aktif).
-cob: {x: 0.0, y: 0.0, z: 0.02}  # m  [estimate] sedikit di atas CoG (stabil).
+# x disejajarkan dgn CoG SISTEM (bukan origin base_link): massa gripper di haluan
+# menggeser CoG sistem ke x=+2.37 mm, sementara CoB ada di origin box collision.
+# Selisih 2.37 mm itu lengan parasit yang menyisakan trim ~+7 deg bow-down.
+# Menyamakan cob.x dgn CoG_x menghilangkannya. Hitung ulang bila massa/posisi
+# komponen berubah (CoG_x = sum(m_i * x_i) / m_total).
+cob: {x: 0.00237, y: 0.0, z: 0.02}  # m  [estimate] di atas CoG (stabil), sejajar CoG_x.
 
 # --- Tensor inertia base_link di CoG (kg*m^2) ---
 # [estimate] diturunkan dari box pejal 0.345 x 0.345 x 0.286 m @ base_mass=8.3 kg

@@ -57,6 +57,14 @@ menutup gap ini. Re-kalibrasi `buoyancy_ff` setiap kali ada perubahan hardware
 (gripper, payload, baterai) — nilai yang benar: gaya PID depth di steady-state
 (hover diam) mendekati nol.
 
+**Di simulasi, cek dulu geometri `<collision>` sebelum menyalahkan `buoyancy_ff`.**
+Plugin `gz-sim-buoyancy-system` menurunkan volume perpindahan air dari geometri
+`<collision>`, jadi setiap link ROV yang diberi collision ikut menghasilkan gaya
+apung. Pernah terjadi: link gripper punya collision box sehingga net apung menjadi
+**+6.92 N** (bukan +0.28 N, 25×) dan `buoyancy_ff = -0.3` praktis tak berarti —
+gejalanya terlihat seperti masalah tuning padahal akarnya model fisik. Menaikkan
+gain saat itu hanya akan memperburuk. Riwayat & angka: [P0-1-BASELINE.md](P0-1-BASELINE.md).
+
 ### `use_sim_time`
 **Wajib** diset `false` saat menjalankan di hardware fisik (`gains.yaml` atau
 override `--params-file`) — nilai `true` (default) membuat `stabilizer` menunggu

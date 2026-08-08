@@ -3,18 +3,29 @@
 Ringkasan **status terkini** tiap milestone. Riwayat kronologis lengkap (termasuk
 keputusan yang sudah dibatalkan/diganti) ada di [CHANGELOG.md](CHANGELOG.md).
 
-> ## ⚠️ Blocker utama saat ini: GRAB tidak attach payload + NAV_WALL tak konvergen
+> ## ✅ DIVE `CLOSED` — model fisik terkoreksi (baseline `p0-1-baseline`, 2026-08-08)
 >
-> Mesin dev **sudah punya ROS 2 Humble + Gazebo Fortress 6.18 + EGL/mesa** (blocker
-> environment lama tidak berlaku lagi — diverifikasi 2026-08-06, lihat
-> [CHANGELOG](CHANGELOG.md)). Blocker sekarang murni **bug logika, bukan environment**:
-> (1) `mission_fsm._st_grab` tidak pernah publish "close" ke gripper → payload tidak
-> pernah benar-benar ter-attach saat misi autonomous berjalan; (2) `NAV_WALL` gagal
-> konvergen ke `nav_tol` pada jarak dekat (~0.26 m), timeout → ABORT. Kedua bug ini
-> **memblokir penyelesaian misi 4-hook penuh** meski persepsi, hook-servo-fallback, dan
-> GUI sudah terbukti bekerja secara terpisah. Detail & repro: [CHANGELOG](CHANGELOG.md)
-> entry 2026-08-06. Item yang masih bergantung verifikasi lanjutan ditandai **🧪**;
-> daftar uji berprioritas: [VERIFICATION-CHECKLIST.md](VERIFICATION-CHECKLIST.md).
+> Investigasi P0-1a→e menemukan bahwa `DIVE timeout` **bukan** masalah controller,
+> allocator, maupun plugin thruster, melainkan **model apung**: `<collision>` pada ketiga
+> link gripper ikut dihitung sebagai volume perpindahan air → net apung **+6.92 N**
+> (bukan +0.28 N) dan CoB bergeser **+13.6 mm** ke haluan → ROV trim **~31° bow-up** →
+> dorongan "vertikal" terproyeksi jadi gerak horizontal. Setelah dikoreksi (`9219735`,
+> `8d6c49c`) trim pasif **−0.01°** dan **DIVE lolos 4/4 run** dalam 1.65–1.76 s dari
+> anggaran 20 s, **tanpa mengubah satu pun parameter kendali**. Bukti lengkap & angka:
+> [P0-1-BASELINE.md](P0-1-BASELINE.md).
+>
+> **Yang BELUM terbukti — jangan dibaca lebih jauh dari ini:**
+> (1) **TAM tetap `DEFERRED`, bukan `VERIFIED`** — kopling Fz→My hanya terbukti bukan
+> blocker pada titik operasi DIVE yang diuji. (2) Status lama **GRAB tidak attach** dan
+> **NAV_WALL tak konvergen** (entry 2026-08-06) **tidak lagi valid sebagai deskripsi**:
+> keduanya diamati berjalan tanpa ABORT dalam jendela 60 s pasca-DIVE, tetapi *"berjalan
+> tanpa ABORT" bukan acceptance evidence*. Ketiga state (APPROACH_QR/GRAB/NAV_WALL)
+> berstatus **`OPEN`, menunggu karakterisasi P0-2/P0-3/P0-4**.
+>
+> Mesin dev sudah punya ROS 2 Humble + Gazebo Fortress 6.18 + EGL/mesa (blocker
+> environment lama tidak berlaku). Item yang masih bergantung verifikasi lanjutan
+> ditandai **🧪**; daftar uji berprioritas:
+> [VERIFICATION-CHECKLIST.md](VERIFICATION-CHECKLIST.md).
 
 Legenda: ✅ jalan & terverifikasi di sim · 🧪 kode ada, verifikasi runtime tertunda/parsial
 · ⏳ direncanakan/menyusul · OPEN gap desain/hardware.

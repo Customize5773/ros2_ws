@@ -45,6 +45,13 @@ stabilizer:
     # buoyancy_collision, ~8.73 kg air terpindah) -> net apung ke atas kecil
     # (~+0.28 N), near-neutral spt filosofi desain M1 awal. Jauh di bawah batas
     # thruster (~120N), jadi aman dikompensasi PID+FF kecil ini.
+    #
+    # Angka +0.28 N mengasumsikan HANYA base_link yang punya <collision> di
+    # urdf.xacro — plugin gz Buoyancy menurunkan volume perpindahan dari
+    # geometri collision. Saat link gripper masih punya collision, net apung
+    # sebenarnya +6.92 N (25x nilai ini) dan FF di bawah praktis tak berarti.
+    # Kalau collision link ROV berubah, hitung ulang net apung dulu sebelum
+    # menyetel FF ini (lihat catatan neraca di rov_params.yaml).
     buoyancy_ff: -0.3
 
     target_depth: -0.1     # meter, negatif = di bawah permukaan
