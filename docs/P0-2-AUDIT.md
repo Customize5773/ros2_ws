@@ -276,3 +276,81 @@ Instrumentasi: perluas atau fork `tools/p0-experiments/recorder.py` agar juga su
 `/hydroships/qr_result` dan `/hydroships/qr_offset`, lalu hitung deret error pose turunan
 (gabungan offset QR + odom) per tick — supaya baris-baris di §2 bisa mulai diisi dengan data
 `MEASURED`, bukan `OPEN`. Ini **tidak** diimplementasikan dalam pass P0-2.0 ini.
+
+---
+
+## 6. P0-2.1 instrumentation smoke test
+
+Dijalankan setelah §5 di atas. **Observability only** — tidak ada perubahan pada
+`mission_fsm.py`, `qr_detector.py`, `qr_logic.py`, atau parameter apa pun. Dua berkas baru
+ditambahkan (keduanya subscribe-only, tidak menerbitkan apa pun, `recorder.py` P0-1e tidak
+disentuh):
+
+- `tools/p0-experiments/recorder_qr.py` — fork `recorder.py`, menambah subscription
+  `/hydroships/qr_result`, `/hydroships/qr_offset`, `/hydroships/manual/cmd`, dan `/rosout`
+  (untuk parsing baris log `[FSM] A -> B` dari node `mission_fsm` — dipilih agar tidak perlu
+  menambah publisher baru ke `mission_fsm.py` itu sendiri, yang notabene sedang diaudit).
+- `tools/p0-experiments/run_approach_qr_smoke.sh` — fork `run_mission.sh`, memakai
+  `recorder_qr.py` sebagai pengganti `recorder.py`, gate lewat `gate_mission.sh` (dipakai
+  apa adanya, generik untuk stack penuh).
+
+Satu run (`tag=S1`, `kki_arena`, 60 s sim, `P0_DATA_DIR=/tmp/p0-2-1-smoke`) dieksekusi pada
+2026-08-08/09. Hasil gate: `gz-servers=1`, `odom-publishing`, `stabilizer`,
+`thruster_allocator`, `mission_fsm`, `cmd_vel pub=1`, `thrust pub=1` — semua **PASS**, tidak
+terkontaminasi. Recorder menulis 1010 baris (`S1.csv`, tidak disimpan di git — data mentah
+run individual, sama seperti pola P0-1).
+
+Verifikasi lima sinyal (tujuan langkah ini):
+
+| Sinyal | Hasil | Evidence dari `S1.csv` |
+|---|---|---|
+| FSM state | **CONFIRMED** | Kolom `fsm_state` berubah sesuai urutan misi: `IDLE→DIVE→APPROACH_QR→GRAB→NAV_WALL→HANG→SURFACE→WAIT_TRIGGER` dalam satu run 60 s (107 baris `APPROACH_QR`, transisi ke `GRAB` terjadi ~t=11.1s). Parsing `/rosout` bekerja. |
+| QR detection | **CONFIRMED** | 856/1010 baris punya `qr_result` non-kosong; huruf wall `D` terbaca berulang kali selama `APPROACH_QR` (mis. t=10.97–11.04s), cocok dengan log `qr_detector` di `S1.log` (beberapa `DECODE GAGAL` di awal sebelum sukses — konsisten dengan sifat "robust_decode" multi-tahap di §1.2). |
+| QR offset/error | **CONFIRMED** | `qr_ex`/`qr_ey` terisi numerik (bukan NaN permanen) selama `APPROACH_QR`, mis. t=4.839s: `ex=0.17344, ey=0.03229, size=0.65417`; 107/107 baris `APPROACH_QR` punya `qr_ex` numerik. `qr_age` tetap kecil (<0.5s) — data segar, bukan stale. |
+| Command/controller output | **CONFIRMED** | `cmd_fx`/`cmd_fy` non-zero selama `APPROACH_QR` (mis. t=4.952s: `fx=-16.0, fy=-16.0`, nilai clamp `approach_fmax`), turun ke 0 tepat saat transisi ke `GRAB` (`_set_surge` FSM state lain). |
+| Odometry | **CONFIRMED** | `x,y,z,yaw` terisi tiap baris sejak `t0`, konsisten dengan pola P0-1e yang sudah tervalidasi. |
+
+**Kesimpulan pass ini**: instrumentasi berfungsi — kelima sinyal yang dibutuhkan untuk
+membedakan *perception* vs *frame/geometry* vs *controller/servo* vs *FSM/timing problem*
+sudah bisa direkam bersamaan dan terkorelasi lewat sim-time yang sama. Ini **bukan** klaim
+bahwa `APPROACH_QR` lolos acceptance — matrix di §2 di atas **tetap `OPEN`, tidak diubah**.
+Satu run tunggal, tidak acak/berulang, tidak membuktikan repeatability atau convergence
+formal; itu scope P0-2.2/P0-2.3, bukan langkah ini.
+
+Catatan tambahan dari log run ini (observasi, bukan kesimpulan): run ini kebetulan mencapai
+`GRAB` dalam ~10.7 s sejak entry `APPROACH_QR` dengan QR benar-benar terbaca (`D`) — berbeda
+dari risiko §3.2 (jalur fallback XY-only tanpa QR) yang tetap belum diuji secara terpisah.
+Satu run tidak cukup untuk menyimpulkan jalur mana yang dominan; itu pertanyaan untuk P0-2.2.
+
+## 7. Status P0-2 saat ini
+
+```text
+P0-1        CLOSED / FROZEN        (tag p0-1-baseline)
+P0-2.0      CLOSED                 (audit statis — dokumen ini, §1-5)
+P0-2.1      CLOSED                 (instrumentasi — §6, observability terverifikasi)
+P0-2.2      CLOSE-PARTIAL          (keputusan pengguna — lihat docs/P0-2-2-VERDICT-OPTIONS.md §4)
+P0-2.2a     CLOSED                 (payload_pose instrumentation + smoke verification)
+P0-2.2b     CLOSED                 (6/6 run valid, 0 INCONCLUSIVE — §7 spec)
+  QR influence          VERIFIED   (Gate 3: 5/6 run, command benar-benar mengikuti qr_offset)
+  QR precision convergence  OPEN   (Gate 4: 0/6 run masuk band qr_center_tol — dibawa ke P0-2.3)
+P0-2.3      DESIGN                 (lihat docs/P0-2-3-SPEC.md — scope: positioning/centering
+                                     di titik GRAB, bukan sekadar pengaruh QR pada command)
+```
+
+Detail P0-2.2: [`docs/P0-2-2-SPEC.md`](P0-2-2-SPEC.md) — spec eksperimen yang membedakan
+QR-driven approach dari ground-truth-driven approach, memakai bukti kausal pasif (bukan
+ablation). P0-2.2a (instrumentasi `payload_pose`+`vx/vy`) sudah tertutup dengan smoke
+verification; run battery N=6 (P0-2.2b) sudah dieksekusi dan direduksi
+(`reduce_approach_qr.py`) — hasil ringkas: 5/6 run QR ter-score tapi hanya 1/6 benar-benar
+exit lewat visual centering (4/6 lewat toleransi jarak XY setelah QR ter-score, 1/6 murni
+ground-truth-fallback tanpa QR pernah terbaca); 0/6 run masuk band `qr_center_tol`; 5/6 run
+menunjukkan command memang bergerak mengikuti koreksi QR (Gate 3).
+
+**Keputusan (pengguna, lihat `docs/P0-2-2-VERDICT-OPTIONS.md` §4): CLOSE-PARTIAL (Opsi B).**
+Klaim yang ditutup: **"QR integration/causal influence terbukti"** (Gate 3, 5/6 run). Klaim
+yang **tetap `OPEN`, dibawa ke P0-2.3**: "QR visual servo memberikan precision convergence
+yang repeatable" (Gate 4, 0/6 run masuk band). Acceptance matrix §2 di atas **tidak diubah**
+oleh keputusan ini — baris terkait presisi/konvergensi tetap `OPEN`, hanya baris "QR
+benar-benar menjadi input kontrol?" yang kini punya evidence pendukung kuat. Tidak ada
+re-run P0-2.2 yang direncanakan; langkah berikutnya adalah desain P0-2.3 dengan scope
+lebih tajam — lihat `docs/P0-2-3-SPEC.md`.
