@@ -1,16 +1,16 @@
-# Graph Report - ros2_ws  (2026-08-08)
+# Graph Report - ros2_ws  (2026-08-07)
 
 ## Corpus Check
-- 59 files · ~115,181 words
+- 59 files · ~114,337 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 612 nodes · 917 edges · 40 communities (31 shown, 9 thin omitted)
+- 610 nodes · 913 edges · 40 communities (31 shown, 9 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 11 edges (avg confidence: 0.64)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `8d6c49c0`
+- Built from commit: `af6a7855`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -150,8 +150,8 @@ Cohesion: 0.08
 Nodes (23): Cakupan Test, `depth_publisher` — `depth_publisher.py`, Diagram alur, Enum state (`class St(Enum)`), `gripper_controller` — `gripper_controller.py`, `gui_bridge` — `gui_bridge.py`, `hook_detector` — `hook_detector.py`, Konstanta tetap (+15 more)
 
 ### Community 17 - "sim.launch.py"
-Cohesion: 0.24
-Nodes (11): _f(), generate_launch_description(), _launch_setup(), Launch simulasi Gazebo Fortress + spawn ROV HYDROships + ros_gz_bridge.…, RNG utk pose spawn. spawn_seed diisi -> reproducible (replay/debug); kosong…, Nama world dari ISI file SDF (<world name="...">), bukan dari nama file.…, Ambil LaunchConfiguration sbg float; fallback ke default bila kosong/invalid., Kembalikan (x, y, z, yaw) string utk spawn ROV. rov_random_spawn=true -> acak… (+3 more)
+Cohesion: 0.29
+Nodes (9): _f(), generate_launch_description(), _launch_setup(), Launch simulasi Gazebo Fortress + spawn ROV HYDROships + ros_gz_bridge.…, Ambil LaunchConfiguration sbg float; fallback ke default bila kosong/invalid., Kembalikan (x, y, z, yaw) string utk spawn ROV. rov_random_spawn=true -> acak…, RNG utk pose spawn. spawn_seed diisi -> reproducible (replay/debug); kosong…, _rov_spawn_pose() (+1 more)
 
 ### Community 18 - "TeleopGamepad"
 Cohesion: 0.14
@@ -202,11 +202,11 @@ _Questions this graph is uniquely positioned to answer:_
 - **Why does `MissionFSM` connect `MissionFSM` to `hook_servo`?**
   _High betweenness centrality (0.050) - this node is a cross-community bridge._
 - **Why does `GripperLogic` connect `GripperLogic` to `GripperController`?**
-  _High betweenness centrality (0.048) - this node is a cross-community bridge._
+  _High betweenness centrality (0.049) - this node is a cross-community bridge._
 - **What connects `ros2-ws`, `graphify`, `PROBLEM.md — pindah ke docs/` to the rest of the system?**
   _122 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `MissionFSM` be split into smaller, more focused modules?**
-  _Cohesion score 0.10726950354609929 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.10638297872340426 - nodes in this community are weakly interconnected._
 - **Should `GuiBridgeLogic` be split into smaller, more focused modules?**
   _Cohesion score 0.06294326241134751 - nodes in this community are weakly interconnected._
 - **Should `GripperLogic` be split into smaller, more focused modules?**

@@ -70,13 +70,13 @@
     "semantic_hash": ""
   },
   "src/hydroships_control/hydroships_control/hook_logic.py": {
-    "mtime": 1786132008.5228167,
-    "ast_hash": "04279c4672d3c62d7c423e8530ed0276",
+    "mtime": 1785771782.7994092,
+    "ast_hash": "0c40896e2a045a0fee1908cf698c6d3e",
     "semantic_hash": ""
   },
   "src/hydroships_control/hydroships_control/mission_fsm.py": {
-    "mtime": 1786132008.5228167,
-    "ast_hash": "1f2fe9736013ca9088a28def10267082",
+    "mtime": 1786030799.5587697,
+    "ast_hash": "f9fc5b3095ca627902270e8ff8245f73",
     "semantic_hash": ""
   },
   "src/hydroships_control/hydroships_control/pid.py": {
@@ -95,7 +95,7 @@
     "semantic_hash": ""
   },
   "src/hydroships_control/hydroships_control/stabilizer.py": {
-    "mtime": 1786132008.5228167,
+    "mtime": 1786037743.1710963,
     "ast_hash": "02439f5bb72d8cc86186930d24c894ae",
     "semantic_hash": ""
   },
@@ -120,7 +120,7 @@
     "semantic_hash": ""
   },
   "src/hydroships_control/setup.py": {
-    "mtime": 1786132008.5228167,
+    "mtime": 1786035696.4920878,
     "ast_hash": "af319f10a43afeb6e8b7e95e3f9f6690",
     "semantic_hash": ""
   },
@@ -160,8 +160,8 @@
     "semantic_hash": ""
   },
   "src/hydroships_gazebo/launch/sim.launch.py": {
-    "mtime": 1786160414.866089,
-    "ast_hash": "7a212fa7950c5dd9dc3edbd040da92a4",
+    "mtime": 1786030799.5587697,
+    "ast_hash": "a60084927c0b7525887ba7f766472ab3",
     "semantic_hash": ""
   },
   "src/hydroships_gazebo/scripts/generate_qr.py": {
@@ -195,7 +195,7 @@
     "semantic_hash": ""
   },
   "docs/HOW-TO-RUN.txt": {
-    "mtime": 1786132008.5138166,
+    "mtime": 1786036266.4319599,
     "ast_hash": "702df03ba1b61c6e9159e5b73425d9d5",
     "semantic_hash": ""
   },
@@ -215,8 +215,8 @@
     "semantic_hash": ""
   },
   "src/hydroships_control/config/gains.yaml": {
-    "mtime": 1786158357.7164495,
-    "ast_hash": "79f36a646650f33788345038fe041661",
+    "mtime": 1786037853.3115156,
+    "ast_hash": "89fda698d255d37ba4ccd9efe21446aa",
     "semantic_hash": ""
   },
   "src/hydroships_description/CMakeLists.txt": {
@@ -225,8 +225,8 @@
     "semantic_hash": ""
   },
   "src/hydroships_description/config/rov_params.yaml": {
-    "mtime": 1786160305.215307,
-    "ast_hash": "b12fc69438e095876e9db71f8fec8467",
+    "mtime": 1786030799.5587697,
+    "ast_hash": "de4a2f41b7e24e1ece706862c97d6f07",
     "semantic_hash": ""
   },
   "src/hydroships_description/meshes/README.md": {
@@ -255,17 +255,17 @@
     "semantic_hash": ""
   },
   "docs/CHANGELOG.md": {
-    "mtime": 1786132008.5138166,
+    "mtime": 1786033499.1876493,
     "ast_hash": "9f4ce32c626ca2310c1a7872fc3b3ad9",
     "semantic_hash": ""
   },
   "docs/STATUS.md": {
-    "mtime": 1786132008.5148168,
+    "mtime": 1786033565.2638345,
     "ast_hash": "e1c2d6b6e8d856e33d57af952fd0e92e",
     "semantic_hash": ""
   },
   "docs/VERIFICATION-CHECKLIST.md": {
-    "mtime": 1786132008.5148168,
+    "mtime": 1786033649.858419,
     "ast_hash": "76888ab52b62e737821f5ad8c955ce24",
     "semantic_hash": ""
   },
@@ -370,57 +370,57 @@
     "semantic_hash": ""
   },
   "src/hydroships_control/hydroships_control/teleop_gamepad.py": {
-    "mtime": 1786132008.5228167,
+    "mtime": 1786037937.5028641,
     "ast_hash": "eeefbe45a31bfe9af0323e80dfacf719",
     "semantic_hash": ""
   },
   "src/hydroships_control/launch/teleop_gamepad.launch.py": {
-    "mtime": 1786132008.5228167,
+    "mtime": 1786037841.506169,
     "ast_hash": "15e46f53cc88aac2152071f5428431ab",
     "semantic_hash": ""
   },
   "docs/CI_CD.md": {
-    "mtime": 1786132008.5138166,
+    "mtime": 1786035182.4708343,
     "ast_hash": "e31854f8b97fff2d56194cfbb2bdbc8f",
     "semantic_hash": ""
   },
   "docs/CONFIG_REFERENCE.md": {
-    "mtime": 1786132008.5138166,
+    "mtime": 1786034837.672364,
     "ast_hash": "e0d870a13764cb556f4b9a9ec3cfd3ce",
     "semantic_hash": ""
   },
   "docs/DEPLOYMENT.md": {
-    "mtime": 1786132008.5138166,
+    "mtime": 1786035029.5027864,
     "ast_hash": "eea3fa4feb6c3928e0ff7b2bf748d0d0",
     "semantic_hash": ""
   },
   "docs/HARDWARE.md": {
-    "mtime": 1786132008.5138166,
+    "mtime": 1786034766.6157234,
     "ast_hash": "9d7dec9c36f11f00ecb2938dae02dec8",
     "semantic_hash": ""
   },
   "docs/NODES_REFERENCE.md": {
-    "mtime": 1786132008.5138166,
+    "mtime": 1786034903.474168,
     "ast_hash": "cb2ed71db1fa47ca45161e5d840f6fe7",
     "semantic_hash": ""
   },
   "docs/PERFORMANCE.md": {
-    "mtime": 1786132008.5148168,
+    "mtime": 1786035135.8250382,
     "ast_hash": "efbf92692826a4ea4bcc3b1c496f8d2a",
     "semantic_hash": ""
   },
   "docs/TROUBLESHOOTING.md": {
-    "mtime": 1786132008.5148168,
+    "mtime": 1786035086.7465587,
     "ast_hash": "5a2a4af676681955d72c8a3036370321",
     "semantic_hash": ""
   },
   "docs/TUNING_GUIDE.md": {
-    "mtime": 1786132008.5148168,
+    "mtime": 1786034973.6132708,
     "ast_hash": "ea19ef8c5c69db68bd747275d87e2fb6",
     "semantic_hash": ""
   },
   "src/hydroships_control/config/gamepad.yaml": {
-    "mtime": 1786132008.5228167,
+    "mtime": 1786037722.4944043,
     "ast_hash": "5d21f69ccf70910d3a78bc446b93ced3",
     "semantic_hash": ""
   }
