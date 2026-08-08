@@ -112,18 +112,81 @@ diperlukan sekarang**.
    ternyata tidak cukup untuk P2/P3 yang meyakinkan — baru desain battery baru/tertarget
    (P0-2.3b, terpisah, perlu persetujuan sendiri), bukan otomatis.
 
-## 7. Non-goals eksplisit untuk pass ini
+## 7. §6.2 terverifikasi: `qr_side_m` dikonfirmasi dari SDF, bukan komentar
 
-- Tidak ada run simulator baru dieksekusi untuk §3-§6 (§1 saja yang sudah jalan, dan itu
-  murni re-parsing log lama).
+`src/hydroships_gazebo/scripts/payload_spawner.py`, `PAYLOAD_SDF_TEMPLATE`, visual `qr`
+(L59-61): `<geometry><plane><size>0.12 0.12</size></plane></geometry>` — **0.12m × 0.12m**,
+cocok dengan komentar "12cm" di `mission_fsm.py`, tapi sekarang berasal dari geometri SDF
+yang benar-benar di-render Gazebo, bukan komentar tak terverifikasi. (Ada juga plane
+`qr_quiet_zone` terpisah 0.16m×0.16m, L49-51, dan body payload berbeda lagi 0.05×0.006×0.10m,
+L38 — bukan plane QR itu sendiri.) `kki_arena.sdf:181` mengonfirmasi `payload_spawner.py`
+adalah satu-satunya sumber definisi model ini (tidak ada definisi statis lain di world).
+Blocker §6.2 **selesai**.
+
+## 8. Gate P2/P3 — hasil eksekusi (reuse data P0-2.2b, TANPA run baru)
+
+Dieksekusi: `tools/p0-experiments/reduce_qr_precision.py` terhadap `Q1`-`Q6.csv` yang sudah
+ada di `/tmp/p0-2-2b-battery`. **Sengaja dipisah total dari `gripper_err`** (§1) — tabel di
+bawah TIDAK PERNAH digabung dengan tabel `gripper_err`, sesuai batasan pengguna.
+
+| Run | n baris | QR-estimate `err_m` (mean) | median | min | max | `distance_est − h_cam` (mean) |
+|---|---|---|---|---|---|---|
+| Q1 | 21 | 0.093 | 0.085 | 0.057 | 0.149 | −0.652 |
+| Q2 | 118 | 0.875 | 0.800 | 0.057 | 2.286 | −0.682 |
+| Q3 | 54 | 0.420 | 0.332 | 0.052 | 1.114 | −0.761 |
+| Q4 | 91 | 1.144 | 0.636 | 0.134 | 3.195 | −0.272 |
+| Q5 | 126 | 1.036 | 0.337 | 0.045 | 3.530 | −0.812 |
+| Q6 | 68 | 0.540 | 0.479 | 0.001 | 1.329 | −0.808 |
+
+**Gate P3 (repeatability)**: mean `err_m` per run tersebar luas (0.093 – 1.144 m) —
+**tidak repeatable/konsisten** lintas run.
+
+### Temuan penting: bias sistematis di cross-check, bukan sekadar noise
+
+`distance_est − h_cam` **negatif dan cukup konsisten besarnya** (−0.27 sampai −0.81 m) di
+SEMUA 6 run — ini bukan noise acak, ini **bias sistematis**. `distance_est` (dari `qr_size`,
+murni sinyal visual) secara konsisten lebih kecil dari `h_cam` (dari geometri
+`depth_target` yang diketahui). Kemungkinan penyebab (belum diisolasi, dicatat sebagai
+pertanyaan terbuka, BUKAN diperbaiki di pass ini):
+
+1. **Asumsi pandangan frontal-tegak-lurus mungkin tidak berlaku** — formula pinhole yang
+   dipakai mengasumsikan QR dilihat dari lurus di atas (kamera bawah tegak lurus ke bidang
+   QR). Kalau ROV berada jauh dari QR secara lateral (bukan hanya vertikal), bounding-box QR
+   di citra akan terdistorsi perspektif (foreshortening), membuat `qr_size` tidak lagi murni
+   fungsi jarak vertikal saja.
+2. **Deteksi corner-only yang noisy** — log `qr_detector` (§1.8 `docs/P0-2-AUDIT.md`)
+   menunjukkan banyak kasus "QR terdeteksi (pts ada) tapi decode kosong" — bounding box dari
+   4 titik sudut bisa saja terdeteksi tapi tidak akurat/reliable, menghasilkan `qr_size` yang
+   menyimpang dari ukuran QR asli.
+3. Kemungkinan lain (belum diperiksa): efek `UPSCALE` di `robust_decode()` (`qr_logic.py`
+   pipeline preprocessing) yang mengubah skala citra sebelum deteksi corner, kalau tidak
+   dikompensasi balik saat menghitung `bw/w, bh/h`.
+
+**Implikasi**: estimasi posisi QR-murni dengan formula pinhole sederhana ini **belum
+tervalidasi sebagai sensor posisi yang andal** — bias sistematis di atas berarti angka
+`err_m` di tabel tidak boleh dibaca sebagai "akurasi QR sesungguhnya" tanpa pertama
+menyelesaikan pertanyaan #1-#3 di atas. Ini sendiri adalah **evidence**, bukan kegagalan
+eksperimen: ia menunjukkan reprojection sederhana tidak cukup, bukan bahwa QR "buruk" secara
+umum (P0-2.2 Gate 3 sudah menunjukkan QR memang berkontribusi kausal ke command — pertanyaan
+di sini murni soal kalibrasi metrik absolut, hal yang berbeda).
+
+Data lengkap: `/tmp/p0-2-2b-battery/P0-2-3-precision-results.json`.
+
+## 9. Non-goals eksplisit untuk pass ini
+
+- Tidak ada run simulator baru dieksekusi untuk §8 — murni reuse `Q1`-`Q6.csv` dari P0-2.2b.
+- Tidak ada perbaikan formula/kalibrasi terhadap bias sistematis §8 — dicatat sebagai
+  pertanyaan terbuka, bukan ditambal di pass ini.
 - Tidak ada perubahan `mission_fsm.py`/`qr_detector.py`/`qr_logic.py`/parameter.
 - Tidak ada klaim PASS/FAIL. Acceptance matrix `docs/P0-2-AUDIT.md` §2 tidak diubah.
-- `qr_side_m=0.12` (dari komentar) TIDAK dipakai sebagai fakta terverifikasi sampai
-  dikonfirmasi §6.2.
+- Tabel `err_m` (§8) dan tabel `gripper_err` (§1) **tidak pernah digabung** jadi satu klaim.
 
-## 8. Status
+## 10. Status
 
 ```text
 P0-2.2      CLOSE-PARTIAL   (QR influence VERIFIED, QR precision convergence OPEN)
-P0-2.3      SPEC WRITTEN, §1 PRELIMINARY DATA REUSED — reduce_qr_precision.py NEXT
+P0-2.3      qr_side_m CONFIRMED (§7) — Gate P2/P3 EXECUTED (§8, reuse data, no new run)
+  Gate P2 (QR-alone estimate accuracy)   NOT VALIDATED — bias sistematis belum diisolasi
+  Gate P3 (repeatability estimat QR)     NOT REPEATABLE — spread 0.093-1.144m lintas run
+  Next: isolasi penyebab bias (§8 poin 1-3) sebelum data lebih lanjut dikumpulkan
 ```
