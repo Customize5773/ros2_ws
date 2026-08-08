@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
-"""P0-2.1/P0-2.2a APPROACH_QR instrumentation recorder — SUBSCRIBE ONLY.
+"""P0-2.1/P0-2.2a/P0-2.2b APPROACH_QR instrumentation recorder — SUBSCRIBE ONLY.
 
 Fork of recorder.py (P0-1e). Publishes nothing. Adds the QR detection chain
 (qr_result, qr_offset), the FSM's own commanded output (manual/cmd), FSM
 state (parsed from /rosout, since mission_fsm.py has no dedicated state
-topic), and the payload_pose ground truth (P0-2.2a — needed as the
+topic), the payload_pose ground truth (P0-2.2a — needed as the
 counterfactual reference for the P0-2.2 causal gates, see
-docs/P0-2-2-SPEC.md) on top of the odom/depth signals already proven by
-P0-1e.
+docs/P0-2-2-SPEC.md), and odom twist velocity vx/vy (P0-2.2b — _goto_xy()
+damps using self.vx/self.vy read from odom.twist, not a position
+finite-difference; reduce_approach_qr.py's Gate-3 counterfactual must use
+the same velocity source the real controller consumed) on top of the
+odom/depth signals already proven by P0-1e.
 
 recorder.py itself is left untouched (frozen P0-1 evidence, tag
 p0-1-baseline) — this is a fork, not an extension in place.
@@ -70,7 +73,7 @@ class RecorderQR(Node):
             QoSProfile(depth=1, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL))
 
         self.f = open(path, 'w')
-        self.f.write('t,fsm_state,sp_depth,depth,x,y,z,yaw,cmd_fx,cmd_fy,'
+        self.f.write('t,fsm_state,sp_depth,depth,x,y,z,yaw,vx,vy,cmd_fx,cmd_fy,'
                      'qr_result,qr_ex,qr_ey,qr_size,qr_frame,qr_age,'
                      'payload_x,payload_y,payload_z\n')
         self.create_timer(0.1, self.tick)
@@ -124,14 +127,16 @@ class RecorderQR(Node):
             return
         p = self.odom.pose.pose.position
         q = self.odom.pose.pose.orientation
+        v = self.odom.twist.twist.linear
         yaw = math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z))
         c = self.cmd
         qr_age = (self.t - self.qr_t) if self.qr_t is not None else float('nan')
         qr_result = self.qr_result.replace(',', ';').replace('\n', ' ')
-        self.f.write('%.4f,%s,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.4f,%.4f,'
+        self.f.write('%.4f,%s,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.4f,%.4f,'
                      '%s,%.5f,%.5f,%.5f,%s,%.4f,'
                      '%.5f,%.5f,%.5f\n' % (
                          self.t, self.fsm_state, self.sp, self.depth, p.x, p.y, p.z, yaw,
+                         v.x, v.y,
                          c.linear.x, c.linear.y,
                          qr_result, self.qr_ex, self.qr_ey, self.qr_size,
                          self.qr_frame, qr_age,

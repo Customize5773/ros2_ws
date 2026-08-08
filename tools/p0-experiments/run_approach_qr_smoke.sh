@@ -30,7 +30,24 @@ REC=$!
 # gate while recording (does not perturb: read-only introspection)
 sleep 45
 echo "=== GATE $TAG ==="
-bash "$HERE/gate_mission.sh" || echo "  >>> GATE FAILED - run is CONTAMINATED"
+if bash "$HERE/gate_mission.sh"; then
+    echo "PASS" > "$SP/$TAG.gate.txt"
+else
+    echo "  >>> GATE FAILED - run is CONTAMINATED"
+    echo "FAIL" > "$SP/$TAG.gate.txt"
+fi
+
+# P0-2.2b: runtime param dump (P0-1 rule "cek runtime, bukan hanya source") so
+# reduce_approach_qr.py's Gate-3 counterfactual uses actual param values, not
+# just source defaults that could've drifted. mission_fsm confirmed present by
+# the gate check above, so the node is alive here regardless of gate PASS/FAIL.
+# `ros2 param dump` writes <node>.yaml into --output-dir (no useful stdout) —
+# dump to $SP then normalize to the expected $TAG.params.yaml name.
+rm -f "$SP"/mission_fsm.yaml "$SP"/_mission_fsm.yaml
+ros2 param dump /mission_fsm --output-dir "$SP" > "$SP/$TAG.paramdump.log" 2>&1
+mv -f "$SP"/mission_fsm.yaml "$SP/$TAG.params.yaml" 2>/dev/null \
+    || mv -f "$SP"/_mission_fsm.yaml "$SP/$TAG.params.yaml" 2>/dev/null \
+    || echo "  >>> param dump did not produce expected file, see $TAG.paramdump.log"
 
 wait $REC
 echo "recorder done: $(tail -1 "$SP/$TAG.rec.log")"

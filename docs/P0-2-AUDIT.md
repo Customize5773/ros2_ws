@@ -328,15 +328,29 @@ Satu run tidak cukup untuk menyimpulkan jalur mana yang dominan; itu pertanyaan 
 P0-1        CLOSED / FROZEN        (tag p0-1-baseline)
 P0-2.0      CLOSED                 (audit statis — dokumen ini, §1-5)
 P0-2.1      CLOSED                 (instrumentasi — §6, observability terverifikasi)
-P0-2.2      DESIGN COMPLETE        (lihat docs/P0-2-2-SPEC.md)
+P0-2.2      CLOSE-PARTIAL          (keputusan pengguna — lihat docs/P0-2-2-VERDICT-OPTIONS.md §4)
 P0-2.2a     CLOSED                 (payload_pose instrumentation + smoke verification)
-P0-2.2b     NEXT                   (N=4-6 execution battery + reducer, belum dijalankan)
-P0-2.3      WAIT                   (closed-loop APPROACH_QR, belum didesain)
+P0-2.2b     CLOSED                 (6/6 run valid, 0 INCONCLUSIVE — §7 spec)
+  QR influence          VERIFIED   (Gate 3: 5/6 run, command benar-benar mengikuti qr_offset)
+  QR precision convergence  OPEN   (Gate 4: 0/6 run masuk band qr_center_tol — dibawa ke P0-2.3)
+P0-2.3      DESIGN                 (lihat docs/P0-2-3-SPEC.md — scope: positioning/centering
+                                     di titik GRAB, bukan sekadar pengaruh QR pada command)
 ```
 
 Detail P0-2.2: [`docs/P0-2-2-SPEC.md`](P0-2-2-SPEC.md) — spec eksperimen yang membedakan
 QR-driven approach dari ground-truth-driven approach, memakai bukti kausal pasif (bukan
-ablation). P0-2.2a (instrumentasi `payload_pose`) sudah tertutup dengan smoke verification;
-run battery N=4-6 (P0-2.2b) belum dieksekusi. **Tidak ada PASS/FAIL untuk `APPROACH_QR`
-sampai keenam gate di spec benar-benar dievaluasi dari data** — acceptance matrix §2 di atas
-tetap seluruhnya `OPEN`.
+ablation). P0-2.2a (instrumentasi `payload_pose`+`vx/vy`) sudah tertutup dengan smoke
+verification; run battery N=6 (P0-2.2b) sudah dieksekusi dan direduksi
+(`reduce_approach_qr.py`) — hasil ringkas: 5/6 run QR ter-score tapi hanya 1/6 benar-benar
+exit lewat visual centering (4/6 lewat toleransi jarak XY setelah QR ter-score, 1/6 murni
+ground-truth-fallback tanpa QR pernah terbaca); 0/6 run masuk band `qr_center_tol`; 5/6 run
+menunjukkan command memang bergerak mengikuti koreksi QR (Gate 3).
+
+**Keputusan (pengguna, lihat `docs/P0-2-2-VERDICT-OPTIONS.md` §4): CLOSE-PARTIAL (Opsi B).**
+Klaim yang ditutup: **"QR integration/causal influence terbukti"** (Gate 3, 5/6 run). Klaim
+yang **tetap `OPEN`, dibawa ke P0-2.3**: "QR visual servo memberikan precision convergence
+yang repeatable" (Gate 4, 0/6 run masuk band). Acceptance matrix §2 di atas **tidak diubah**
+oleh keputusan ini — baris terkait presisi/konvergensi tetap `OPEN`, hanya baris "QR
+benar-benar menjadi input kontrol?" yang kini punya evidence pendukung kuat. Tidak ada
+re-run P0-2.2 yang direncanakan; langkah berikutnya adalah desain P0-2.3 dengan scope
+lebih tajam — lihat `docs/P0-2-3-SPEC.md`.
