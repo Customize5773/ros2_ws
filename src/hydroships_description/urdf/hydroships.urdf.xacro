@@ -300,10 +300,14 @@
       <geometry><box size="0.10 0.10 0.06"/></geometry>
       <material name="hydro_grip"><color rgba="0.85 0.7 0.1 1.0"/></material>
     </visual>
-    <collision>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><box size="0.10 0.10 0.06"/></geometry>
-    </collision>
+    <!-- Tanpa collision: gripper tidak menambah volume apung (sama alasannya
+         dgn thruster di atas). Plugin Buoyancy menghitung volume perpindahan
+         dari geometri <collision>, jadi kotak collision di sini ikut jadi gaya
+         apung 5.9 N di x=+0.18 m — di luar neraca apung rov_params.yaml, dan
+         menggeser CoB ke haluan sehingga ROV trim bow-up ~31°. Contact fisik
+         tak dibutuhkan: grasp memakai DetachableJoint + proximity visual
+         (gripper_logic.is_safe), HANG di-skor dari odometri, dan kedua jari
+         kosmetik. Lihat docs/CHANGELOG.md. -->
   </link>
   <joint name="gripper_base_joint" type="fixed">
     <origin xyz="0.18 0 0" rpy="0 0 0"/>
@@ -339,10 +343,8 @@
         <geometry><box size="0.08 0.016 0.03"/></geometry>
         <material name="hydro_jaw"><color rgba="0.95 0.8 0.2 1.0"/></material>
       </visual>
-      <collision>
-        <origin xyz="0.04 0 0" rpy="0 0 0"/>
-        <geometry><box size="0.08 0.016 0.03"/></geometry>
-      </collision>
+      <!-- Tanpa collision: jari kosmetik, tidak menjepit secara fisik dan tidak
+           boleh menambah volume apung (lihat catatan di gripper_base). -->
     </link>
     <joint name="gripper_${side}_joint" type="revolute">
       <origin xyz="0.04 ${y_pivot} 0" rpy="0 0 0"/>
