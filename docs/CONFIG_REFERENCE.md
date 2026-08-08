@@ -18,9 +18,9 @@ ke URDF saat xacro diproses, bukan dibaca runtime oleh node Python.
 | `base_mass` | 8.3 | kg | **measured** | Massa total ROV (tanpa gripper payload) |
 | `thruster_mass` | 0.05 | kg | estimate | Massa per unit thruster (link URDF) |
 | `fluid_density` | 1000.0 | kg/m³ | **measured** | Densitas air kolam tawar (dipakai plugin Buoyancy) |
-| `buoyancy_collision.x/y/z` | 0.219 / 0.219 / 0.182 | m | estimate | Dimensi box collision dipakai plugin Buoyancy (≈0.635× bbox luar 0.345×0.345×0.286) |
-| `cog.x/y/z` | 0.0 / 0.0 / 0.0 | m | estimate | Center of Gravity relatif terhadap origin link `base_link` |
-| `cob.x/y/z` | 0.0 / 0.0 / 0.02 | m | estimate | Center of Buoyancy — sengaja di atas CoG (+z) agar ada momen pemulih pasif (self-righting) |
+| `buoyancy_collision.x/y/z` | 0.219 / 0.219 / 0.182 | m | estimate | Dimensi box collision dipakai plugin Buoyancy (≈0.635× bbox luar 0.345×0.345×0.286). **Neraca apung hanya sahih selama `base_link` satu-satunya link ROV yang punya `<collision>`** — plugin menurunkan volume perpindahan dari geometri collision, jadi link lain yang diberi collision ikut menghasilkan gaya apung (lihat [P0-1-BASELINE.md](P0-1-BASELINE.md)) |
+| `cog.x/y/z` | 0.0 / 0.0 / 0.0 | m | estimate | Origin inersial link `base_link`. **Bukan CoG sistem**: massa gripper di haluan menggeser CoG gabungan ke x ≈ +2.37 mm |
+| `cob.x/y/z` | 0.00237 / 0.0 / 0.02 | m | estimate | Center of Buoyancy — `z` di atas CoG agar ada momen pemulih pasif (self-righting); `x` disejajarkan dgn **CoG sistem** agar tidak ada lengan parasit (commit `8d6c49c`) |
 | `inertia.ixx/iyy/izz` | 0.13890 / 0.13890 / 0.16465 | kg·m² | estimate | Tensor inersia diagonal, diturunkan dari model box solid via `scripts/estimate_mass_inertia.py` |
 | `inertia.ixy/ixz/iyz` | 0.0 / 0.0 / 0.0 | kg·m² | estimate | Off-diagonal — diasumsikan nol (bodi simetris) |
 | `added_mass.xDotU/yDotV/zDotW` | -1.571 / -1.759 / -4.614 | kg | estimate | Massa tambah (hydrodynamic added mass) translasi, diskalakan dari referensi BlueROV2 (~33.6 kg) dengan rasio massa 0.247 |
