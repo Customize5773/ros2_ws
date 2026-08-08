@@ -63,7 +63,12 @@ cog: {x: 0.0, y: 0.0, z: 0.0}   # m  [estimate] origin = pusat bbox.
 # volume collision-box, jadi menggeser origin box = menggeser CoB efektif.
 # CoB di atas CoG (z>0) -> metacentric height positif -> restoring moment pasif
 # utk pitch/roll (mencegah ROV drift pitch/roll tanpa batas saat hold aktif).
-cob: {x: 0.0, y: 0.0, z: 0.02}  # m  [estimate] sedikit di atas CoG (stabil).
+# x disejajarkan dgn CoG SISTEM (bukan origin base_link): massa gripper di haluan
+# menggeser CoG sistem ke x=+2.37 mm, sementara CoB ada di origin box collision.
+# Selisih 2.37 mm itu lengan parasit yang menyisakan trim ~+7 deg bow-down.
+# Menyamakan cob.x dgn CoG_x menghilangkannya. Hitung ulang bila massa/posisi
+# komponen berubah (CoG_x = sum(m_i * x_i) / m_total).
+cob: {x: 0.00237, y: 0.0, z: 0.02}  # m  [estimate] di atas CoG (stabil), sejajar CoG_x.
 
 # --- Tensor inertia base_link di CoG (kg*m^2) ---
 # [estimate] diturunkan dari box pejal 0.345 x 0.345 x 0.286 m @ base_mass=8.3 kg
