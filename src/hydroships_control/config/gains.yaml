@@ -1,16 +1,20 @@
 # Gain PID stabilizer HYDROships (Milestone 2).
-# Titik awal yang wajar untuk model M1 (near-neutral, massa ~33.9 kg).
+# Titik awal untuk model M1: near-neutral, massa ~8.7 kg (base_mass 8.3 + 6
+# thruster + gripper, lihat hydroships_description/config/rov_params.yaml).
+# Massa efektif heave ~13 kg setelah added mass (zDotW -4.614).
 # Setel ulang setelah massa/koefisien hidrodinamika di-tune ke ROV asli.
 stabilizer:
   ros__parameters:
     use_sim_time: true
     rate: 20.0
 
+    # Diturunkan dari 60/8/40 (ilim 30) yang disetel untuk perkiraan massa lama
+    # ~33.9 kg — terlalu agresif untuk badan ~8.7 kg dan ikut menyebabkan osilasi.
     depth:
-      kp: 60.0 # Diturunkan sedikit (dari 60.0) agar tidak terlalu agresif
-      ki: 8.0  # Diturunkan sedikit (dari 8.0) agar tidak mengakumulasi error terlalu cepat
-      kd: 40.0 # Dinaikkan (dari 40.0) untuk memperkuat fungsi "rem" otomatis
-      integral_limit: 30.0
+      kp: 35.0
+      ki: 4.0
+      kd: 30.0
+      integral_limit: 15.0
       out_limit: 60.0      # batas |Fz| (N)
 
     heading:
@@ -41,6 +45,13 @@ stabilizer:
     # buoyancy_collision, ~8.73 kg air terpindah) -> net apung ke atas kecil
     # (~+0.28 N), near-neutral spt filosofi desain M1 awal. Jauh di bawah batas
     # thruster (~120N), jadi aman dikompensasi PID+FF kecil ini.
+    #
+    # Angka +0.28 N mengasumsikan HANYA base_link yang punya <collision> di
+    # urdf.xacro — plugin gz Buoyancy menurunkan volume perpindahan dari
+    # geometri collision. Saat link gripper masih punya collision, net apung
+    # sebenarnya +6.92 N (25x nilai ini) dan FF di bawah praktis tak berarti.
+    # Kalau collision link ROV berubah, hitung ulang net apung dulu sebelum
+    # menyetel FF ini (lihat catatan neraca di rov_params.yaml).
     buoyancy_ff: -0.3
 
     target_depth: -0.1     # meter, negatif = di bawah permukaan

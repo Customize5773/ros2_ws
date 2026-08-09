@@ -55,6 +55,12 @@ class QRDetector(Node):
 
         self.pub = self.create_publisher(String, '/hydroships/qr_result', 10)
         self.pub_off = self.create_publisher(PointStamped, '/hydroships/qr_offset', 10)
+        # P0-2.3 instrumentation (read-only design, approved): raw QR corner points +
+        # decode-success flag, published ADDITIVELY alongside qr_offset — no change to
+        # detection/decode logic, qr_result, qr_offset content, or FSM/controller behavior.
+        # CSV-encoded to avoid a new .msg type: "decode_success,x1,y1,x2,y2,x3,y3,x4,y4"
+        # (corner coords in the same original-frame pixel space as offset_from_points()).
+        self.pub_debug = self.create_publisher(String, '/hydroships/qr_offset_debug', 10)
         # Bind nama topik ke callback agar tahu kamera sumber (utk frame_id offset).
         self._subs = [self.create_subscription(
             Image, t, lambda msg, tp=t: self._on_image(msg, tp), 5) for t in topics]
@@ -129,6 +135,7 @@ class QRDetector(Node):
         # supaya visual servo tetap bisa memusatkan QR di frame.
         if pts is not None and len(pts) > 0:
             self._publish_offset(pts, img.shape, self._frame_of(topic))
+            self._publish_debug(data, pts, self._frame_of(topic))
 
         if not data:
             # Bedakan dua kegagalan (butuh diagnosis beda) — throttle agar tak spam:
@@ -160,6 +167,15 @@ class QRDetector(Node):
         ps.point.y = ey        # + = QR di bawah pusat
         ps.point.z = size      # ukuran-tampak (proxy jarak)
         self.pub_off.publish(ps)
+
+    def _publish_debug(self, data, pts, frame_id):
+        """P0-2.3: raw corner points + decode_success, SAME pts/data already
+        computed for _publish_offset() above -- no new detection logic."""
+        p = np.asarray(pts, dtype=float).reshape(-1, 2)
+        out = String()
+        out.data = '%d,%s' % (1 if data else 0,
+                              ','.join('%.2f' % v for v in p.flatten()))
+        self.pub_debug.publish(out)
 
 
 def main(args=None):

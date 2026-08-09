@@ -14,21 +14,51 @@ Argumen:
 import math
 import os
 import random
+import xml.etree.ElementTree as ET
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
     IncludeLaunchDescription,
+    LogInfo,
     OpaqueFunction,
+    RegisterEventHandler,
     TimerAction,
 )
+from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
 import xacro
+
+
+def _world_name(world_path):
+    """Nama world dari ISI file SDF (<world name="...">), bukan dari nama file.
+
+    Keduanya TIDAK selalu sama, dan `create -world <nama>` memakai nama yang
+    dideklarasikan di SDF: kalau salah, model gagal spawn TANPA error yang
+    kelihatan. Di repo ini pool_empty.sdf memakai <world name="pool"> dan
+    kki_arena_test.sdf memakai <world name="kki_arena">, jadi hanya kki_arena.sdf
+    yang kebetulan cocok dgn nama file-nya.
+
+    Fallback ke nama file (perilaku lama) bila file tak terbaca / tanpa <world>.
+    """
+    stem = os.path.splitext(os.path.basename(world_path))[0]
+    try:
+        world = ET.parse(world_path).getroot().find('world')
+        name = world.get('name') if world is not None else None
+    except (ET.ParseError, OSError) as exc:
+        print('[sim.launch] WARNING: gagal membaca world name dari %s (%s); '
+              'pakai nama file "%s".' % (world_path, exc, stem))
+        return stem
+    if not name:
+        print('[sim.launch] WARNING: %s tidak punya <world name=...>; '
+              'pakai nama file "%s".' % (world_path, stem))
+        return stem
+    return name
 
 
 def _f(context, name, default):
@@ -99,7 +129,6 @@ def _launch_setup(context, *args, **kwargs):
     pkg_description = get_package_share_directory('hydroships_description')
 
     world = LaunchConfiguration('world').perform(context)
-    world_name = os.path.splitext(os.path.basename(world))[0]
     headless = LaunchConfiguration('headless').perform(context).lower() == 'true'
     try:
         spawn_delay = float(LaunchConfiguration('spawn_delay').perform(context))
@@ -117,6 +146,8 @@ def _launch_setup(context, *args, **kwargs):
     payload_y = LaunchConfiguration('payload_y').perform(context)
 
     world_path = os.path.join(pkg_gazebo, 'worlds', world)
+    world_name = _world_name(world_path)
+    print('[sim.launch] world file "%s" -> world name "%s"' % (world, world_name))
 
     # Agar mesh 'package://hydroships_description/...' (di-resolve gz jadi
     # 'model://hydroships_description/...') ketemu: tambah folder share ke
@@ -153,21 +184,41 @@ def _launch_setup(context, *args, **kwargs):
     # supaya server gz (dari gz_sim di atas) sudah menyediakan service
     # /world/<world>/create; kalau spawn jalan sebelum server siap, model gagal
     # muncul (race condition). Atur lewat arg spawn_delay (naikkan bila mesin lambat).
+    spawn_node = Node(
+        package='ros_gz_sim',
+        executable='create',
+        output='screen',
+        arguments=[
+            '-world', world_name,
+            '-name', 'hydroships',
+            '-string', robot_desc,
+            '-x', x, '-y', y, '-z', z,
+            '-Y', yaw,
+        ],
+    )
+
+    # Spawn yang gagal TIDAK menghentikan launch: gz tetap jalan, bridge tetap
+    # hidup, hanya ROV-nya yang tak ada dan /hydroships/odom diam. Kegagalan
+    # sunyi seperti itu pernah menghabiskan satu eksperimen penuh, jadi
+    # kode-keluar 'create' dilaporkan keras-keras.
+    spawn_check = RegisterEventHandler(
+        OnProcessExit(
+            target_action=spawn_node,
+            on_exit=lambda event, ctx: (
+                [] if event.returncode == 0 else
+                [LogInfo(msg='[sim.launch] ERROR: spawn ROV GAGAL (create keluar '
+                             'dgn kode %s). World "%s" mungkin tak ada di %s — '
+                             'cek <world name=...> di file world tsb. Gazebo '
+                             'tetap jalan TANPA ROV; /hydroships/odom tidak akan '
+                             'terbit.' % (event.returncode, world_name, world))]
+            ),
+        )
+    )
+
     spawn = TimerAction(
         period=spawn_delay,
         actions=[
-            Node(
-                package='ros_gz_sim',
-                executable='create',
-                output='screen',
-                arguments=[
-                    '-world', world_name,
-                    '-name', 'hydroships',
-                    '-string', robot_desc,
-                    '-x', x, '-y', y, '-z', z,
-                    '-Y', yaw,
-                ],
-            ),
+            spawn_node,
         ],
     )
 
@@ -232,7 +283,8 @@ def _launch_setup(context, *args, **kwargs):
         }],
     )
 
-    return [gz_sim, bridge, rsp, spawn, depth_pub, qr, gripper, hook, spawner]
+    return [gz_sim, bridge, rsp, spawn_check, spawn, depth_pub, qr, gripper,
+            hook, spawner]
 
 
 def generate_launch_description():

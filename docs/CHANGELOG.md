@@ -5,7 +5,7 @@ sudah dibatalkan/diganti**. Untuk status ringkas terkini lihat [STATUS.md](STATU
 Format status warisan `PROBLEM.md`: `[RESOLVED]` selesai · `[VERIFY]` perlu uji
 runtime · `[OPEN]` gap desain/hardware · `[REMOVED]`/`[MOOT]` dibatalkan/tak relevan.
 
-Commit hash & tanggal dari `git log` (rentang 2026-07-07 … 2026-07-17).
+Commit hash & tanggal dari `git log` (rentang 2026-07-07 … 2026-08-06).
 
 ---
 
@@ -344,6 +344,178 @@ Commit hash & tanggal dari `git log` (rentang 2026-07-07 … 2026-07-17).
   sebenarnya (mis. `(0.50,-1.20)`), bukan `(0.40,0.00)`; (b) `ex/ey` **mengecil** menuju 0
   saat mendekat — bila **membesar**, balik `qr_servo_sign:=-1.0` sebelum mengubah logika
   lain; (c) recovery depth-ascent memicu di 30 s saat QR tak terbaca.
+
+---
+
+## 2026-07-28 … 2026-08-03 (belum dicatat sebelumnya)
+
+- **`24dd349`** — Model gripper baru (lihat entry dua-jari-opposing di atas, 2026-07-28).
+- **`4f86d4a`** — Raw model FUSION 360 + payload hook approach dengan visual servo
+  (lihat entry `APPROACH_HOOK` upgrade PD holonomik di atas).
+- **`b754a53`** — Evaluasi kamera ROV HEAD & BOTTOM (dokumentasi/analisis mounting kamera).
+- **[RESOLVED] Physics: skala volume buoyancy & koefisien hidrodinamika; massa ROV
+  33.6 kg → 8.3 kg.** — `00d4aaa` (chore(physics): update mass properties and buoyancy
+  compensation) + `aa2410d` (feat(physics): scale buoyancy volume and hydrodynamic
+  coefficients, faktor skala ~0.247, `buoyancy_ff -120.0 → -0.3`). Mengubah
+  `src/hydroships_description/config/rov_params.yaml`, `gains.yaml`, `stabilizer.py`, URDF.
+  **Regresi yang ditemukan akibat perubahan ini** — lihat item NAV_WALL di bawah.
+- **`99d990a`** — Launch diagnostics & service discovery (turut menyentuh `mission_fsm.py`,
+  ~130 baris; tak ada regresi fungsional teridentifikasi dari perubahan ini secara terpisah).
+- **Koreksi commit hash**: entry lama yang menyebut `b754a33` seharusnya `b754a53` (hash
+  `b754a33` tidak ada di riwayat git repo ini).
+
+## 2026-08-06 — Verifikasi runtime penuh (mesin dev kini punya ROS 2 Humble + Gazebo
+Fortress 6.18 + EGL/mesa) — build, smoke-run, & seluruh state FSM diuji end-to-end/isolasi
+
+Metodologi: `colcon build` bersih, `pytest` **76/76** lolos (bukan 62 seperti tercatat di
+entry lama — jumlah tes bertambah sejak `test_qr_ey_target.py` & lainnya ditambahkan).
+Smoke-run headless (`spawn_seed:=42`), lalu misi penuh dari `DIVE` (`spawn_seed:=42
+qr_letter:=A`), lalu isolasi `start_state:=APPROACH_HOOK start_wall:=B` (`spawn_seed:=12`)
+utk memisahkan verifikasi hook dari bug NAV_WALL di bawah, lalu `hydroships_gui.launch.py`
+(`spawn_seed:=5`) + client UDP JSON sintetis ke port 14550/14551.
+
+- **[RESOLVED] `camera_info` & render kamera headless — TERBUKTI ulang.** `fx=fy=381.4
+  cx=320 cy=240 (640x480)`, `camera_bottom/front/image_raw` mengalir `rgb8 step=1920`
+  segera setelah spawn.
+- **[RESOLVED] scan_depth=0.30 (revisi dari 0.46, `mission_fsm.py:107-121`, alasan
+  offset gripper `cam_gripper_dx=0.16 m` di depan kamera bawah) — QR 'A' TETAP terdecode
+  runtime & misi lanjut ke GRAB** (`DIVE → APPROACH_QR → GRAB` sukses, skor m1 +15 lalu
+  m2 +15 "GRAB terverifikasi"). Regresi yang dikhawatirkan render CHANGELOG lama
+  (0.62→0.46) **tidak berulang** di 0.30. QR huruf B/C/D **tidak** diuji ulang sesi ini
+  (kehabisan waktu memprioritaskan bug baru di bawah) — tetap `[VERIFY]`.
+- **[REGRESI BARU — OPEN, BLOCKING] `GRAB` tidak pernah benar-benar meng-attach payload.**
+  `mission_fsm._st_grab` (`mission_fsm.py:606-618`) HANYA menunggu `hold_settle_s` lalu
+  memberi skor +15 dan pindah ke `NAV_WALL` — **tidak pernah** publish ke
+  `/hydroships/gripper/command` ("close"). Diverifikasi via `grep`: publisher
+  `self.pub_grip` (`mission_fsm.py:221`) dideklarasikan tapi **tidak sekalipun dipanggil
+  `.publish()`** di seluruh file; satu-satunya jalur `gripper_controller` menerbitkan
+  `/hydroships/gripper/attach` adalah lewat `_on_cmd` yang men-subscribe
+  `/hydroships/gripper/command` (`gripper_controller.py:56-129`) — tanpa pesan "close"
+  masuk, attach **tidak pernah terpicu**. Docstring `_st_grab` sendiri mengonfirmasi ini
+  sebagai desain sementara: *"Verifikasi ROV diam sejenak di atas QR sebagai pengganti
+  event attach nyata"* — tapi ini **berlawanan** dengan deskripsi `STATUS.md`/`CHANGELOG`
+  lama ("Attach hanya di GRAB saat qr_offset aman", commit `fd06b0a`) yang mengasumsikan
+  `_st_grab` memicu attach nyata. **Akibat**: payload TETAP lepas (hasil startup
+  auto-detach) sepanjang `NAV_WALL/HANG/SURFACE/...` — ROV "mengantar" tanpa payload
+  secara fisik. Ini bukan sekadar `[VERIFY]` tertunda — ini **fungsi inti misi yang
+  hilang**, prioritas perbaikan tertinggi sebelum klaim M5 bisa ✅. **Belum** diverifikasi
+  via topic-echo langsung (`ros2 topic echo /hydroships/gripper/attach` selama GRAB) —
+  disarankan sebagai langkah pertama sesi berikut untuk konfirmasi empiris tambahan,
+  meski bukti `grep` (tak ada call site) sudah meyakinkan.
+- **[REGRESI BARU — OPEN, BLOCKING] `NAV_WALL` tidak konvergen ke `nav_tol`, timeout →
+  ABORT.** Repro: `spawn_seed:=42 qr_letter:=A start_state:=DIVE`, wall target
+  `(0.00, 2.30)` (dari `wall_dist=2.30`, `mission_fsm.py:126`). ROV mendekat sampai
+  `dist≈0.26 m` (tepat di atas `nav_tol=0.20 m`, `mission_fsm.py:129`) lalu **posisi x/y
+  membeku** (x=0.25, y=2.38 tak berubah di banyak tick berturut-turut) sementara yaw
+  perlahan drift (~4° dalam 30 s) — bukan osilasi cepat seperti bug lama 2026-07-18,
+  melainkan gaya dorong yang tampak nyaris tak menghasilkan gerak berarti pada jarak
+  kecil ini. `T['nav']` habis → `NAV_WALL timeout (dist 0.26m)` → `ABORT`. `cond(TAM)=20`
+  (sehat, allocator BUKAN penyebab). **Catatan penting**: mekanisme soft-stop
+  `wall_face`/`wall_standoff`/`_wall_clearance()` yang dijelaskan RESOLVED di entry
+  2026-07-18 ("target NAV_WALL `wall_face(2.5)-wall_standoff(0.45)=2.05 m`... SOFT-STOP
+  `_wall_clearance()`...") **TIDAK ADA lagi di `mission_fsm.py` saat ini** — kode aktif
+  memakai `wall_dist=2.30` langsung tanpa clearance push-away terpisah (`grep` tak
+  menemukan `wall_face`/`wall_standoff`/`_wall_clearance` di file). STATUS.md M6 saat ini
+  masih mendeskripsikan mekanisme lama itu sebagai aktif — **keliru**, sudah dikoreksi di
+  STATUS.md. Dugaan penyebab (belum dipastikan, JANGAN ubah gain sebelum mengukur lebih
+  lanjut): `approach_kp`/`approach_kd` di `_goto_xy_yaw_first` (`mission_fsm.py:327-355`)
+  ditala untuk massa lama (33.6 kg); dengan massa baru 8.3 kg + koefisien hidrodinamika
+  diskalakan ~0.247× (`aa2410d`), taper gaya dekat target (`freeze_dist=0.08`,
+  `slow_dist=1.5`) mungkin menghasilkan gaya di bawah ambang yang bisa mengatasi
+  drag/buoyancy residual pada `dist` sekecil 0.26 m. **Akibat**: siklus misi penuh
+  (4 hook) TIDAK BISA diselesaikan end-to-end saat ini — blocker utama sebelum M6 ✅.
+- **[RESOLVED, via isolasi state] `APPROACH_HOOK → AUTO_RELEASE → SURFACE → loop DIVE`
+  TERBUKTI runtime** (start mid-state `start_wall:=B`, memotong bug NAV_WALL di atas).
+  Urutan lengkap terkonfirmasi: hook terdeteksi & servo merespons (`ex` -0.64→~0,
+  `size` 0.30→0.65 sempat), `t_approach=25.0 s` (`mission_fsm.py:135`, **terpakai** —
+  mengoreksi catatan draft rencana sebelumnya yang keliru menyebut param ini tak
+  terpakai; sebenarnya di-wire via `self.T['approach']`, `mission_fsm.py:211-213`) habis
+  → **fallback ke AUTO_RELEASE (bukan ABORT), sesuai desain** → "AUTO_RELEASE: posisi
+  stabil, publish detach..." → depth naik ke permukaan → skor m5 +40 → `done_hooks`
+  bertambah → loop balik ke `DIVE` untuk hook berikutnya. Mekanisme fallback/looping
+  terbukti solid.
+- **[VERIFY — belum konvergen andal] Servo visual `APPROACH_HOOK` (`hook_logic.hook_servo`)
+  terbukti WIRED & responsif** (offset kamera depan memengaruhi `ex/ey/size` sesuai
+  ekspektasi), **tapi tidak sekali pun mencapai kriteria `near AND aligned` serentak**
+  dalam window `t_approach=25 s` pada run ini — `ex` berosilasi antara ~0 (terpusat) dan
+  ~0.9 (nyaris keluar frame) dalam hitungan detik, mengindikasikan deteksi hook
+  flickering atau overshoot approach. Sistem **aman** (fallback timeout bekerja, tidak
+  pernah ABORT), tapi konvergensi visual servo hook itu sendiri **butuh tuning**
+  (`hook_kp_*`/`hook_kd_*`, atau longgarkan `hook_center_tol=0.15`/`hook_size_stop=0.35`,
+  atau perpanjang `t_approach`) sebelum bisa diklaim ✅ penuh.
+- **[RESOLVED] Payload spawn → sinyal `spawned` → gripper auto-detach startup — urutan
+  TERBUKTI benar** (diverifikasi di ≥2 run terpisah): log `Spawn payload QR=… pos=(…)`
+  → `Payload QR=… spawned OK` → `Sinyal /hydroships/payload/spawned diterbitkan` →
+  `gripper open: auto-detach startup … [pemicu: payload spawn terdeteksi]`, selalu dalam
+  urutan itu.
+- **[RESOLVED] Integrasi GUI (`gui_bridge`) — round-trip UDP TERBUKTI.** `hydroships_gui.launch.py`
+  **tidak** menjalankan `stabilizer` (hanya sim + `thruster_allocator` + `gui_bridge`) —
+  jadi tak ada konflik publisher `/hydroships/cmd_vel` seperti dikhawatirkan awalnya.
+  UDP JSON `{"name":"arm","value":true}` → `armed:true` di telemetri balik; `{"name":
+  "surge","value":75}` (armed) → `/hydroships/cmd_vel` berubah dari nol. Telemetri UDP
+  balik ke port 14551 berisi `heading/depth/roll/pitch` real (bukan placeholder). Gain
+  (`surge_gain=0.40, sway_gain=0.40, heave_gain=0.30, yaw_gain=0.12`,
+  `gui_bridge_logic.py:49-102`) **tetap estimasi** — kalibrasi lapangan masih `[OPEN]`.
+- **[RESOLVED] Pemetaan hook A–D ↔ sisi kolam dikonfirmasi cocok, kode vs world SDF.**
+  `WALL_HEADING_DEG = {'A':270°,'B':90°,'C':0°,'D':180°}` (`mission_fsm.py:81`) cocok
+  presisi dengan pose `hook_a=(0,-2.5)`, `hook_b=(0,2.5)`, `hook_c=(2.5,0)`,
+  `hook_d=(-2.5,0)` di `worlds/kki_arena.sdf` (A=-Y, B=+Y, C=+X, D=-X, sesuai catatan lama).
+  Dikonfirmasi juga secara langsung: run `qr_letter:=A` menghasilkan `NAV_WALL` menuju
+  `(0.00, 2.30)` = sisi +Y.
+- **Ringkasan prioritas perbaikan berikutnya (urut dampak):** (1) `GRAB` tidak attach —
+  blocking, cari kenapa `_grip`/publish "close" hilang dari `_st_grab` (kemungkinan
+  regresi lanjutan dari insiden PR #14 yang disebut "direstore" di entry 2026-07-17 —
+  tampaknya restorasi tsb tidak lengkap untuk bagian ini). (2) `NAV_WALL` tak konvergen —
+  blocking, ukur closed-loop response `approach_kp/kd` vs fisika baru sebelum ubah gain.
+  (3) Tuning konvergensi servo `APPROACH_HOOK`. (4) Uji QR B/C/D & kalibrasi gain GUI
+  (non-blocking, [VERIFY]/[OPEN] lama tetap berlaku).
+
+## 2026-08-08 — [RESOLVED] Akar `DIVE timeout` = model apung, bukan controller.
+Investigasi P0-1a→e; DIVE `CLOSED`, tag `p0-1-baseline`
+
+Ringkasan penuh + seluruh angka: **[P0-1-BASELINE.md](P0-1-BASELINE.md)**.
+
+Metodologi: diagnosis berlapis dgn gerbang anti-kontaminasi per run, tanpa mengubah satu
+pun parameter kendali. Setiap tahap memisahkan satu pertanyaan: P0-1a (rantai kendali) →
+P0-1b (aktuator open-loop) → P0-1c.1 (audit trim statis) → P0-1c.2/.3 (koreksi) →
+P0-1c.4 (infrastruktur uji) → P0-1d (karakterisasi bersih) → P0-1e (regresi tertutup).
+
+- **`9219735`** — **[RESOLVED] Gripper tidak lagi menyumbang volume apung.** Plugin
+  `gz-sim-buoyancy-system` menurunkan volume perpindahan air dari geometri `<collision>`;
+  `gripper_base` + kedua jari punya collision box sehingga ikut menghasilkan gaya apung
+  yang tak pernah masuk neraca `rov_params.yaml`. Akibatnya net apung **+6.92 N** (bukan
+  +0.28 N, 24.7×) dan CoB bergeser **+13.6 mm** ke haluan → momen bow-up 1.04 N·m melawan
+  momen pemulih maks 1.69 N·m → trim pasif **31.5°**. Contact fisik gripper tak dibutuhkan
+  (grasp = DetachableJoint + proximity visual, jari kosmetik), jadi collision dihapus
+  mengikuti idiom thruster. Terukur setelah: net apung +0.28 N, trim +4.44°/+3.58°.
+- **`8d6c49c`** — **[RESOLVED] `cob.x` disejajarkan dgn CoG sistem** (0.0 → 0.00237 m).
+  `cog` di YAML adalah origin inersial `base_link`, **bukan** CoG sistem — massa gripper di
+  haluan menggesernya ke x = +2.37 mm. Sisa lengan parasit itu menutup trim: prediksi 0.0°,
+  terukur **−0.02° / −0.01°**.
+- **`0941cd4`** — **[RESOLVED] Nama world diambil dari isi SDF, bukan nama file.**
+  `create -world <nama>` memakai nama yang dideklarasikan di SDF; `sim.launch.py`
+  menurunkannya dari nama file. `pool_empty.sdf` memakai `<world name="pool">` dan
+  `kki_arena_test.sdf` memakai `<world name="kki_arena">` → 2 dari 3 world tak pernah
+  spawn ROV, **gagal tanpa error yang terlihat**. Kode-keluar node `create` kini
+  dilaporkan lewat `OnProcessExit`.
+
+**Hasil regresi DIVE** (4 run: 3 random spawn + 1 deterministik, `kki_arena`, stack penuh):
+lolos **4/4**, ambang 0.24 m tercapai **1.65–1.76 s** dari anggaran 20 s, pitch maks
+**0.30°**, roll maks **0.19°**, fidelity allocator **99.4%**, thrust puncak **2.44 N** dari
+batas 50 N, tanpa saturasi & tanpa kontak. Pembanding baseline gagal (2026-08-06 dst.):
+timeout 20 s, kedalaman mentok ~0.215 m, pitch divergen −33°, thrust 16–19 N.
+
+**[DEFERRED] TAM tidak berubah dan TIDAK terbukti benar** — P0-1 hanya menunjukkan kopling
+Fz→My bukan blocker pada titik operasi DIVE yang diuji. Celah `INCONCLUSIVE` yang sengaja
+tidak diekstrapolasi: B/B′ pada −10/−14 N, kontribusi individual T2/T6 (jendela bersih
+terpotong kontak lantai), dan skala thrust absolut η.
+
+**[OPEN] Status lama GRAB & NAV_WALL tidak lagi valid sebagai deskripsi.** Dalam jendela
+60 s pasca-DIVE, FSM berlanjut `APPROACH_QR → GRAB → NAV_WALL → HANG → SURFACE →
+WAIT_TRIGGER` tanpa ABORT di keempat run — tetapi **"berjalan tanpa ABORT" bukan acceptance
+evidence**. Ketiganya menunggu karakterisasi P0-2/P0-3/P0-4; jangan dicatat sebagai selesai.
+
+Skrip eksperimen disimpan di `tools/p0-experiments/` agar P0-1d/P0-1e dapat direproduksi.
 
 ---
 
