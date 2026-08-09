@@ -31,6 +31,8 @@ from rosgraph_msgs.msg import Clock
 from std_msgs.msg import Float64, String
 
 FSM_TRANSITION_RE = re.compile(r'^\[FSM\]\s+(\S+)\s+->\s+(\S+)$')
+# P0-2.3: qr_detector.py's /hydroships/qr_offset_debug, "decode_success,x1,y1,...,x4,y4"
+QR_DEBUG_RE = re.compile(r'^([01]),(.+)$')
 
 
 class RecorderQR(Node):
@@ -55,6 +57,8 @@ class RecorderQR(Node):
         self.payload_x = float('nan')
         self.payload_y = float('nan')
         self.payload_z = float('nan')
+        self.qr_decode_success = float('nan')
+        self.qr_corners = [float('nan')] * 8   # x1,y1,x2,y2,x3,y3,x4,y4
 
         self.create_subscription(Clock, '/clock', self.on_clock, 50)
         self.create_subscription(Odometry, '/hydroships/odom', self.on_odom, 50)
@@ -63,6 +67,7 @@ class RecorderQR(Node):
         self.create_subscription(Float64, '/hydroships/depth', self.on_depth, 10)
         self.create_subscription(String, '/hydroships/qr_result', self.on_qr_result, 10)
         self.create_subscription(PointStamped, '/hydroships/qr_offset', self.on_qr_offset, 10)
+        self.create_subscription(String, '/hydroships/qr_offset_debug', self.on_qr_debug, 10)
         self.create_subscription(Log, '/rosout', self.on_rosout, 50)
         # payload_spawner menerbitkan SEKALI dengan QoS latched (TRANSIENT_LOCAL) —
         # subscriber harus pakai durability sama, persis seperti mission_fsm.py:234-236,
@@ -75,7 +80,9 @@ class RecorderQR(Node):
         self.f = open(path, 'w')
         self.f.write('t,fsm_state,sp_depth,depth,x,y,z,yaw,vx,vy,cmd_fx,cmd_fy,'
                      'qr_result,qr_ex,qr_ey,qr_size,qr_frame,qr_age,'
-                     'payload_x,payload_y,payload_z\n')
+                     'payload_x,payload_y,payload_z,'
+                     'qr_decode_success,qr_c1x,qr_c1y,qr_c2x,qr_c2y,qr_c3x,qr_c3y,'
+                     'qr_c4x,qr_c4y\n')
         self.create_timer(0.1, self.tick)
 
     def on_clock(self, m):
@@ -115,6 +122,18 @@ class RecorderQR(Node):
         self.payload_y = m.point.y
         self.payload_z = m.point.z
 
+    def on_qr_debug(self, m):
+        match = QR_DEBUG_RE.match(m.data)
+        if not match:
+            return
+        self.qr_decode_success = float(match.group(1))
+        try:
+            vals = [float(v) for v in match.group(2).split(',')]
+        except ValueError:
+            return
+        if len(vals) == 8:
+            self.qr_corners = vals
+
     def tick(self):
         if self.t is None or self.odom is None or self.done:
             return
@@ -134,13 +153,16 @@ class RecorderQR(Node):
         qr_result = self.qr_result.replace(',', ';').replace('\n', ' ')
         self.f.write('%.4f,%s,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.4f,%.4f,'
                      '%s,%.5f,%.5f,%.5f,%s,%.4f,'
-                     '%.5f,%.5f,%.5f\n' % (
+                     '%.5f,%.5f,%.5f,'
+                     '%.0f,%s\n' % (
                          self.t, self.fsm_state, self.sp, self.depth, p.x, p.y, p.z, yaw,
                          v.x, v.y,
                          c.linear.x, c.linear.y,
                          qr_result, self.qr_ex, self.qr_ey, self.qr_size,
                          self.qr_frame, qr_age,
-                         self.payload_x, self.payload_y, self.payload_z))
+                         self.payload_x, self.payload_y, self.payload_z,
+                         self.qr_decode_success,
+                         ','.join('%.2f' % v for v in self.qr_corners)))
 
 
 def main():
