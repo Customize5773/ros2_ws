@@ -66,7 +66,11 @@ def generate_launch_description():
                       'hook_max_age': ParameterValue(
                           LaunchConfiguration('hook_max_age'), value_type=float),
                       't_approach': ParameterValue(
-                          LaunchConfiguration('t_approach'), value_type=float)}],
+                          LaunchConfiguration('t_approach'), value_type=float),
+                      'qr_offset_ema_alpha': ParameterValue(
+                          LaunchConfiguration('qr_offset_ema_alpha'), value_type=float),
+                      'qr_servo_range': ParameterValue(
+                          LaunchConfiguration('qr_servo_range'), value_type=float)}],
     )
 
     return LaunchDescription([
@@ -119,6 +123,17 @@ def generate_launch_description():
         DeclareLaunchArgument('t_approach', default_value='25.0',
                               description='Timeout APPROACH_HOOK (s); habis waktu = '
                                           'lanjut AUTO_RELEASE, bukan abort.'),
+        # P0-2.5 Candidate #2 (docs/P0-2-5-ENGINEERING-ANALYSIS.md): EMA pada
+        # qr_ex/qr_ey sebelum dipakai target servo. 1.0 = filter nonaktif
+        # (default, sama seperti sebelum kandidat ini ada).
+        DeclareLaunchArgument('qr_offset_ema_alpha', default_value='1.0',
+                              description='EMA alpha utk qr_ex/qr_ey sebelum servo '
+                                          '(1.0=nonaktif/mentah, lebih kecil=lebih halus).'),
+        # P0-2.5 Kandidat #1: lebar gerbang aktivasi visual servo (dist_raw <
+        # qr_servo_range). 0.3 = nilai lama/default.
+        DeclareLaunchArgument('qr_servo_range', default_value='0.3',
+                              description='Jarak (m) di bawah mana visual servo QR mulai '
+                                          'aktif (dist_raw < qr_servo_range).'),
         stabilized,
         mission,
     ])
