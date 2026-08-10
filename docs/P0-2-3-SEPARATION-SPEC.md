@@ -355,7 +355,7 @@ acceptance diambil — bukan keputusan itu sendiri.
 Data lengkap: `/tmp/p0-2-3-separation-battery/*.csv`, `*.log`,
 `P0-2-3-separation-results.json`.
 
-## 15. Status (menggantikan §12)
+## 15. Status (menggantikan §12; verdict akhir di §16)
 
 ```text
 P0-2.3                              OPEN
@@ -367,4 +367,16 @@ P0-2.3                              OPEN
   Kesimpulan sementara                KEDUANYA berkontribusi independen, bukan salah satu
   qr_detector.py / qr_logic.py / mission_fsm.py / controller   TIDAK DIUBAH
   P0-2.3 verdict                      BELUM DIBERIKAN — evidence siap direview
+```
+
+## 16. Final acceptance review — lihat `docs/P0-2-3-ACCEPTANCE-REVIEW.md`
+
+Dukungan terhadap kedua hipotesis di §14-§15 di atas **bukan verdict acceptance** — itu
+mekanisme, bukan konfirmasi bahwa `APPROACH_QR` memenuhi tolerance P0-2 (`approach_tol`,
+`qr_center_tol`, `docs/P0-2-AUDIT.md` §1.5). Evidence di dokumen ini sudah dicocokkan terhadap
+matrix acceptance P0-2 secara terpisah di `docs/P0-2-3-ACCEPTANCE-REVIEW.md`.
+
+```text
+P0-2.3 verdict (final)     CLOSE-PARTIAL — root-cause residual bias CLOSED (§2.2-2.3 di
+                           ACCEPTANCE-REVIEW.md), precision convergence (Gate 4) tetap OPEN/FAIL
 ```

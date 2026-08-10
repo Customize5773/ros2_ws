@@ -333,8 +333,13 @@ P0-2.2a     CLOSED                 (payload_pose instrumentation + smoke verific
 P0-2.2b     CLOSED                 (6/6 run valid, 0 INCONCLUSIVE — §7 spec)
   QR influence          VERIFIED   (Gate 3: 5/6 run, command benar-benar mengikuti qr_offset)
   QR precision convergence  OPEN   (Gate 4: 0/6 run masuk band qr_center_tol — dibawa ke P0-2.3)
-P0-2.3      DESIGN                 (lihat docs/P0-2-3-SPEC.md — scope: positioning/centering
-                                     di titik GRAB, bukan sekadar pengaruh QR pada command)
+P0-2.3      CLOSE-PARTIAL          (keputusan review acceptance — lihat
+                                     docs/P0-2-3-ACCEPTANCE-REVIEW.md §4)
+  Root-cause residual bias  CLOSED   (AABB/inflasi DAN decode quality, kontribusi independen —
+                                     docs/P0-2-3-SEPARATION-SPEC.md §14)
+  Precision convergence (Gate 4)   OPEN   (FAIL, tidak diuji ulang — 0/6 run P0-2.2b masuk band
+                                     qr_center_tol, gap residual masih melebihi approach_tol
+                                     pada inflasi tinggi)
 ```
 
 Detail P0-2.2: [`docs/P0-2-2-SPEC.md`](P0-2-2-SPEC.md) — spec eksperimen yang membedakan
