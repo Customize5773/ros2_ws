@@ -224,20 +224,22 @@ disebutkan lain.
 
 ---
 
-## 2. Acceptance matrix (semua OPEN)
+## 2. Acceptance matrix (semua OPEN pada penulisan awal; dua baris diperbarui, lihat catatan di bawah tabel)
 
 | Pertanyaan | Status | Apa yang perlu diukur | Sumber data yang tersedia |
 |---|---|---|---|
 | QR dapat dideteksi secara konsisten? | **OPEN** | Rate deteksi vs jarak/sudut/pencahayaan; berapa lama tanpa deteksi dalam run tipikal | `/hydroships/qr_result`, `/hydroships/qr_offset` (perlu direkam — `recorder.py` belum subscribe) |
 | Transform QR → frame ROV benar? | **OPEN** | Konsistensi tanda (`qr_servo_sign`) dan skala (`qr_servo_gain`) antara offset piksel dan pergerakan aktual ROV; tidak ada tf2 untuk divalidasi silang | Perbandingan `/hydroships/qr_offset` vs delta `/hydroships/odom` per tick |
 | Error relatif berkurang? | **OPEN** | Tren `dist`/`qr_off` sepanjang waktu dalam satu run | Log debug `APPROACH_QR dbg:` (L570-579) atau turunan dari topic di atas |
-| ROV konvergen ke acceptance region? | **OPEN** | Apakah `dist < approach_tol` atau kondisi `centered` tercapai sebelum `t_scan` | Sama seperti di atas + log transisi `_to()` |
-| Tidak oscillatory/divergent? | **OPEN** | Variansi/overshoot posisi & gaya `surge`/`sway` mendekati target | `/hydroships/manual/cmd`, `/hydroships/odom` |
+| ROV konvergen ke acceptance region? | **FAIL** (docs/P0-2-4-RESULTS.md §4-5) | Apakah `dist < approach_tol` atau kondisi `centered` tercapai sebelum `t_scan` | Diukur: 5/17 run (29%) entered+held band dengan dwell, stopping rule §6 P0-2-4-SPEC.md terpenuhi |
+| Tidak oscillatory/divergent? | **PASS** (docs/P0-2-4-RESULTS.md §4) | Variansi/overshoot posisi & gaya `surge`/`sway` mendekati target | Diukur: 0/17 run diverged, overshoot=0 di seluruh run yang sempat masuk tolerance |
 | Selesai sebelum timeout? | **OPEN** | Distribusi waktu-ke-GRAB vs `t_scan`=45s across run | Log transisi + timestamp |
 | Repeatable pada beberapa initial condition? | **OPEN** | Multi-run dengan initial pose/spawn payload bervariasi | Perlu rig baru (belum ada — `recorder.py`/`driver.py` P0-1 tidak untuk ini) |
 | FSM keluar `APPROACH_QR` dengan benar? | **OPEN** | Apakah exit selalu lewat jalur "QR-scored + centered" (bukan fallback XY-only, yang bisa lolos GRAB tanpa validasi persepsi) | Log `_wall_scored` state + jalur exit L590-601 vs L603-615 |
 
-Semua baris **OPEN** — belum ada eksperimen yang dijalankan dalam pembuatan dokumen ini.
+Baris ini seluruhnya **OPEN** pada penulisan awal dokumen (belum ada eksperimen yang
+dijalankan). Dua baris ("ROV konvergen ke acceptance region?", "Tidak oscillatory/divergent?")
+diperbarui kemudian dengan evidence dari `docs/P0-2-4-RESULTS.md` — baris lain masih OPEN.
 
 ---
 
@@ -333,8 +335,17 @@ P0-2.2a     CLOSED                 (payload_pose instrumentation + smoke verific
 P0-2.2b     CLOSED                 (6/6 run valid, 0 INCONCLUSIVE — §7 spec)
   QR influence          VERIFIED   (Gate 3: 5/6 run, command benar-benar mengikuti qr_offset)
   QR precision convergence  OPEN   (Gate 4: 0/6 run masuk band qr_center_tol — dibawa ke P0-2.3)
-P0-2.3      DESIGN                 (lihat docs/P0-2-3-SPEC.md — scope: positioning/centering
-                                     di titik GRAB, bukan sekadar pengaruh QR pada command)
+P0-2.3      CLOSE-PARTIAL          (keputusan review acceptance — lihat
+                                     docs/P0-2-3-ACCEPTANCE-REVIEW.md §4)
+  Root-cause residual bias  CLOSED   (AABB/inflasi DAN decode quality, kontribusi independen —
+                                     docs/P0-2-3-SEPARATION-SPEC.md §14)
+  Precision convergence (Gate 4)   OPEN   (FAIL, tidak diuji ulang — 0/6 run P0-2.2b masuk band
+                                     qr_center_tol, gap residual masih melebihi approach_tol
+                                     pada inflasi tinggi)
+P0-2.4      CLOSED — Gate 4 FAIL     (docs/P0-2-4-SPEC.md desain, docs/P0-2-4-RESULTS.md hasil:
+                                     18 run/3 batch, 17 valid, 5/17 entered+held qr_center_tol
+                                     band, stopping rule terpenuhi; 0/17 diverged; tidak ada
+                                     rekomendasi engineering fix di dokumen manapun)
 ```
 
 Detail P0-2.2: [`docs/P0-2-2-SPEC.md`](P0-2-2-SPEC.md) — spec eksperimen yang membedakan
