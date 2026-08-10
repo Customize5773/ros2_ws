@@ -340,6 +340,9 @@ P0-2.3      CLOSE-PARTIAL          (keputusan review acceptance — lihat
   Precision convergence (Gate 4)   OPEN   (FAIL, tidak diuji ulang — 0/6 run P0-2.2b masuk band
                                      qr_center_tol, gap residual masih melebihi approach_tol
                                      pada inflasi tinggi)
+P0-2.4      DESIGN                 (lihat docs/P0-2-4-SPEC.md — retest Gate 4/convergence:
+                                     qr_center_tol band + time-to-converge + residual
+                                     trajectory + oscillation/divergence; belum dieksekusi)
 ```
 
 Detail P0-2.2: [`docs/P0-2-2-SPEC.md`](P0-2-2-SPEC.md) — spec eksperimen yang membedakan
