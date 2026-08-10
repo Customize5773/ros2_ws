@@ -43,6 +43,7 @@ DEFAULT_PARAMS = {
     'cam_vfov_half_tan': 0.6293, 'ey_target_max': 0.8, 'scan_depth': 0.30,
     'qr_offset_ema_alpha': 1.0,  # P0-2.5 Kandidat #2 -- 1.0 = filter nonaktif (default)
     'qr_servo_range': 0.3,       # P0-2.5 Kandidat #1 -- 0.3 = nilai lama/default
+    'approach_min_fmax_frac': 0.05,  # P0-2.5 Kandidat #3 -- 0.05 = nilai lama/default
 }
 
 # docs/P0-2-4-SPEC.md S3.1/S3.3 -- design-time constants, not tuned from data.
@@ -61,12 +62,14 @@ def qr_ey_target(depth, cam_gripper_dx, qr_floor_z, cam_bottom_dz, vfov_half_tan
     return max(-ey_max, min(ey_max, ey))
 
 
-def goto_xy_predict(tx, ty, x, y, yaw, vx, vy, kp, kd, fmax):
-    """Exact copy of mission_fsm.py:359-382 (_goto_xy), minus the
-    _set_surge()/self mutation -- returns predicted (fx, fy)."""
+def goto_xy_predict(tx, ty, x, y, yaw, vx, vy, kp, kd, fmax, min_fmax_frac=0.05):
+    """Exact copy of mission_fsm.py:389-411 (_goto_xy), minus the
+    _set_surge()/self mutation -- returns predicted (fx, fy). min_fmax_frac
+    default matches the hardcoded fallback in _goto_xy() -- P0-2.5 Candidate #3
+    passes params['approach_min_fmax_frac'] explicitly (see analyze_run)."""
     ex, ey = tx - x, ty - y
     dist = math.hypot(ex, ey)
-    slow_radius, min_fmax_frac = 1.0, 0.05
+    slow_radius = 1.0
     fm = fmax
     if dist < slow_radius:
         fm = fm * max(min_fmax_frac, dist / slow_radius)
@@ -269,10 +272,10 @@ def analyze_run(tag, data_dir, rows, params, used_defaults):
 
         fx_w, fy_w = goto_xy_predict(tx0, ty0, x, y, yaw, vx, vy,
                                       params['approach_kp'], params['approach_kd'],
-                                      params['approach_fmax'])
+                                      params['approach_fmax'], params['approach_min_fmax_frac'])
         fx_q, fy_q = goto_xy_predict(tx, ty, x, y, yaw, vx, vy,
                                       params['approach_kp'], params['approach_kd'],
-                                      params['approach_fmax'])
+                                      params['approach_fmax'], params['approach_min_fmax_frac'])
         pred_without.append((fx_w, fy_w))
         pred_with.append((fx_q, fy_q))
         actual_cmd.append((to_float(r['cmd_fx']), to_float(r['cmd_fy'])))

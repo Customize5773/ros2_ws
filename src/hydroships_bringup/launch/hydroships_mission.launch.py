@@ -70,7 +70,11 @@ def generate_launch_description():
                       'qr_offset_ema_alpha': ParameterValue(
                           LaunchConfiguration('qr_offset_ema_alpha'), value_type=float),
                       'qr_servo_range': ParameterValue(
-                          LaunchConfiguration('qr_servo_range'), value_type=float)}],
+                          LaunchConfiguration('qr_servo_range'), value_type=float),
+                      'approach_min_fmax_frac': ParameterValue(
+                          LaunchConfiguration('approach_min_fmax_frac'), value_type=float),
+                      'approach_dwell_ticks': ParameterValue(
+                          LaunchConfiguration('approach_dwell_ticks'), value_type=int)}],
     )
 
     return LaunchDescription([
@@ -134,6 +138,16 @@ def generate_launch_description():
         DeclareLaunchArgument('qr_servo_range', default_value='0.3',
                               description='Jarak (m) di bawah mana visual servo QR mulai '
                                           'aktif (dist_raw < qr_servo_range).'),
+        # P0-2.5 Kandidat #3: lantai fraksi gaya taper _goto_xy, KHUSUS
+        # APPROACH_QR (_st_hang/_st_nav_wall tetap 0.05 hardcoded).
+        DeclareLaunchArgument('approach_min_fmax_frac', default_value='0.05',
+                              description='Lantai fraksi approach_fmax dalam radius '
+                                          'slow-down 1.0m, khusus APPROACH_QR.'),
+        # P0-2.5 Kandidat #4: jumlah tick berturut-turut kondisi convergen
+        # harus bertahan sebelum GRAB dipicu. 1 = nilai lama/default (tanpa dwell).
+        DeclareLaunchArgument('approach_dwell_ticks', default_value='1',
+                              description='Tick dwell (10Hz) sebelum transisi GRAB '
+                                          'benar2 dipicu di APPROACH_QR.'),
         stabilized,
         mission,
     ])
