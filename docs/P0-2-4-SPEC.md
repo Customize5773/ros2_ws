@@ -183,18 +183,21 @@ persetujuan terpisah, persis seperti §6 `P0-2-3-SEPARATION-SPEC.md` sebelum §1
   `docs/P0-2-3-SEPARATION-SPEC.md`) — dokumen ini hanya membaca evidence-nya sebagai konteks
   interpretasi (§7), tidak menulis ulang.
 
-## 10. Status
+## 10. Status (lihat hasil lengkap di `docs/P0-2-4-RESULTS.md`)
 
 ```text
 P0-2.3                              CLOSE-PARTIAL  (docs/P0-2-3-ACCEPTANCE-REVIEW.md)
-P0-2.4                               DESIGN
-  Retest question                     Gate 4 (P0-2.2b) precision convergence — BELUM diuji ulang
-  Instrumentasi                       TIDAK BARU — recorder_qr.py sudah cukup (§2)
-  Metrik baru (time-to-converge,      DIDESAIN di sini, BELUM diimplementasi ke
-    residual trajectory, oscillation) reduce_approach_qr.py (§3, §9)
-  Battery retest                      DIDESAIN (stopping rule §6), BELUM DIJALANKAN
+P0-2.4                               CLOSED — Gate 4 verdict: FAIL
+  Retest question                     Gate 4 (P0-2.2b) precision convergence — DIUJI ULANG
+  Instrumentasi                       TIDAK BARU — recorder_qr.py dipakai apa adanya (§2)
+  Metrik baru (time-to-converge,      DIIMPLEMENTASI di reduce_approach_qr.py (§3), lihat
+    residual trajectory, oscillation) docs/P0-2-4-RESULTS.md §1
+  Battery retest                      DIJALANKAN — 18 run (3 batch U/V/W), 17 valid,
+                                       stopping rule §6 terpenuhi (entered=5>=5)
+  Gate 4 verdict                      FAIL — 5/17 (29%) entered+held band, vs 0/6 P0-2.2b;
+                                       konsisten arah, sampel lebih besar (docs/P0-2-4-RESULTS.md §5)
+  Oscillation/divergence              TIDAK TERBUKTI — 0/17 diverged, overshoot=0 di semua run
   qr_detector.py / qr_logic.py /      TIDAK DIUBAH
     mission_fsm.py / controller
-  P0-2.4 verdict                      BELUM ADA — menunggu review desain ini sebelum
-                                       implementasi metrik/eksekusi battery disetujui
+  Rekomendasi engineering fix         TIDAK ADA — di luar scope, keputusan terpisah menyusul
 ```
