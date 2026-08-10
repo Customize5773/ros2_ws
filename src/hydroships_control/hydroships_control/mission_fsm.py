@@ -155,6 +155,37 @@ class MissionFSM(Node):
         # Arah koreksi servo. Salah tanda = umpan balik POSITIF (ROV menjauh dari
         # payload). Bila |ex|,|ey| membesar saat uji, balik ke -1.0 (lihat plan H2).
         p('qr_servo_sign', 1.0)
+        # P0-2.5 Kandidat #2 (docs/P0-2-5-ENGINEERING-ANALYSIS.md, hardened di
+        # review approval): EMA pada qr_ex/qr_ey SEBELUM dipakai menghitung
+        # target servo (body_dx/body_dy) -- meredam noise per-tick dari corner
+        # detection (P0-2.3: bias hingga ~0.19m pada observasi corner-only)
+        # supaya target (tx,ty) tidak "bergerak" tiap tick. TIDAK menyentuh
+        # kondisi exit `centered` (tetap pakai self.qr_off mentah) -- itu scope
+        # Kandidat #4, bukan #2. alpha=1.0 == filter nonaktif (setara sebelum
+        # perubahan ini), dipakai sbg default kalau param tak di-override,
+        # supaya param baru ini tidak diam-diam mengubah perilaku existing.
+        p('qr_offset_ema_alpha', 1.0)
+        # P0-2.5 Kandidat #1 (docs/P0-2-5-ENGINEERING-ANALYSIS.md SB/SC, isolasi
+        # dari Kandidat #2 -- battery kandidat ini HARUS jalan dgn
+        # qr_offset_ema_alpha=1.0/default): lebar gerbang aktivasi visual servo
+        # (dist_raw < qr_servo_range). 0.3 == nilai lama yg sebelumnya hardcoded
+        # di _st_approach_qr, dipakai sbg default supaya param baru ini tidak
+        # diam-diam mengubah perilaku existing.
+        p('qr_servo_range', 0.3)
+        # P0-2.5 Kandidat #3 (docs/P0-2-5-ENGINEERING-ANALYSIS.md SB -- RISIKO
+        # TERTINGGI dari 4 kandidat, guardrail wajib: diverged/saturation_frac/
+        # sign_changes TIDAK BOLEH naik dibanding baseline). Lantai fraksi gaya
+        # taper _goto_xy khusus APPROACH_QR (0.05 = nilai lama/default, TIDAK
+        # memengaruhi _st_hang/_st_nav_wall yg tetap hardcoded 0.05).
+        p('approach_min_fmax_frac', 0.05)
+        # P0-2.5 Kandidat #4 (docs/P0-2-5-ENGINEERING-ANALYSIS.md -- terakhir
+        # dalam urutan, satu-satunya yg BUKAN perbaikan fisik: mengetatkan
+        # kondisi transisi GRAB supaya cocok dgn metrik dwell yg sudah dipakai
+        # mengevaluasi Kandidat #1-3 di reduce_approach_qr.py). Jumlah tick
+        # berturut-turut kondisi convergen (centered ATAU dist<approach_tol)
+        # harus bertahan sebelum GRAB benar2 dipicu. 1 == perilaku lama persis
+        # (transisi pada tick pertama lolos, TIDAK ada dwell).
+        p('approach_dwell_ticks', 1)
         # --- Koreksi offset kamera bawah -> gripper ---
         # camera_bottom_link ada di x=+0.02 sedangkan gripper_base di x=+0.18
         # (hydroships.urdf.xacro), jadi GRIPPER 0.16 m DI DEPAN kamera. Servo lama
@@ -195,6 +226,10 @@ class MissionFSM(Node):
         self.qr_center_tol = float(g('qr_center_tol'))
         self.qr_servo_gain = float(g('qr_servo_gain'))
         self.qr_servo_sign = float(g('qr_servo_sign'))
+        self.qr_offset_ema_alpha = float(g('qr_offset_ema_alpha'))
+        self.qr_servo_range = float(g('qr_servo_range'))
+        self.approach_min_fmax_frac = float(g('approach_min_fmax_frac'))
+        self.approach_dwell_ticks = int(g('approach_dwell_ticks'))
         self.cam_gripper_dx = float(g('cam_gripper_dx'))
         self.gripper_base_dx = float(g('gripper_base_dx'))
         self.qr_floor_z = float(g('qr_floor_z'))
@@ -252,11 +287,16 @@ class MissionFSM(Node):
         self.vy = 0.0
         self.qr_wall = None
         self.qr_time = 0.0
-        self.qr_off = None        # (ex, ey, size) ternormalisasi dari qr_offset
+        self.qr_off = None        # (ex, ey, size) ternormalisasi dari qr_offset -- MENTAH,
+                                   # dipakai apa adanya utk kondisi exit `centered` (Kandidat #4
+                                   # scope, tidak disentuh di sini).
         self.qr_off_time = 0.0
+        self._qr_ex_filt = None   # P0-2.5 Kandidat #2: EMA qr_ex, direset tiap entry APPROACH_QR
+        self._qr_ey_filt = None   # P0-2.5 Kandidat #2: EMA qr_ey, direset tiap entry APPROACH_QR
         self._warned_no_odom = False
         self._approach_recovered = False   # RECOVERY depth-ascent sudah dipicu?
         self._wall_scored = False          # skor m1 sudah diberi (cegah spam log)
+        self._converge_ticks = 0  # P0-2.5 Kandidat #4: dwell tick counter, direset tiap entry APPROACH_QR
         self.hook_off = None      # (ex, ey, size)
         self.hook_time = 0.0
         self.payload_pose = None  # (x, y, z) dari /hydroships/payload_pose (spawner)
@@ -315,6 +355,14 @@ class MissionFSM(Node):
             # tanpa reset, payload ke-2 dst langsung dianggap sudah ber-wall.
             self._wall_scored = False
             self._approach_recovered = False
+            self._converge_ticks = 0  # P0-2.5 Kandidat #4: reset dwell counter juga
+            # P0-2.5 Kandidat #2: reset filter EMA juga -- tanpa ini, payload
+            # ke-2 dst mewarisi nilai filter dari target LAMA (posisi QR
+            # sebelumnya), menghasilkan "konvergensi cepat" palsu yang
+            # sebenarnya cuma filter stale, bukan servo yang benar2 bekerja
+            # (risiko yang diidentifikasi eksplisit di review hardening).
+            self._qr_ex_filt = None
+            self._qr_ey_filt = None
 
     def _set_depth(self, d_pos):
         m = Float64(); m.data = -abs(d_pos); self.pub_depth.publish(m)
@@ -356,7 +404,7 @@ class MissionFSM(Node):
             self._set_surge(surge, 0.0)
         return dist
 
-    def _goto_xy(self, tx, ty, fmax=None):
+    def _goto_xy(self, tx, ty, fmax=None, min_fmax_frac=None):
         """PD posisi HOLONOMIK: dorong ROV ke (tx,ty) dunia via gaya horizontal
         body-frame (surge+sway), TANPA mengubah heading — dipakai saat sudah
         menghadap arah yang benar (mis. setelah NAV_WALL) & cuma perlu
@@ -368,7 +416,12 @@ class MissionFSM(Node):
         dist = math.hypot(ex, ey)
         # Taper gaya maks saat mendekati target (slow-down radius) -> cegah slam.
         slow_radius = 1.0  # m, mulai perlambat dalam radius ini
-        min_fmax_frac = 0.05  # jangan sampai gaya nol total (masih perlu lawan drag/arus)
+        # P0-2.5 Kandidat #3 (docs/P0-2-5-ENGINEERING-ANALYSIS.md, isolasi dari
+        # Kandidat #1/#2): default 0.05 tetap hardcoded di sini SUPAYA caller
+        # lain (_st_hang L720, _st_nav_wall-adjacent L830) TIDAK ikut berubah —
+        # hanya _st_approach_qr yang meneruskan min_fmax_frac non-default.
+        if min_fmax_frac is None:
+            min_fmax_frac = 0.05  # jangan sampai gaya nol total (masih perlu lawan drag/arus)
         if dist < slow_radius:
             frac = max(min_fmax_frac, dist / slow_radius)
             fm = fm * frac
@@ -554,10 +607,31 @@ class MissionFSM(Node):
         ty -= self.gripper_base_dx * math.sin(self._locked_yaw)
         off_fresh = (self.qr_off is not None
                      and (self._now() - self.qr_off_time) < self.qr_max_age)
+        # P0-2.5 Kandidat #2: update EMA di setiap tick offset masih segar --
+        # TIDAK digerbang oleh dist_raw<0.3 (beda dari `servoing` di bawah),
+        # supaya filter sudah punya histori saat servo baru mulai aktif,
+        # bukan mulai dari sampel tunggal. alpha=1.0 (default) == filter
+        # transparan, filt selalu sama dengan sampel mentah terbaru.
+        if off_fresh:
+            raw_ex, raw_ey, _raw_size = self.qr_off
+            if self._qr_ex_filt is None:
+                self._qr_ex_filt, self._qr_ey_filt = raw_ex, raw_ey
+            else:
+                a = self.qr_offset_ema_alpha
+                self._qr_ex_filt = a * raw_ex + (1.0 - a) * self._qr_ex_filt
+                self._qr_ey_filt = a * raw_ey + (1.0 - a) * self._qr_ey_filt
         dist_raw = math.hypot((self.x or 0.0) - tx, (self.y or 0.0) - ty)
-        servoing = off_fresh and dist_raw < 0.3
+        # P0-2.5 Kandidat #1: gerbang lebar dulunya hardcoded 0.3 -- sekarang
+        # param qr_servo_range (default 0.3, sama persis). Kandidat #2 (EMA di
+        # atas) TETAP jalan independen dari nilai ini -- filter update tidak
+        # digerbang oleh qr_servo_range, cuma off_fresh.
+        servoing = off_fresh and dist_raw < self.qr_servo_range
         if servoing:
-            ex, ey, _size = self.qr_off
+            # Target servo dihitung dari offset TER-FILTER, bukan mentah --
+            # inilah satu-satunya titik yang diubah Kandidat #2. Kondisi exit
+            # `centered` (di bawah, terpisah) tetap memakai self.qr_off mentah
+            # dengan sengaja -- itu scope Kandidat #4, bukan #2.
+            ex, ey = self._qr_ex_filt, self._qr_ey_filt
             k = self.qr_servo_gain * self.qr_servo_sign
             # Error diukur terhadap ey_target, bukan terhadap 0.
             body_dx = -(ey - ey_target) * k   # ey>ey_target: QR terlalu ke belakang
@@ -566,7 +640,7 @@ class MissionFSM(Node):
             tx += body_dx * c - body_dy * s
             ty += body_dx * s + body_dy * c
 
-        dist = self._goto_xy(tx, ty)
+        dist = self._goto_xy(tx, ty, min_fmax_frac=self.approach_min_fmax_frac)
         if int(self._elapsed() * 2) % 20 == 0:
             off_txt = ('ex=%+.2f ey=%+.2f' % (self.qr_off[0], self.qr_off[1])
                        if self.qr_off is not None else 'ex=-- ey=--')
@@ -593,26 +667,44 @@ class MissionFSM(Node):
             centered = (off_fresh
                         and abs(self.qr_off[0]) < self.qr_center_tol
                         and abs(self.qr_off[1] - ey_target) < self.qr_center_tol)
-            if centered or dist < self.approach_tol:
+            converged_now = centered or dist < self.approach_tol
+        else:
+            centered = False
+            converged_now = dist < self.approach_tol
+
+        # P0-2.5 Kandidat #4: syarat dwell N-tick sebelum transisi GRAB
+        # benar2 dipicu -- BUKAN transisi pada tick tunggal begitu kondisi
+        # lolos sekali (perilaku lama, approach_dwell_ticks=1). Konter
+        # bersama dipakai lintas kedua cabang (visual/XY-tol vs fallback)
+        # supaya kalau QR baru ke-score MID-dwell (blok qr_seen di atas),
+        # dwell tetap berlanjut alih2 diam2 reset — sama seperti definisi
+        # `combined_entered` yg sudah dipakai reduce_approach_qr.py utk
+        # mengevaluasi Kandidat #1-3.
+        if converged_now:
+            self._converge_ticks += 1
+        else:
+            self._converge_ticks = 0
+
+        if self._converge_ticks >= self.approach_dwell_ticks:
+            if self._wall_scored:
                 self.get_logger().info(
                     'QR terpusat (%s) -> GRAB (%s)'
                     % ('visual servo' if centered else 'jarak XY',
                        self._gripper_align_txt()))
                 self._set_surge(0.0); self._to(St.GRAB); return
-
-        elif dist < self.approach_tol:
-            # Fallback: QR tak pernah terbaca tapi ROV sudah di atas payload.
-            if self._wall_idx >= len(self._wall_sequence):
-                self.get_logger().info('Semua wall selesai, misi tuntas.')
-                self._print_score(); self._to(St.DONE); return
-            self.wall = self._wall_sequence[self._wall_idx]
-            self._wall_idx += 1
-            self.score['m1'] = 15
-            self._wall_scored = True
-            self.get_logger().info('Wall %s dipilih (+15) [urutan ke-%d] (%s)'
-                                   % (self.wall, self._wall_idx,
-                                      self._gripper_align_txt()))
-            self._set_surge(0.0); self._to(St.GRAB); return
+            else:
+                # Fallback: QR tak pernah terbaca tapi ROV sudah di atas payload.
+                if self._wall_idx >= len(self._wall_sequence):
+                    self.get_logger().info('Semua wall selesai, misi tuntas.')
+                    self._print_score(); self._to(St.DONE); return
+                self.wall = self._wall_sequence[self._wall_idx]
+                self._wall_idx += 1
+                self.score['m1'] = 15
+                self._wall_scored = True
+                self.get_logger().info('Wall %s dipilih (+15) [urutan ke-%d] (%s)'
+                                       % (self.wall, self._wall_idx,
+                                          self._gripper_align_txt()))
+                self._set_surge(0.0); self._to(St.GRAB); return
 
         if self._elapsed() > self.T['scan']:
             self.get_logger().error('APPROACH_QR timeout'); self._to(St.ABORT)

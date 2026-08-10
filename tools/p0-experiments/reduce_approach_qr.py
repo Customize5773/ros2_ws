@@ -41,6 +41,9 @@ DEFAULT_PARAMS = {
     'qr_center_tol': 0.12, 'qr_max_age': 1.5, 'gripper_base_dx': 0.18,
     'cam_gripper_dx': 0.16, 'qr_floor_z': -0.894, 'cam_bottom_dz': 0.18,
     'cam_vfov_half_tan': 0.6293, 'ey_target_max': 0.8, 'scan_depth': 0.30,
+    'qr_offset_ema_alpha': 1.0,  # P0-2.5 Kandidat #2 -- 1.0 = filter nonaktif (default)
+    'qr_servo_range': 0.3,       # P0-2.5 Kandidat #1 -- 0.3 = nilai lama/default
+    'approach_min_fmax_frac': 0.05,  # P0-2.5 Kandidat #3 -- 0.05 = nilai lama/default
 }
 
 # docs/P0-2-4-SPEC.md S3.1/S3.3 -- design-time constants, not tuned from data.
@@ -59,12 +62,14 @@ def qr_ey_target(depth, cam_gripper_dx, qr_floor_z, cam_bottom_dz, vfov_half_tan
     return max(-ey_max, min(ey_max, ey))
 
 
-def goto_xy_predict(tx, ty, x, y, yaw, vx, vy, kp, kd, fmax):
-    """Exact copy of mission_fsm.py:359-382 (_goto_xy), minus the
-    _set_surge()/self mutation -- returns predicted (fx, fy)."""
+def goto_xy_predict(tx, ty, x, y, yaw, vx, vy, kp, kd, fmax, min_fmax_frac=0.05):
+    """Exact copy of mission_fsm.py:389-411 (_goto_xy), minus the
+    _set_surge()/self mutation -- returns predicted (fx, fy). min_fmax_frac
+    default matches the hardcoded fallback in _goto_xy() -- P0-2.5 Candidate #3
+    passes params['approach_min_fmax_frac'] explicitly (see analyze_run)."""
     ex, ey = tx - x, ty - y
     dist = math.hypot(ex, ey)
-    slow_radius, min_fmax_frac = 1.0, 0.05
+    slow_radius = 1.0
     fm = fmax
     if dist < slow_radius:
         fm = fm * max(min_fmax_frac, dist / slow_radius)
@@ -213,6 +218,11 @@ def analyze_run(tag, data_dir, rows, params, used_defaults):
     t_l, dist_l, off_fresh_l = [], [], []  # P0-2.4 S3: dist_l uses the (possibly
     # servo-shifted) target tx,ty -- the same value mission_fsm.py:569 checks
     # against approach_tol, not the unshifted tx0,ty0 used for dist0_l above.
+    tx_l, ty_l = [], []  # P0-2.5 Candidate #2 guardrail: reconstructed servo
+    # target per tick, used to measure tick-to-tick jitter independent of the
+    # approach trend (see tick_jitter_stdev below).
+    qr_ex_filt, qr_ey_filt = None, None  # P0-2.5 Candidate #2: EMA state, reset
+    # per run (mirrors mission_fsm.py's reset on APPROACH_QR entry, _to()).
 
     for r in approach:
         x, y, yaw = to_float(r['x']), to_float(r['y']), to_float(r['yaw'])
@@ -235,23 +245,37 @@ def analyze_run(tag, data_dir, rows, params, used_defaults):
 
         dist_raw = math.hypot(x - tx0, y - ty0)
         off_fresh = (not is_nan(qr_age)) and qr_age < params['qr_max_age'] and not is_nan(qr_ex)
-        servoing = off_fresh and dist_raw < 0.3
+
+        # P0-2.5 Candidate #2: same EMA update as mission_fsm.py -- runs on
+        # every off_fresh tick, NOT gated by dist_raw<0.3 (that gate is
+        # `servoing` below, unchanged). alpha=1.0 (default) reproduces the
+        # pre-Candidate-#2 raw-passthrough behavior exactly.
+        if off_fresh:
+            if qr_ex_filt is None:
+                qr_ex_filt, qr_ey_filt = qr_ex, qr_ey
+            else:
+                a = params['qr_offset_ema_alpha']
+                qr_ex_filt = a * qr_ex + (1.0 - a) * qr_ex_filt
+                qr_ey_filt = a * qr_ey + (1.0 - a) * qr_ey_filt
+
+        servoing = off_fresh and dist_raw < params['qr_servo_range']
         servoing_mask.append(servoing)
 
         tx, ty = tx0, ty0
         if servoing:
             k = params['qr_servo_gain'] * params['qr_servo_sign']
-            body_dx = -(qr_ey - ey_target) * k
-            body_dy = -qr_ex * k
+            body_dx = -(qr_ey_filt - ey_target) * k
+            body_dy = -qr_ex_filt * k
             tx += body_dx * c0 - body_dy * s0
             ty += body_dx * s0 + body_dy * c0
+        tx_l.append(tx); ty_l.append(ty)
 
         fx_w, fy_w = goto_xy_predict(tx0, ty0, x, y, yaw, vx, vy,
                                       params['approach_kp'], params['approach_kd'],
-                                      params['approach_fmax'])
+                                      params['approach_fmax'], params['approach_min_fmax_frac'])
         fx_q, fy_q = goto_xy_predict(tx, ty, x, y, yaw, vx, vy,
                                       params['approach_kp'], params['approach_kd'],
-                                      params['approach_fmax'])
+                                      params['approach_fmax'], params['approach_min_fmax_frac'])
         pred_without.append((fx_w, fy_w))
         pred_with.append((fx_q, fy_q))
         actual_cmd.append((to_float(r['cmd_fx']), to_float(r['cmd_fy'])))
@@ -359,6 +383,26 @@ def analyze_run(tag, data_dir, rows, params, used_defaults):
         'window_duration_s': (t_l[-1] - t_l[0]) if n_rows else None,
     }
 
+    # P0-2.5 Candidate #2 guardrails (design-hardening review, approved
+    # sequence 2->1->3->4): jitter must go down AND final_dist must improve
+    # before this candidate is credited -- variance reduction alone is not
+    # sufficient (an EMA can hide a persistent bias, not just noise).
+    def tick_jitter_stdev(series, mask):
+        vals = [series[i] for i in range(len(series)) if mask[i]]
+        if len(vals) < 3:
+            return None
+        diffs = [vals[i + 1] - vals[i] for i in range(len(vals) - 1)]
+        return stats.pstdev(diffs) if len(diffs) >= 2 else None
+
+    p0_2_5_candidate2_guardrail = {
+        'qr_offset_ema_alpha_used': params['qr_offset_ema_alpha'],
+        'stdev_diff_tx_servoing_m': tick_jitter_stdev(tx_l, servoing_mask),
+        'stdev_diff_ty_servoing_m': tick_jitter_stdev(ty_l, servoing_mask),
+        'n_servoing_ticks': sum(servoing_mask),
+        'final_dist_m': dist_l[-1] if dist_l else None,
+        'min_dist_target_m': min(dist_l) if dist_l else None,
+    }
+
     # Gate 5
     log_text = ''
     try:
@@ -397,6 +441,7 @@ def analyze_run(tag, data_dir, rows, params, used_defaults):
             'entered_qr_center_tol_band': entered_band,
         },
         'p0_2_4_gate4_retest': p0_2_4_gate4_retest,
+        'p0_2_5_candidate2_guardrail': p0_2_5_candidate2_guardrail,
         'gate5_exit_path': {'primary': exit_path, 'occurrence_counts': exit_counts},
     }
 
@@ -455,6 +500,12 @@ def main():
                  fmt(p24['overshoot_dist_m']), fmt(p24['stdev_cmd_fx_N']),
                  fmt(p24['stdev_cmd_fy_N']), fmt(p24['saturation_frac']),
                  p24['diverged'], fmt(p24['qr_decode_rate'])))
+        p25 = result['p0_2_5_candidate2_guardrail']
+        print('  P0-2.5 Candidate #2 guardrail: alpha=%s  stdev(diff tx,ty | servoing)=(%s,%s)m '
+              '(n_servo_ticks=%d)  final_dist=%sm  min_dist_target=%sm'
+              % (p25['qr_offset_ema_alpha_used'], fmt(p25['stdev_diff_tx_servoing_m']),
+                 fmt(p25['stdev_diff_ty_servoing_m']), p25['n_servoing_ticks'],
+                 fmt(p25['final_dist_m']), fmt(p25['min_dist_target_m'])))
         g5 = result['gate5_exit_path']
         print('  Gate 5 (exit path, from FSM\'s own log lines): %s  (occurrence counts: %s)'
               % (g5['primary'], g5['occurrence_counts']))
@@ -513,6 +564,31 @@ def main():
     print('  This verdict answers Gate 4 (precision convergence) only -- it does not')
     print('  authorize any qr_detector.py/qr_logic.py/mission_fsm.py/controller/param change.')
 
+    # docs/P0-2-5-ENGINEERING-ANALYSIS.md Candidate #2 guardrail (design-
+    # hardening review): variance reduction alone does NOT credit this
+    # candidate -- final_dist must also improve vs the P0-2.4 baseline
+    # (mean final_dist reported here; baseline values are in
+    # docs/P0-2-4-RESULTS.md S3, not recomputed here to avoid conflating
+    # two different data_dirs in one run of this script).
+    print('\n' + '-' * 78)
+    print('P0-2.5 Candidate #2 guardrail summary (docs/P0-2-5 hardening review)')
+    print('-' * 78)
+    p25_all = [r['p0_2_5_candidate2_guardrail'] for r in reached.values()]
+    alphas = sorted(set(p['qr_offset_ema_alpha_used'] for p in p25_all))
+    jitter_tx = [p['stdev_diff_tx_servoing_m'] for p in p25_all if p['stdev_diff_tx_servoing_m'] is not None]
+    jitter_ty = [p['stdev_diff_ty_servoing_m'] for p in p25_all if p['stdev_diff_ty_servoing_m'] is not None]
+    final_dists = [p['final_dist_m'] for p in p25_all if p['final_dist_m'] is not None]
+    print('  qr_offset_ema_alpha used across runs: %s (1.0 = filter inactive/baseline)' % alphas)
+    print('  mean stdev(diff tx | servoing)=%s m (n=%d runs w/ >=3 servoing ticks)'
+          % (fmt(stats.fmean(jitter_tx)) if jitter_tx else 'n/a', len(jitter_tx)))
+    print('  mean stdev(diff ty | servoing)=%s m (n=%d runs w/ >=3 servoing ticks)'
+          % (fmt(stats.fmean(jitter_ty)) if jitter_ty else 'n/a', len(jitter_ty)))
+    print('  mean final_dist=%s m (n=%d) -- compare against P0-2.4 baseline mean before crediting'
+          % (fmt(stats.fmean(final_dists)) if final_dists else 'n/a', len(final_dists)))
+    print('  Per docs/P0-2-5-ENGINEERING-ANALYSIS.md SB: credit this candidate ONLY if jitter AND')
+    print('  mean final_dist both improve vs baseline -- reduced jitter alone can mean a filter')
+    print('  that stabilized on a biased value, not a fixed problem.')
+
     if inconclusive:
         print('\n  INCONCLUSIVE runs (excluded from statistics above, re-run manually):')
         for t, reasons in inconclusive.items():
@@ -528,6 +604,13 @@ def main():
             'stopping_rule_met': stopping_rule_met,
             'verdict': verdict,
             'reason': reason,
+        },
+        'p0_2_5_candidate2_guardrail_summary': {
+            'qr_offset_ema_alpha_used': alphas,
+            'mean_stdev_diff_tx_m': stats.fmean(jitter_tx) if jitter_tx else None,
+            'mean_stdev_diff_ty_m': stats.fmean(jitter_ty) if jitter_ty else None,
+            'mean_final_dist_m': stats.fmean(final_dists) if final_dists else None,
+            'n_runs': len(p25_all),
         },
     }
     out_path = '%s/P0-2-2b-results.json' % data_dir
