@@ -45,13 +45,13 @@
     "semantic_hash": ""
   },
   "src/hydroships_control/hydroships_control/gripper_controller.py": {
-    "mtime": 1786548082.9442878,
-    "ast_hash": "4b4fe868de4b41440ecb26a6bda4ac68",
+    "mtime": 1786549412.26102,
+    "ast_hash": "1394dd8f712646bb783ec0916f8d1736",
     "semantic_hash": ""
   },
   "src/hydroships_control/hydroships_control/gripper_logic.py": {
-    "mtime": 1786548065.026237,
-    "ast_hash": "c40c8d9abb479e555f6d16aa2d7c820f",
+    "mtime": 1786549352.9386003,
+    "ast_hash": "3dfb40dad8713d8acddc61a0703102df",
     "semantic_hash": ""
   },
   "src/hydroships_control/hydroships_control/gui_bridge.py": {
@@ -75,8 +75,8 @@
     "semantic_hash": ""
   },
   "src/hydroships_control/hydroships_control/mission_fsm.py": {
-    "mtime": 1786548042.0131764,
-    "ast_hash": "5f06b464b508c31529ba81958510cb47",
+    "mtime": 1786549262.794968,
+    "ast_hash": "27243ebd2bc4deaccf2efbfcbad5a28d",
     "semantic_hash": ""
   },
   "src/hydroships_control/hydroships_control/pid.py": {
@@ -130,8 +130,8 @@
     "semantic_hash": ""
   },
   "src/hydroships_control/test/test_gripper.py": {
-    "mtime": 1786548105.693356,
-    "ast_hash": "8b2aa0d0f6aa22d63576010c18ed1f06",
+    "mtime": 1786549449.715286,
+    "ast_hash": "32b05990fd1bd7644716d8e3c529beef",
     "semantic_hash": ""
   },
   "src/hydroships_control/test/test_gui_bridge.py": {
@@ -250,13 +250,13 @@
     "semantic_hash": ""
   },
   "docs/CHANGELOG.md": {
-    "mtime": 1786531936.7162566,
-    "ast_hash": "dba614c936f14839e6124d9839b01857",
+    "mtime": 1786549649.337717,
+    "ast_hash": "014e9bd03b5ce9642691bdf7df706b63",
     "semantic_hash": ""
   },
   "docs/STATUS.md": {
-    "mtime": 1786548144.1304812,
-    "ast_hash": "80ace65c43482012f560f6daa4e0368c",
+    "mtime": 1786549611.3974435,
+    "ast_hash": "795d5e68dc591825d1cd75273c9c4e32",
     "semantic_hash": ""
   },
   "docs/VERIFICATION-CHECKLIST.md": {
@@ -670,8 +670,8 @@
     "semantic_hash": ""
   },
   "docs/P1-FASE1-RESULTS.md": {
-    "mtime": 1786532944.9630878,
-    "ast_hash": "e261cea05bdf0fbd3e3ad10e1393417b",
+    "mtime": 1786549674.9609022,
+    "ast_hash": "fd38d90d0616984f1269c86da2e70f42",
     "semantic_hash": ""
   },
   "docs/P1-OWNER-DECISIONS-AND-ROADMAP.md": {
@@ -682,6 +682,11 @@
   "tools/p0-experiments/README.md": {
     "mtime": 1786531936.7472558,
     "ast_hash": "81e86b875ad2f0b932cb9b4204b8e6b4",
+    "semantic_hash": ""
+  },
+  "src/hydroships_control/test/test_grab_geometry.py": {
+    "mtime": 1786549494.9236083,
+    "ast_hash": "5899d165076dd7c3a1598e5479bb6580",
     "semantic_hash": ""
   }
 }

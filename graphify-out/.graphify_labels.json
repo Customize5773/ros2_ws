@@ -4,7 +4,7 @@
   "2": "GripperLogic",
   "3": "PID",
   "4": "test_allocation.py",
-  "5": "PayloadSpawner",
+  "5": "GripperController",
   "6": "ComplementaryFilter",
   "7": "test_qr_logic.py",
   "8": "CHANGELOG — Riwayat Kronologis HYDROships (KKI 2026)",
@@ -80,5 +80,6 @@
   "78": "run_mission.sh",
   "79": "run_mission_cycle.sh",
   "80": "run_qr_failure_battery.sh",
-  "81": "trim_audit.py"
+  "81": "trim_audit.py",
+  "82": "test_grab_geometry.py"
 }

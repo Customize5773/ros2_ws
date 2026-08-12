@@ -1,16 +1,16 @@
 # Graph Report - ros2_ws  (2026-08-12)
 
 ## Corpus Check
-- 111 files · ~195,564 words
+- 112 files · ~197,650 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1196 nodes · 1642 edges · 82 communities (67 shown, 15 thin omitted)
+- 1218 nodes · 1676 edges · 83 communities (68 shown, 15 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 16 edges (avg confidence: 0.67)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `acb9cc9d`
+- Built from commit: `e8ee4d2c`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -20,7 +20,7 @@
 - GripperLogic
 - PID
 - test_allocation.py
-- PayloadSpawner
+- GripperController
 - ComplementaryFilter
 - test_qr_logic.py
 - CHANGELOG — Riwayat Kronologis HYDROships (KKI 2026)
@@ -91,9 +91,10 @@
 - run_mission.sh
 - run_mission_cycle.sh
 - run_qr_failure_battery.sh
+- test_grab_geometry.py
 
 ## God Nodes (most connected - your core abstractions)
-1. `GripperLogic` - 37 edges
+1. `GripperLogic` - 42 edges
 2. `MissionFSM` - 36 edges
 3. `ComplementaryFilter` - 22 edges
 4. `P0-2.3 SPEC — Positioning/centering accuracy at GRAB (KKI 2026)` - 22 edges
@@ -107,19 +108,19 @@
 ## Surprising Connections (you probably didn't know these)
 - `goto_xy_predict()` --calls--> `clamp()`  [INFERRED]
   tools/p0-experiments/reduce_approach_qr.py → src/hydroships_control/hydroships_control/gui_bridge_logic.py
+- `GripperController` --uses--> `GripperLogic`  [INFERRED]
+  src/hydroships_control/hydroships_control/gripper_controller.py → src/hydroships_control/hydroships_control/gripper_logic.py
 - `ey()` --calls--> `qr_ey_target()`  [INFERRED]
   src/hydroships_control/test/test_qr_ey_target.py → src/hydroships_control/hydroships_control/qr_logic.py
 - `test_tanpa_offset_gripper_target_nol()` --calls--> `qr_ey_target()`  [INFERRED]
   src/hydroships_control/test/test_qr_ey_target.py → src/hydroships_control/hydroships_control/qr_logic.py
 - `test_tam_full_rank()` --calls--> `build_allocation_matrix()`  [EXTRACTED]
   src/hydroships_control/test/test_allocation.py → src/hydroships_control/hydroships_control/allocation.py
-- `AttitudeEstimator` --uses--> `ComplementaryFilter`  [INFERRED]
-  src/hydroships_control/hydroships_control/attitude_estimator.py → src/hydroships_control/hydroships_control/attitude_filter_logic.py
 
 ## Import Cycles
 - None detected.
 
-## Communities (82 total, 15 thin omitted)
+## Communities (83 total, 15 thin omitted)
 
 ### Community 0 - "MissionFSM"
 Cohesion: 0.08
@@ -131,7 +132,7 @@ Nodes (48): GuiBridge, GuiBridgeLogic, _num(), gui_bridge_logic — inti terjema
 
 ### Community 2 - "GripperLogic"
 Cohesion: 0.06
-Nodes (44): Empty, GripperController, main(), Float64, Node, String, gripper_controller — node manipulator ROV (rancang ulang M5, DetachableJoint).…, GripperLogic (+36 more)
+Nodes (44): GripperLogic, gripper_logic — inti keputusan manipulator ROV (murni Python, tanpa ROS).…, Syarat visual murni (tanpa kesegaran & tanpa altitude)., True bila payload boleh di-attach. Dua gerbang, sengaja terpisah: 1. VISUAL…, Proses perintah semantik. Kembalikan dict aksi tingkat-rendah: {'jaw': <sudut…, Paksa lepas tanpa perintah (mis. saat shutdown/abort)., Aksi auto-detach saat node START. gz-sim Fortress SELALU meng-attach…, Mesin keputusan gripper. Semua waktu (``now``, ``stamp``) dalam detik.… (+36 more)
 
 ### Community 3 - "PID"
 Cohesion: 0.05
@@ -141,9 +142,9 @@ Nodes (32): PID, Bungkus sudut (rad) ke rentang [-pi, pi]., Hitung output kendal
 Cohesion: 0.07
 Nodes (37): allocate(), build_allocation_matrix(), build_damped_pinv(), Kembalikan TAM 6xN: kolom i = [axis_i ; pos_i x axis_i]., Pseudo-inverse teredam (damped least-squares / Tikhonov). pinv_damped = TAM^T…, Peta wrench body 6-DOF -> gaya per thruster (N), sudah di-clip., main(), Node (+29 more)
 
-### Community 5 - "PayloadSpawner"
-Cohesion: 0.39
-Nodes (3): main(), PayloadSpawner, Node
+### Community 5 - "GripperController"
+Cohesion: 0.13
+Nodes (10): Empty, GripperController, main(), Float64, Node, String, gripper_controller — node manipulator ROV (rancang ulang M5, DetachableJoint).…, main() (+2 more)
 
 ### Community 6 - "ComplementaryFilter"
 Cohesion: 0.06
@@ -155,7 +156,7 @@ Nodes (31): CameraInfo, PointStamped, main(), Image, Node, QRDetector, qr_detect
 
 ### Community 8 - "CHANGELOG — Riwayat Kronologis HYDROships (KKI 2026)"
 Cohesion: 0.10
-Nodes (20): 2026-07-07, 2026-07-08, 2026-07-11, 2026-07-12, 2026-07-14, 2026-07-15 … 07-16, 2026-07-17, 2026-07-18 (+12 more)
+Nodes (21): 2026-07-07, 2026-07-08, 2026-07-11, 2026-07-12, 2026-07-14, 2026-07-15 … 07-16, 2026-07-17, 2026-07-18 (+13 more)
 
 ### Community 9 - "hook_detector.py"
 Cohesion: 0.10
@@ -230,7 +231,7 @@ Cohesion: 0.25
 Nodes (7): 1. Metrik waktu misi (mission timing), 2. Metrik komputasi (CPU/latency), 3. Metrik thrust/energi, 4. Metrik akurasi/keandalan, 5. Log pengukuran aktual, Performance — Metrik Harapan & Cara Mengukur, Referensi
 
 ### Community 38 - "Hardware — Status & Gap Analysis"
-Cohesion: 0.29
+Cohesion: 0.33
 Nodes (6): 1. Kenapa dokumen ini ada, 2. Peta komponen: Proposal (fisik) → Sim (ROS2) → Status kode, 3. Yang HARUS dibangun sebelum deploy ke ROV fisik, 4. Yang TIDAK perlu diubah (topic contract sudah hardware-agnostic), 5. Referensi silang, Hardware — Status & Gap Analysis
 
 ### Community 40 - "analyze_qr_gate_correlation.py"
@@ -254,7 +255,7 @@ Cohesion: 0.17
 Nodes (22): clamp(), analyze_run(), attribute_convergence(), classify_exit(), first_dwell(), fmt(), goto_xy_predict(), is_nan() (+14 more)
 
 ### Community 45 - "P1-1: Architecture Decision Audit — ROS2-native vs. Pixhawk/ArduSub control authority"
-Cohesion: 0.12
+Cohesion: 0.11
 Nodes (17): 10. P1.3 dependencies (telemetry/observability), 11. Migration risks, 12. Unresolved questions requiring human/project-owner decision, 1. Architecture reconstruction, 2. Evidence for intended target architecture, 3. `gui_bridge` role assessment, 4. Architecture decision matrix, 5. Dual-authority / safety risk analysis (+9 more)
 
 ### Community 46 - "P1-2A: Verifikasi Runtime IMU — Gate Sebelum Implementasi Estimator"
@@ -327,7 +328,7 @@ Nodes (6): A. Results, B. Physical Convergence vs. Metric Analysis, C. Recommend
 
 ### Community 63 - "P1 Fase 1 — Hasil: tutup blocker P0"
 Cohesion: 0.29
-Nodes (7): 1. P0-B (NAV_WALL) — DITUTUP untuk kasus tanpa beban, tanpa perubahan kode, 2. P0-A (GRAB tak pernah "close") — tiga bug bertumpuk, 3. Siklus 4-hook end-to-end, 4. ⛔ BLOCKER BARU M5-D — ROV terjangkar begitu benar-benar mencengkeram, 5. Status evidence, 6. Catatan kontaminasi, P1 Fase 1 — Hasil: tutup blocker P0
+Nodes (7): 1. P0-B (NAV_WALL) — DITUTUP untuk kasus tanpa beban, tanpa perubahan kode, 2. P0-A (GRAB tak pernah "close") — tiga bug bertumpuk, 3. Siklus 4-hook end-to-end, 4. M5-D — ROV terjangkar begitu benar-benar mencengkeram, 5. Status evidence, 6. Catatan kontaminasi, P1 Fase 1 — Hasil: tutup blocker P0
 
 ### Community 64 - "JoyMissionTrigger"
 Cohesion: 0.33
@@ -365,25 +366,29 @@ Nodes (4): is_failure_prone(), main(), Exact replica of _rov_spawn_pose()'s RNG 
 Cohesion: 0.67
 Nodes (3): ARENA ROV KKI 2026, Instalasi Dependensi, Status Milestone
 
+### Community 82 - "test_grab_geometry.py"
+Cohesion: 0.27
+Nodes (11): _geom(), _param(), Uji geometri fase turun-untuk-mencengkeram (M5-D) — murni aritmetika. Blocker…, Nilai default parameter ROS `p('nama', <float>)` dari sumber node., Dasar gripper harus SANGAT dekat bidang QR — inilah inti M5-D. Kalau celah ini…, Turun secukupnya, jangan sampai setpoint kedalaman menekan hull ke lantai…, max_alt_gap diukur dari DASAR GRIPPER; harus cukup longgar untuk celah…, test_gerbang_attach_konsisten_dengan_grab_depth() (+3 more)
+
 ## Knowledge Gaps
-- **409 isolated node(s):** `ros2-ws`, `gate_mission.sh script`, `run_approach_qr_battery.sh script`, `run_approach_qr_smoke.sh script`, `run_mission.sh script` (+404 more)
+- **410 isolated node(s):** `ros2-ws`, `gate_mission.sh script`, `run_approach_qr_battery.sh script`, `run_approach_qr_smoke.sh script`, `run_mission.sh script` (+405 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **15 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `qr_ey_target()` connect `MissionFSM` to `GripperLogic`, `test_qr_ey_target.py`, `test_qr_logic.py`?**
+- **Why does `GripperLogic` connect `GripperLogic` to `GripperController`?**
+  _High betweenness centrality (0.027) - this node is a cross-community bridge._
+- **Why does `qr_ey_target()` connect `MissionFSM` to `test_qr_ey_target.py`, `GripperController`, `test_qr_logic.py`?**
   _High betweenness centrality (0.015) - this node is a cross-community bridge._
 - **What connects `ros2-ws`, `gate_mission.sh script`, `run_approach_qr_battery.sh script` to the rest of the system?**
-  _409 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _410 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `MissionFSM` be split into smaller, more focused modules?**
   _Cohesion score 0.08418079096045197 - nodes in this community are weakly interconnected._
 - **Should `GuiBridgeLogic` be split into smaller, more focused modules?**
   _Cohesion score 0.050595238095238096 - nodes in this community are weakly interconnected._
 - **Should `GripperLogic` be split into smaller, more focused modules?**
-  _Cohesion score 0.056051587301587304 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.06363636363636363 - nodes in this community are weakly interconnected._
 - **Should `PID` be split into smaller, more focused modules?**
   _Cohesion score 0.054098360655737705 - nodes in this community are weakly interconnected._
-- **Should `test_allocation.py` be split into smaller, more focused modules?**
-  _Cohesion score 0.07439613526570048 - nodes in this community are weakly interconnected._
