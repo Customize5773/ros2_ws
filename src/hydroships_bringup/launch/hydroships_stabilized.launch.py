@@ -32,7 +32,7 @@ def generate_launch_description():
     payload_y = LaunchConfiguration('payload_y')
     # Diteruskan apa adanya ke sim.launch.py (spawn ROV acak dekat dinding / manual).
     rov_args = ('rov_random_spawn', 'rov_x', 'rov_y', 'rov_z',
-                'rov_wall_margin', 'rov_arena_half')
+                'rov_wall_margin', 'rov_arena_half', 'spawn_seed')
 
     gains = os.path.join(pkg_control, 'config', 'gains.yaml')
 

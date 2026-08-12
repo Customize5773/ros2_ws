@@ -36,7 +36,7 @@ def generate_launch_description():
     payload_y = LaunchConfiguration('payload_y')
     # Diteruskan ke stabilized -> sim.launch.py (spawn ROV acak dekat dinding / manual).
     rov_args = ('rov_random_spawn', 'rov_x', 'rov_y', 'rov_z',
-                'rov_wall_margin', 'rov_arena_half')
+                'rov_wall_margin', 'rov_arena_half', 'spawn_seed')
 
     # sim + allocator + stabilizer (M2). Teruskan qr_letter/payload_x/y (payload
     # spawner) + rov_* (spawn ROV) ke sim.launch.py lewat stabilized.
