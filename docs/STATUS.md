@@ -27,6 +27,22 @@ keputusan yang sudah dibatalkan/diganti) ada di [CHANGELOG.md](CHANGELOG.md).
 > ditandai **🧪**; daftar uji berprioritas:
 > [VERIFICATION-CHECKLIST.md](VERIFICATION-CHECKLIST.md).
 
+> ## ⚠️ Angka Gate 4 APPROACH_QR: baca sebagai DUA populasi (2026-08-12)
+>
+> `entered_band_with_dwell` — dasar verdict Gate 4 — adalah **OR** antara kriteria kamera
+> dan kriteria odometri murni terhadap `/hydroships/payload_pose` (ground truth spawner).
+> Ia **tidak bisa** menjawab "apakah kamera berkontribusi". Setelah pelaporan dipisah
+> (`e071667`): pada battery terbesar (n=28) angka combined **39%** tapi decoded-QR hanya
+> **11%**, dan **12/28 run tidak pernah men-decode QR sama sekali**. Kinerja persepsi
+> selama ini dilebihkan ~3–4×. Verdict Gate 4 tetap FAIL, tapi diagnosisnya berubah:
+> sebagian besar run tidak punya input vision untuk dipresisikan. Detail:
+> [P1-0-FASE0-VISION-ATTRIBUTION.md](P1-0-FASE0-VISION-ATTRIBUTION.md).
+>
+> Audit lintas-repo, transfer map, dan roadmap:
+> [P1-OWNER-DECISIONS-AND-ROADMAP.md](P1-OWNER-DECISIONS-AND-ROADMAP.md) — termasuk
+> keputusan pemilik proyek **"ArduSub tetap yang mixing"**, yang **membatalkan** Decision A
+> di `P1-1-ARCHITECTURE-DECISION.md` §6.
+
 Legenda: ✅ jalan & terverifikasi di sim · 🧪 kode ada, verifikasi runtime tertunda/parsial
 · ⏳ direncanakan/menyusul · OPEN gap desain/hardware.
 
