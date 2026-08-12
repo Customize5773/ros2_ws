@@ -35,29 +35,39 @@ class GripperLogic:
       min_size      : ukuran-tampak QR minimum (fraksi sisi frame) agar dianggap
                       cukup dekat untuk attach (besar = dekat).
       offset_timeout: umur maks sinyal qr_offset agar dianggap segar (s).
-      max_alt_gap   : jarak vertikal maks (m) ROV di atas lantai QR agar boleh
-                      attach — lapis pengaman kedua di luar urutan FSM (lihat
-                      docs/STATUS.md M5-D): mission_fsm SEHARUSNYA sudah turun
-                      ke grasp_depth di DESCEND sebelum GRAB, tapi gerbang ini
-                      menolak attach kalau caller (mis. start_state:=GRAB saat
-                      testing manual) melewatkan fase itu.
+      max_alt_gap   : jarak vertikal maks (m) DASAR GRIPPER di atas lantai QR
+                      agar boleh attach — gerbang fisik M5-D (docs/STATUS.md):
+                      attach dari ketinggian jelajah membuat DetachableJoint
+                      mengelas ROV ke payload yang masih di lantai. Disuplai
+                      terpisah lewat ``update_altitude()`` (dari depth, yang
+                      terbit terus-menerus), BUKAN lewat qr_offset — di
+                      kedalaman grasp QR sudah tak terlihat.
+      arm_timeout   : berapa lama (s) kondisi visual "payload di jangkauan"
+                      tetap berlaku setelah terakhir terpenuhi. Selama DESCEND
+                      kamera bawah turun sampai sejajar bidang QR, jadi QR
+                      HILANG sebelum "close" dikirim; tanpa latch ini attach
+                      tak akan pernah terpicu (kelas bug yang sama dgn 0/34
+                      tick di run C1).
       jaw_open/close: target sudut kedua jari (rad) saat terbuka/menutup
                       (kosmetik). Harus berada dalam limit joint URDF
                       [-0.1, 0.5] — lihat hydroships.urdf.xacro.
     """
 
     def __init__(self, max_offset=0.30, min_size=0.12, offset_timeout=1.5,
-                 max_alt_gap=0.15, jaw_open=0.35, jaw_close=0.0):
+                 max_alt_gap=0.08, arm_timeout=8.0, jaw_open=0.35, jaw_close=0.0):
         self.max_offset = float(max_offset)
         self.min_size = float(min_size)
         self.offset_timeout = float(offset_timeout)
         self.max_alt_gap = float(max_alt_gap)
+        self.arm_timeout = float(arm_timeout)
         self.jaw_open = float(jaw_open)
         self.jaw_close = float(jaw_close)
         # keadaan runtime
         self.attached = False
         self.jaw_target = self.jaw_open       # default: mulai terbuka
-        self._offset = None                   # (x, y, z, stamp) atau None
+        self._offset = None                   # (x, y, z, stamp, ey_target) atau None
+        self._alt_gap = None                  # m dasar gripper di atas lantai QR
+        self._armed_t = None                  # stamp terakhir kondisi visual aman
 
     # ---- sinyal masuk ----
     def update_offset(self, x, y, z, stamp, ey_target=0.0, alt_gap=None):
@@ -68,18 +78,49 @@ class GripperLogic:
         Default 0.0 = perilaku lama (berpatokan pusat kamera), dipertahankan
         agar pemanggil/test lama tak berubah artinya.
 
-        ``alt_gap`` = jarak vertikal ROV di atas lantai QR saat ini (m), atau
-        None bila tak diketahui — None menonaktifkan gerbang altitude
-        (kompat dgn pemanggil/test lama yang tak menyuplainya).
+        ``alt_gap`` opsional = jalur lama yang menitipkan altitude lewat sinyal
+        ini; jalur utama sekarang ``update_altitude()``.
+
+        Efek samping penting: bila offset ini memenuhi syarat visual, gripper
+        di-ARM pada ``stamp`` — hak attach itu bertahan ``arm_timeout`` detik
+        supaya masih berlaku setelah QR hilang selama DESCEND.
         """
         self._offset = (float(x), float(y), float(z), float(stamp),
-                        float(ey_target),
-                        None if alt_gap is None else float(alt_gap))
+                        float(ey_target))
+        if alt_gap is not None:
+            self.update_altitude(alt_gap)
+        if self._visual_ok():
+            self._armed_t = float(stamp)
+
+    def update_altitude(self, alt_gap):
+        """Jarak vertikal DASAR GRIPPER di atas lantai QR (m), atau None bila
+        belum diketahui (None = gerbang altitude nonaktif, kompat pemanggil lama)."""
+        self._alt_gap = None if alt_gap is None else float(alt_gap)
+
+    def _visual_ok(self):
+        """Syarat visual murni (tanpa kesegaran & tanpa altitude)."""
+        if self._offset is None:
+            return False
+        x, y, z, _stamp, ey_target = self._offset
+        return (abs(x) <= self.max_offset
+                and abs(y - ey_target) <= self.max_offset
+                and z >= self.min_size)
 
     def is_safe(self, now):
-        """True bila payload ada di jangkauan aman untuk di-attach: offset
-        kecil, ukuran-tampak cukup besar (dekat), altitude dekat lantai, dan
-        sinyal masih segar.
+        """True bila payload boleh di-attach. Dua gerbang, sengaja terpisah:
+
+        1. VISUAL (arah/jangkauan): syarat offset terpenuhi baru-baru ini —
+           entah dari sinyal yang masih segar (``offset_timeout``) atau dari
+           latch ``arm_timeout``. Latch itu WAJIB: "close" dikirim di GRAB,
+           setelah DESCEND menurunkan kamera bawah sampai sejajar bidang QR,
+           jadi tak akan ada deteksi segar pada saat itu.
+        2. FISIK (ketinggian): dasar gripper harus <= ``max_alt_gap`` di atas
+           lantai QR. Ini yang menutup M5-D — attach dari ketinggian jelajah
+           mengelas ROV ke payload yang masih tergeletak di lantai. Sinyalnya
+           dari depth (terbit terus), jadi tetap hidup walau QR sudah hilang.
+
+        Latch tanpa gerbang fisik akan mengizinkan attach dari mana saja; gerbang
+        fisik tanpa latch tak akan pernah attach. Keduanya harus ada.
 
         PENTING — sumbu y diukur relatif ``ey_target``, bukan relatif pusat
         frame. Gripper berada 0.16 m DI DEPAN kamera bawah, jadi saat gripper
@@ -118,6 +159,10 @@ class GripperLogic:
         self.jaw_target = self.jaw_open
         was_attached = self.attached
         self.attached = False
+        # Hak attach hangus saat melepas: tanpa ini, payload BERIKUTNYA (siklus
+        # AUTO_RELEASE -> DIVE -> APPROACH_QR) bisa ter-attach memakai arm sisa
+        # dari payload sebelumnya — kelas bug yg sama dgn EMA basi di mission_fsm.
+        self._armed_t = None
         return {
             'jaw': self.jaw_open,
             'joint': 'detach' if was_attached else None,
@@ -142,6 +187,7 @@ class GripperLogic:
         was = self.attached
         self.attached = False
         self.jaw_target = self.jaw_open
+        self._armed_t = None
         return was
 
     def startup_detach(self):
@@ -158,5 +204,6 @@ class GripperLogic:
         keadaan internal ke 'open/lepas'."""
         self.attached = False
         self.jaw_target = self.jaw_open
+        self._armed_t = None
         return {'jaw': self.jaw_open, 'joint': 'detach', 'state': 'open',
                 'reason': 'auto-detach startup (lepas attach bawaan gz Fortress)'}

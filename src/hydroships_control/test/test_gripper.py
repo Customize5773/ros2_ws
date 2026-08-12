@@ -56,11 +56,15 @@ def test_close_too_far_small_size_no_attach():
 
 
 def test_stale_offset_not_safe():
-    g = GripperLogic(offset_timeout=1.5)
+    """Sinyal basi LEWAT arm_timeout -> tak aman.
+
+    Catatan M5-D: batas yang berlaku di sini arm_timeout, bukan offset_timeout.
+    Basi 2 s masih dilindungi latch (lihat test latch di bawah) — memang harus,
+    karena QR hilang selama DESCEND sebelum "close" dikirim."""
+    g = GripperLogic(offset_timeout=1.5, arm_timeout=8.0)
     g.update_offset(0.0, 0.0, 0.5, stamp=100.0)
-    # 2 s kemudian -> sinyal basi -> tak aman
-    assert g.is_safe(now=102.0) is False
-    act = g.on_command('close', now=102.0)
+    assert g.is_safe(now=110.0) is False
+    act = g.on_command('close', now=110.0)
     assert act['joint'] is None
 
 
@@ -217,3 +221,39 @@ def test_is_safe_alt_gap_none_tak_menggerbang():
     g = GripperLogic(max_offset=0.3, min_size=0.12, max_alt_gap=0.15)
     g.update_offset(0.0, 0.0, 0.4, stamp=100.0)
     assert g.is_safe(100.1) is True
+
+
+# --- M5-D: latch "armed" saat QR hilang selama DESCEND ---
+# Urutan nyata: APPROACH_QR memusatkan (QR terlihat, kondisi visual aman) ->
+# DESCEND turun ke grab_depth, kamera bawah ikut turun sampai sejajar bidang QR
+# sehingga QR HILANG -> GRAB baru mengirim "close". Tanpa latch, tak akan pernah
+# ada deteksi segar saat "close" tiba dan attach tak pernah terpicu.
+
+def test_latch_mengizinkan_attach_setelah_qr_hilang_saat_turun():
+    g = GripperLogic(max_alt_gap=0.08, arm_timeout=8.0)
+    g.update_offset(0.0, 0.0, 0.4, stamp=100.0)      # arm di APPROACH_QR
+    g.update_altitude(0.60)                          # masih melayang tinggi
+    assert g.is_safe(103.0) is False                 # gerbang fisik menahan
+    g.update_altitude(0.03)                          # DESCEND selesai
+    act = g.on_command('close', now=103.0)           # QR sudah hilang 3 s
+    assert act['joint'] == 'attach'
+
+
+def test_latch_hangus_setelah_arm_timeout():
+    g = GripperLogic(max_alt_gap=0.08, arm_timeout=8.0)
+    g.update_offset(0.0, 0.0, 0.4, stamp=100.0)
+    g.update_altitude(0.03)
+    act = g.on_command('close', now=109.0)           # turun kelamaan
+    assert act['joint'] is None
+
+
+def test_latch_direset_saat_open_agar_payload_berikutnya_tak_ikut():
+    """AUTO_RELEASE -> DIVE -> APPROACH_QR: arm sisa payload sebelumnya tak
+    boleh memberi hak attach pada payload berikutnya."""
+    g = GripperLogic(max_alt_gap=0.08, arm_timeout=8.0)
+    g.update_offset(0.0, 0.0, 0.4, stamp=100.0)
+    g.update_altitude(0.03)
+    assert g.on_command('close', now=100.5)['joint'] == 'attach'
+    g.on_command('open', now=101.0)
+    assert g.is_safe(103.0) is False
+    assert g.on_command('close', now=103.0)['joint'] is None

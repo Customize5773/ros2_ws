@@ -105,9 +105,20 @@ class MissionFSM(Node):
         # M5-D (docs/STATUS.md): attach di GRAB dulu langsung dari scan_depth
         # mengelas ROV ke payload PADA POSE SAAT ITU (DetachableJoint tidak
         # menarik payload) -- ROV masih ~0.6 m di atas lantai QR saat itu, jadi
-        # ROV terjangkar. DESCEND turun ke grasp_depth = |qr_floor_z| - grasp_standoff
-        # sebelum GRAB memicu "close".
-        p('grasp_standoff', 0.08)    # m jarak aman di atas lantai QR saat close
+        # ROV terjangkar. DESCEND turun ke grab_depth sebelum GRAB memicu "close".
+        #
+        # Asal angka 0.70 (semua dari hydroships.urdf.xacro + rov_params.yaml,
+        # dikunci test/test_grab_geometry.py — ubah salah satunya, test gagal):
+        #   dasar gripper  = -grab_depth - 0.13 (joint z) - 0.03 (½ tinggi box)
+        #                  = -0.86  -> 0.034 m DI ATAS bidang QR (-0.894). Celah
+        #                     attach turun 0.60 -> 0.03 m.
+        #   dasar collision hull = -grab_depth - 0.091 + 0.02 (cob.z) = -0.775
+        #                  -> masih 0.12 m di atas lantai, tidak menabrak.
+        # CATATAN: pada kedalaman ini kamera bawah (-0.18) berada di -0.88, praktis
+        # sejajar bidang QR -> QR TIDAK terlihat lagi. Itu disengaja; gerbang attach
+        # memakai latch "armed" dari APPROACH_QR (gripper_logic.arm_timeout), bukan
+        # deteksi QR yang segar. XY di-hold dead-reckon selama turun.
+        p('grab_depth', 0.70)        # m kedalaman base_link saat mencengkeram (TUNE)
         p('approach_kp', 90.0)       # N/m gain posisi XY -> gaya horizontal
         p('approach_kd', 140.0)       # N/(m/s) redaman kecepatan (cegah overshoot)
         p('approach_fmax', 16.0)     # N batas gaya approach
@@ -202,7 +213,7 @@ class MissionFSM(Node):
         self.payload_x = float(g('payload_x'))
         self.payload_y = float(g('payload_y'))
         self.scan_depth = float(g('scan_depth'))
-        self.grasp_standoff = float(g('grasp_standoff'))
+        self.grab_depth = float(g('grab_depth'))
         self.approach_kp = float(g('approach_kp'))
         self.approach_kd = float(g('approach_kd'))
         self.approach_fmax = float(g('approach_fmax'))
@@ -706,15 +717,26 @@ class MissionFSM(Node):
         QR, sengaja dangkal supaya QR muat di frame kamera). Attach di GRAB
         langsung dari sana membuat DetachableJoint mengelas ROV ke payload
         PADA POSE SAAT ITU (bukan menarik payload naik) -> ROV terjangkar ke
-        lantai. State ini turun ke grasp_depth (dekat lantai QR) sambil tetap
-        servo XY, supaya saat GRAB memicu "close" ROV benar2 sudah dekat."""
+        lantai. State ini turun ke grab_depth (dekat lantai QR) sambil tetap
+        servo XY, supaya saat GRAB memicu "close" ROV benar2 sudah dekat.
+
+        QR akan HILANG dari frame di tengah turun (kamera bawah ikut turun sampai
+        sejajar bidang QR) — itu normal: begitu offset tak segar lagi, XY di-hold
+        dead-reckon ke target terakhir, dan hak attach dijaga latch "armed"
+        di gripper_logic, bukan deteksi segar."""
         if self._locked_yaw is None:
             self._locked_yaw = self.yaw if self.yaw is not None else 0.0
         self._set_heading(self._locked_yaw)
-        grasp_depth = abs(self.qr_floor_z) - self.grasp_standoff
+        grasp_depth = self.grab_depth
         self._set_depth(grasp_depth)
 
-        ey_target = qr_ey_target(grasp_depth, self.cam_gripper_dx, self.qr_floor_z,
+        # ey_target dihitung dari kedalaman AKTUAL (bukan target): selama turun,
+        # kamera bergerak, jadi "di mana QR seharusnya tampak" ikut berubah tiap
+        # tick. Memakai grasp_depth di sini membuat nilainya ter-clamp ke ey_max
+        # (h_cam ~0) dan servo mendorong ke arah yang salah selama detik pertama
+        # turun, saat QR masih terlihat.
+        ey_target = qr_ey_target(self.depth if self.depth is not None else grasp_depth,
+                                 self.cam_gripper_dx, self.qr_floor_z,
                                  self.cam_bottom_dz, self.cam_vfov_half_tan,
                                  self.ey_target_max)
         tx, ty = self.payload_x, self.payload_y
