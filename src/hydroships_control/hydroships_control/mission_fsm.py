@@ -22,8 +22,8 @@ Pembagian kredit skor (lihat aturan misi):
     AUTO_RELEASE                  = tugas AUTONOMOUS (dipicu setelah pilot
                                      lean di dinding, FSM ambil alih sendiri)
 
-State: IDLE -> DIVE -> APPROACH_QR -> GRAB -> NAV_WALL -> HANG -> SURFACE
-       -> WAIT_TRIGGER -> AUTO_RELEASE -> (DIVE lagi | DONE) (atau ABORT).
+State: IDLE -> DIVE -> APPROACH_QR -> DESCEND -> GRAB -> NAV_WALL -> HANG
+       -> SURFACE -> WAIT_TRIGGER -> AUTO_RELEASE -> (DIVE lagi | DONE) (atau ABORT).
 
 Catatan: butuh stabilizer + thruster_allocator + sim berjalan
 (pakai hydroships_bringup/launch/hydroships_mission.launch.py).
@@ -65,7 +65,7 @@ WALL_HEADING_DEG = {'A': 270.0, 'B': 90.0, 'C': 0.0, 'D': 180.0}
 
 
 class St(Enum):
-    IDLE = auto(); DIVE = auto(); APPROACH_QR = auto(); GRAB = auto()
+    IDLE = auto(); DIVE = auto(); APPROACH_QR = auto(); DESCEND = auto(); GRAB = auto()
     NAV_WALL = auto(); HANG = auto(); SURFACE = auto(); WAIT_TRIGGER = auto()
     APPROACH_HOOK = auto(); AUTO_RELEASE = auto(); DONE = auto(); ABORT = auto()
 
@@ -102,6 +102,12 @@ class MissionFSM(Node):
         # Arah perubahan ini MENJAUH dari QR (QR mengecil), jadi tidak mengulang
         # bug lama 0.62 di mana QR terlalu besar/ter-crop.
         p('scan_depth', 0.30)        # m kedalaman scan (kamera bawah ~41cm di atas QR)
+        # M5-D (docs/STATUS.md): attach di GRAB dulu langsung dari scan_depth
+        # mengelas ROV ke payload PADA POSE SAAT ITU (DetachableJoint tidak
+        # menarik payload) -- ROV masih ~0.6 m di atas lantai QR saat itu, jadi
+        # ROV terjangkar. DESCEND turun ke grasp_depth = |qr_floor_z| - grasp_standoff
+        # sebelum GRAB memicu "close".
+        p('grasp_standoff', 0.08)    # m jarak aman di atas lantai QR saat close
         p('approach_kp', 90.0)       # N/m gain posisi XY -> gaya horizontal
         p('approach_kd', 140.0)       # N/(m/s) redaman kecepatan (cegah overshoot)
         p('approach_fmax', 16.0)     # N batas gaya approach
@@ -113,7 +119,8 @@ class MissionFSM(Node):
         p('nav_fmax', 22.0)          # N batas gaya navigasi holonomik
         p('hold_settle_s', 2.0)      # s harus tetap di dalam tol sebelum dianggap "stabil"
         # timeout per state (s)
-        p('t_dive', 20.0); p('t_scan', 45.0); p('t_grab', 10.0); p('t_nav', 30.0)
+        p('t_dive', 20.0); p('t_scan', 45.0); p('t_descend', 15.0)
+        p('t_grab', 10.0); p('t_nav', 30.0)
         p('t_hang', 20.0); p('t_surface', 20.0); p('t_wait_trigger', 600.0)
         p('t_release', 30.0); p('t_approach', 25.0)
         # APPROACH_HOOK: visual servo PD ke hook (hook_detector ->
@@ -195,6 +202,7 @@ class MissionFSM(Node):
         self.payload_x = float(g('payload_x'))
         self.payload_y = float(g('payload_y'))
         self.scan_depth = float(g('scan_depth'))
+        self.grasp_standoff = float(g('grasp_standoff'))
         self.approach_kp = float(g('approach_kp'))
         self.approach_kd = float(g('approach_kd'))
         self.approach_fmax = float(g('approach_fmax'))
@@ -227,7 +235,7 @@ class MissionFSM(Node):
             size_stop=float(g('hook_size_stop')), center_tol=float(g('hook_center_tol')),
             fmax=float(g('hook_fmax')), depth_range=float(g('hook_depth_range')))
         self.T = {k: float(g('t_' + k)) for k in
-                  ('dive', 'scan', 'grab', 'nav', 'hang', 'surface',
+                  ('dive', 'scan', 'descend', 'grab', 'nav', 'hang', 'surface',
                    'wait_trigger', 'release', 'approach')}
 
         # I/O
@@ -671,10 +679,10 @@ class MissionFSM(Node):
         if self._converge_ticks >= self.approach_dwell_ticks:
             if self._wall_scored:
                 self.get_logger().info(
-                    'QR terpusat (%s) -> GRAB (%s)'
+                    'QR terpusat (%s) -> DESCEND (%s)'
                     % ('visual servo' if centered else 'jarak XY',
                        self._gripper_align_txt()))
-                self._set_surge(0.0); self._to(St.GRAB); return
+                self._set_surge(0.0); self._to(St.DESCEND); return
             else:
                 # Fallback: QR tak pernah terbaca tapi ROV sudah di atas payload.
                 if self._wall_idx >= len(self._wall_sequence):
@@ -687,10 +695,57 @@ class MissionFSM(Node):
                 self.get_logger().info('Wall %s dipilih (+15) [urutan ke-%d] (%s)'
                                        % (self.wall, self._wall_idx,
                                           self._gripper_align_txt()))
-                self._set_surge(0.0); self._to(St.GRAB); return
+                self._set_surge(0.0); self._to(St.DESCEND); return
 
         if self._elapsed() > self.T['scan']:
             self.get_logger().error('APPROACH_QR timeout'); self._to(St.ABORT)
+
+    def _st_descend(self):
+        """Fase turun-untuk-mencengkeram (M5-D, docs/STATUS.md): APPROACH_QR
+        memusatkan diri sambil melayang di scan_depth (~0.6 m di atas lantai
+        QR, sengaja dangkal supaya QR muat di frame kamera). Attach di GRAB
+        langsung dari sana membuat DetachableJoint mengelas ROV ke payload
+        PADA POSE SAAT ITU (bukan menarik payload naik) -> ROV terjangkar ke
+        lantai. State ini turun ke grasp_depth (dekat lantai QR) sambil tetap
+        servo XY, supaya saat GRAB memicu "close" ROV benar2 sudah dekat."""
+        if self._locked_yaw is None:
+            self._locked_yaw = self.yaw if self.yaw is not None else 0.0
+        self._set_heading(self._locked_yaw)
+        grasp_depth = abs(self.qr_floor_z) - self.grasp_standoff
+        self._set_depth(grasp_depth)
+
+        ey_target = qr_ey_target(grasp_depth, self.cam_gripper_dx, self.qr_floor_z,
+                                 self.cam_bottom_dz, self.cam_vfov_half_tan,
+                                 self.ey_target_max)
+        tx, ty = self.payload_x, self.payload_y
+        tx -= self.gripper_base_dx * math.cos(self._locked_yaw)
+        ty -= self.gripper_base_dx * math.sin(self._locked_yaw)
+        off_fresh = (self.qr_off is not None
+                     and (self._now() - self.qr_off_time) < self.qr_max_age)
+        if off_fresh:
+            ex, ey, _size = self.qr_off
+            k = self.qr_servo_gain * self.qr_servo_sign
+            body_dx = -(ey - ey_target) * k
+            body_dy = -ex * k
+            c, s = math.cos(self._locked_yaw), math.sin(self._locked_yaw)
+            tx += body_dx * c - body_dy * s
+            ty += body_dx * s + body_dy * c
+        dist = self._goto_xy(tx, ty, min_fmax_frac=self.approach_min_fmax_frac)
+
+        depth_ok = self.depth is not None and self.depth >= grasp_depth - self.depth_tol
+        if int(self._elapsed() * 2) % 20 == 0:
+            self.get_logger().info(
+                'DESCEND dbg: depth=%.2f/%.2f dist=%.3f ey_target=%+.2f'
+                % (self.depth if self.depth is not None else -1.0,
+                   grasp_depth, dist, ey_target))
+
+        if depth_ok:
+            self._set_surge(0.0)
+            self.get_logger().info('DESCEND: kedalaman grasp tercapai (%.2fm) -> GRAB'
+                                   % self.depth)
+            self._to(St.GRAB)
+        elif self._elapsed() > self.T['descend']:
+            self.get_logger().error('DESCEND timeout'); self._to(St.ABORT)
 
     def _st_grab(self):
         """Misi 2 (REMOTELY): kirim perintah "close" ke gripper_controller,

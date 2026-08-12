@@ -39,6 +39,10 @@ class GripperController(Node):
         p('max_offset', 0.30)       # |offset x/y| maks agar "di atas payload"
         p('min_size', 0.12)         # ukuran-tampak QR min (proxy dekat)
         p('offset_timeout', 1.5)    # umur maks qr_offset (s)
+        # Lapis pengaman kedua M5-D (docs/STATUS.md), independen dari urutan
+        # FSM: tolak attach kalau ROV masih jauh di atas lantai QR (mis. FSM
+        # di-skip via start_state:=GRAB saat testing manual).
+        p('max_alt_gap', 0.15)      # m jarak vertikal maks ROV di atas lantai QR
         # Kamera sumber qr_offset yang dipakai gerbang attach. HARUS sama dengan
         # filter mission_fsm (camera_bottom_link) — lihat _on_offset().
         p('offset_frame', 'camera_bottom_link')
@@ -59,7 +63,8 @@ class GripperController(Node):
         p('startup_detach_fallback', 8.0)   # s (was startup_detach_delay=1.5)
         g = lambda n: self.get_parameter(n).value
         self.offset_frame = str(g('offset_frame'))
-        self._ey_geom = (float(g('cam_gripper_dx')), float(g('qr_floor_z')),
+        self.qr_floor_z = float(g('qr_floor_z'))
+        self._ey_geom = (float(g('cam_gripper_dx')), self.qr_floor_z,
                          float(g('cam_bottom_dz')), float(g('cam_vfov_half_tan')),
                          float(g('ey_target_max')))
         # Kedalaman terakhir; None = belum ada -> ey_target 0.0 (perilaku lama).
@@ -68,6 +73,7 @@ class GripperController(Node):
         self.logic = GripperLogic(
             max_offset=float(g('max_offset')), min_size=float(g('min_size')),
             offset_timeout=float(g('offset_timeout')),
+            max_alt_gap=float(g('max_alt_gap')),
             jaw_open=float(g('jaw_open')), jaw_close=float(g('jaw_close')))
 
         self.pub_jaw_left = self.create_publisher(Float64, '/hydroships/gripper_left/cmd', 10)
@@ -119,8 +125,12 @@ class GripperController(Node):
             stamp = self._now()
         ey_target = 0.0 if self._depth is None else qr_ey_target(
             self._depth, *self._ey_geom)
+        # alt_gap = jarak vertikal ROV di atas lantai QR (m). None sampai depth
+        # pertama tiba -> is_safe() tak menggerbang altitude sampai diketahui.
+        alt_gap = (None if self._depth is None
+                   else abs(self.qr_floor_z) - abs(self._depth))
         self.logic.update_offset(msg.point.x, msg.point.y, msg.point.z, stamp,
-                                 ey_target)
+                                 ey_target, alt_gap)
 
     def _on_depth(self, msg: Float64):
         self._depth = float(msg.data)

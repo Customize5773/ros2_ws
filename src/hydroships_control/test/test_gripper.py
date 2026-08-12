@@ -189,3 +189,31 @@ def test_is_safe_masih_menolak_bila_meleset_dari_ey_target():
     g = GripperLogic()
     g.update_offset(0.0, 0.10, 0.1747, stamp=100.0, ey_target=-0.5177)
     assert g.is_safe(100.1) is False        # |0.10 - (-0.5177)| = 0.62 > 0.30
+
+
+# --- M5-D: lapis pengaman altitude (docs/STATUS.md) ---
+# GRAB dulu memicu attach langsung dari scan_depth (~0.6 m di atas lantai QR)
+# -> DetachableJoint mengelas ROV ke payload PADA POSE SAAT ITU, ROV terjangkar.
+# mission_fsm sekarang turun ke grasp_depth di DESCEND sebelum GRAB, tapi
+# is_safe() juga menggerbang altitude sendiri sbg lapis pengaman kedua yg
+# independen dari urutan FSM (mis. start_state:=GRAB saat testing manual).
+
+def test_is_safe_menolak_bila_masih_jauh_di_atas_lantai():
+    g = GripperLogic(max_offset=0.3, min_size=0.12, max_alt_gap=0.15)
+    # offset & size aman, tapi ROV masih ~0.6 m di atas lantai QR (scan_depth)
+    g.update_offset(0.0, 0.0, 0.4, stamp=100.0, alt_gap=0.60)
+    assert g.is_safe(100.1) is False
+
+
+def test_is_safe_mengizinkan_bila_dekat_lantai():
+    g = GripperLogic(max_offset=0.3, min_size=0.12, max_alt_gap=0.15)
+    g.update_offset(0.0, 0.0, 0.4, stamp=100.0, alt_gap=0.08)
+    assert g.is_safe(100.1) is True
+
+
+def test_is_safe_alt_gap_none_tak_menggerbang():
+    """Kompat pemanggil/test lama yg tak menyuplai alt_gap (mis. gripper_err
+    dari qr_offset tanpa depth) -- gerbang altitude nonaktif, bukan menolak."""
+    g = GripperLogic(max_offset=0.3, min_size=0.12, max_alt_gap=0.15)
+    g.update_offset(0.0, 0.0, 0.4, stamp=100.0)
+    assert g.is_safe(100.1) is True

@@ -35,16 +35,23 @@ class GripperLogic:
       min_size      : ukuran-tampak QR minimum (fraksi sisi frame) agar dianggap
                       cukup dekat untuk attach (besar = dekat).
       offset_timeout: umur maks sinyal qr_offset agar dianggap segar (s).
+      max_alt_gap   : jarak vertikal maks (m) ROV di atas lantai QR agar boleh
+                      attach — lapis pengaman kedua di luar urutan FSM (lihat
+                      docs/STATUS.md M5-D): mission_fsm SEHARUSNYA sudah turun
+                      ke grasp_depth di DESCEND sebelum GRAB, tapi gerbang ini
+                      menolak attach kalau caller (mis. start_state:=GRAB saat
+                      testing manual) melewatkan fase itu.
       jaw_open/close: target sudut kedua jari (rad) saat terbuka/menutup
                       (kosmetik). Harus berada dalam limit joint URDF
                       [-0.1, 0.5] — lihat hydroships.urdf.xacro.
     """
 
     def __init__(self, max_offset=0.30, min_size=0.12, offset_timeout=1.5,
-                 jaw_open=0.35, jaw_close=0.0):
+                 max_alt_gap=0.15, jaw_open=0.35, jaw_close=0.0):
         self.max_offset = float(max_offset)
         self.min_size = float(min_size)
         self.offset_timeout = float(offset_timeout)
+        self.max_alt_gap = float(max_alt_gap)
         self.jaw_open = float(jaw_open)
         self.jaw_close = float(jaw_close)
         # keadaan runtime
@@ -53,20 +60,26 @@ class GripperLogic:
         self._offset = None                   # (x, y, z, stamp) atau None
 
     # ---- sinyal masuk ----
-    def update_offset(self, x, y, z, stamp, ey_target=0.0):
+    def update_offset(self, x, y, z, stamp, ey_target=0.0, alt_gap=None):
         """Simpan sinyal visual servo terbaru (dari /hydroships/qr_offset).
 
         ``ey_target`` = di mana QR SEHARUSNYA tampak di kamera bawah supaya
         GRIPPER-lah yang tepat di atas payload (lihat qr_logic.qr_ey_target).
         Default 0.0 = perilaku lama (berpatokan pusat kamera), dipertahankan
         agar pemanggil/test lama tak berubah artinya.
+
+        ``alt_gap`` = jarak vertikal ROV di atas lantai QR saat ini (m), atau
+        None bila tak diketahui — None menonaktifkan gerbang altitude
+        (kompat dgn pemanggil/test lama yang tak menyuplainya).
         """
         self._offset = (float(x), float(y), float(z), float(stamp),
-                        float(ey_target))
+                        float(ey_target),
+                        None if alt_gap is None else float(alt_gap))
 
     def is_safe(self, now):
         """True bila payload ada di jangkauan aman untuk di-attach: offset
-        kecil, ukuran-tampak cukup besar (dekat), dan sinyal masih segar.
+        kecil, ukuran-tampak cukup besar (dekat), altitude dekat lantai, dan
+        sinyal masih segar.
 
         PENTING — sumbu y diukur relatif ``ey_target``, bukan relatif pusat
         frame. Gripper berada 0.16 m DI DEPAN kamera bawah, jadi saat gripper
@@ -79,8 +92,10 @@ class GripperLogic:
         """
         if self._offset is None:
             return False
-        x, y, z, stamp, ey_target = self._offset
+        x, y, z, stamp, ey_target, alt_gap = self._offset
         if now - stamp > self.offset_timeout:
+            return False
+        if alt_gap is not None and alt_gap > self.max_alt_gap:
             return False
         return (abs(x) <= self.max_offset
                 and abs(y - ey_target) <= self.max_offset
