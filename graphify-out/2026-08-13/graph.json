@@ -835,7 +835,7 @@
       "label": "main()",
       "file_type": "code",
       "source_file": "src/hydroships_control/hydroships_control/gripper_controller.py",
-      "source_location": "L222",
+      "source_location": "L195",
       "_origin": "ast",
       "id": "src_hydroships_control_hydroships_control_gripper_controller_main",
       "community": 5,
@@ -931,21 +931,10 @@
       "norm_label": ".is_safe()"
     },
     {
-      "label": ".explain()",
-      "file_type": "code",
-      "source_file": "src/hydroships_control/hydroships_control/gripper_logic.py",
-      "source_location": "L144",
-      "_origin": "ast",
-      "id": "src_hydroships_control_hydroships_control_gripper_logic_gripperlogic_explain",
-      "community": 2,
-      "community_name": "GripperLogic",
-      "norm_label": ".explain()"
-    },
-    {
       "label": ".on_command()",
       "file_type": "code",
       "source_file": "src/hydroships_control/hydroships_control/gripper_logic.py",
-      "source_location": "L178",
+      "source_location": "L145",
       "_origin": "ast",
       "id": "src_hydroships_control_hydroships_control_gripper_logic_gripperlogic_on_command",
       "community": 2,
@@ -956,7 +945,7 @@
       "label": "._do_open()",
       "file_type": "code",
       "source_file": "src/hydroships_control/hydroships_control/gripper_logic.py",
-      "source_location": "L190",
+      "source_location": "L157",
       "_origin": "ast",
       "id": "src_hydroships_control_hydroships_control_gripper_logic_gripperlogic_do_open",
       "community": 2,
@@ -967,7 +956,7 @@
       "label": "._do_close()",
       "file_type": "code",
       "source_file": "src/hydroships_control/hydroships_control/gripper_logic.py",
-      "source_location": "L205",
+      "source_location": "L172",
       "_origin": "ast",
       "id": "src_hydroships_control_hydroships_control_gripper_logic_gripperlogic_do_close",
       "community": 2,
@@ -978,7 +967,7 @@
       "label": ".force_detach()",
       "file_type": "code",
       "source_file": "src/hydroships_control/hydroships_control/gripper_logic.py",
-      "source_location": "L217",
+      "source_location": "L184",
       "_origin": "ast",
       "id": "src_hydroships_control_hydroships_control_gripper_logic_gripperlogic_force_detach",
       "community": 2,
@@ -989,7 +978,7 @@
       "label": ".startup_detach()",
       "file_type": "code",
       "source_file": "src/hydroships_control/hydroships_control/gripper_logic.py",
-      "source_location": "L225",
+      "source_location": "L192",
       "_origin": "ast",
       "id": "src_hydroships_control_hydroships_control_gripper_logic_gripperlogic_startup_detach",
       "community": 2,
@@ -1063,23 +1052,12 @@
       "norm_label": "true bila payload boleh di-attach. dua gerbang, sengaja terpisah: 1. visual..."
     },
     {
-      "label": "Rincian TIAP sub-kondisi is_safe() pada `now` \u2014 instrumentasi diagnostik M5-D\u2026",
-      "file_type": "rationale",
-      "source_file": "src/hydroships_control/hydroships_control/gripper_logic.py",
-      "source_location": "L145",
-      "_origin": "ast",
-      "id": "src_hydroships_control_hydroships_control_gripper_logic_rationale_145",
-      "community": 2,
-      "community_name": "GripperLogic",
-      "norm_label": "rincian tiap sub-kondisi is_safe() pada `now` \u2014 instrumentasi diagnostik m5-d..."
-    },
-    {
       "label": "Proses perintah semantik. Kembalikan dict aksi tingkat-rendah: {'jaw': <sudut\u2026",
       "file_type": "rationale",
       "source_file": "src/hydroships_control/hydroships_control/gripper_logic.py",
-      "source_location": "L179",
+      "source_location": "L146",
       "_origin": "ast",
-      "id": "src_hydroships_control_hydroships_control_gripper_logic_rationale_179",
+      "id": "src_hydroships_control_hydroships_control_gripper_logic_rationale_146",
       "community": 2,
       "community_name": "GripperLogic",
       "norm_label": "proses perintah semantik. kembalikan dict aksi tingkat-rendah: {'jaw': <sudut..."
@@ -1088,9 +1066,9 @@
       "label": "Paksa lepas tanpa perintah (mis. saat shutdown/abort).",
       "file_type": "rationale",
       "source_file": "src/hydroships_control/hydroships_control/gripper_logic.py",
-      "source_location": "L218",
+      "source_location": "L185",
       "_origin": "ast",
-      "id": "src_hydroships_control_hydroships_control_gripper_logic_rationale_218",
+      "id": "src_hydroships_control_hydroships_control_gripper_logic_rationale_185",
       "community": 2,
       "community_name": "GripperLogic",
       "norm_label": "paksa lepas tanpa perintah (mis. saat shutdown/abort)."
@@ -1099,9 +1077,9 @@
       "label": "Aksi auto-detach saat node START. gz-sim Fortress SELALU meng-attach\u2026",
       "file_type": "rationale",
       "source_file": "src/hydroships_control/hydroships_control/gripper_logic.py",
-      "source_location": "L226",
+      "source_location": "L193",
       "_origin": "ast",
-      "id": "src_hydroships_control_hydroships_control_gripper_logic_rationale_226",
+      "id": "src_hydroships_control_hydroships_control_gripper_logic_rationale_193",
       "community": 2,
       "community_name": "GripperLogic",
       "norm_label": "aksi auto-detach saat node start. gz-sim fortress selalu meng-attach..."
@@ -2782,7 +2760,7 @@
       "label": "._publish_debug()",
       "file_type": "code",
       "source_file": "src/hydroships_control/hydroships_control/qr_detector.py",
-      "source_location": "L195",
+      "source_location": "L187",
       "_origin": "ast",
       "id": "src_hydroships_control_hydroships_control_qr_detector_qrdetector_publish_debug",
       "community": 7,
@@ -2793,7 +2771,7 @@
       "label": "main()",
       "file_type": "code",
       "source_file": "src/hydroships_control/hydroships_control/qr_detector.py",
-      "source_location": "L216",
+      "source_location": "L208",
       "_origin": "ast",
       "id": "src_hydroships_control_hydroships_control_qr_detector_main",
       "community": 7,
@@ -2815,9 +2793,9 @@
       "label": "P0-2.3: raw corner points + decode_success, SAME pts/data already computed for\u2026",
       "file_type": "rationale",
       "source_file": "src/hydroships_control/hydroships_control/qr_detector.py",
-      "source_location": "L196",
+      "source_location": "L188",
       "_origin": "ast",
-      "id": "src_hydroships_control_hydroships_control_qr_detector_rationale_196",
+      "id": "src_hydroships_control_hydroships_control_qr_detector_rationale_188",
       "community": 7,
       "community_name": "test_qr_logic.py",
       "norm_label": "p0-2.3: raw corner points + decode_success, same pts/data already computed for..."
@@ -8118,17 +8096,6 @@
       "norm_label": "2026-08-12 \u2014 m5-d lanjutan: gripper diturunkan + latch hak attach"
     },
     {
-      "label": "2026-08-12 (lanjutan) \u2014 Diagnosis gerbang attach (DIAGNOSIS ONLY)",
-      "file_type": "document",
-      "source_file": "docs/CHANGELOG.md",
-      "source_location": "L596",
-      "_origin": "ast",
-      "id": "docs_changelog_2026_08_12_lanjutan_diagnosis_gerbang_attach_diagnosis_only",
-      "community": 8,
-      "community_name": "CHANGELOG \u2014 Riwayat Kronologis HYDROships (KKI 2026)",
-      "norm_label": "2026-08-12 (lanjutan) \u2014 diagnosis gerbang attach (diagnosis only)"
-    },
-    {
       "label": "CI_CD.md",
       "file_type": "document",
       "source_file": "docs/CI_CD.md",
@@ -8267,8 +8234,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "docs_config_reference",
-      "community": 84,
-      "community_name": "P0-1-BASELINE.md",
+      "community": 31,
+      "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "config_reference.md"
     },
     {
@@ -8278,8 +8245,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "docs_config_reference_config_reference_yaml_launch_arguments",
-      "community": 83,
-      "community_name": "4. Launch Arguments",
+      "community": 31,
+      "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "config reference \u2014 yaml & launch arguments"
     },
     {
@@ -8289,8 +8256,8 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "docs_config_reference_1_src_hydroships_description_config_rov_params_yaml",
-      "community": 83,
-      "community_name": "4. Launch Arguments",
+      "community": 31,
+      "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "1. `src/hydroships_description/config/rov_params.yaml`"
     },
     {
@@ -8300,8 +8267,8 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "docs_config_reference_2_src_hydroships_control_config_gains_yaml",
-      "community": 83,
-      "community_name": "4. Launch Arguments",
+      "community": 31,
+      "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "2. `src/hydroships_control/config/gains.yaml`"
     },
     {
@@ -8311,8 +8278,8 @@
       "source_location": "L73",
       "_origin": "ast",
       "id": "docs_config_reference_3_src_hydroships_gazebo_config_bridge_yaml",
-      "community": 83,
-      "community_name": "4. Launch Arguments",
+      "community": 31,
+      "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "3. `src/hydroships_gazebo/config/bridge.yaml`"
     },
     {
@@ -8322,8 +8289,8 @@
       "source_location": "L96",
       "_origin": "ast",
       "id": "docs_config_reference_4_launch_arguments",
-      "community": 83,
-      "community_name": "4. Launch Arguments",
+      "community": 31,
+      "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "4. launch arguments"
     },
     {
@@ -8333,8 +8300,8 @@
       "source_location": "L98",
       "_origin": "ast",
       "id": "docs_config_reference_src_hydroships_gazebo_launch_sim_launch_py_core_di_include_semua_launch_lain",
-      "community": 83,
-      "community_name": "4. Launch Arguments",
+      "community": 31,
+      "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "`src/hydroships_gazebo/launch/sim.launch.py` (core, di-include semua launch lain)"
     },
     {
@@ -8344,8 +8311,8 @@
       "source_location": "L113",
       "_origin": "ast",
       "id": "docs_config_reference_src_hydroships_bringup_launch_hydroships_sim_launch_py_m1",
-      "community": 83,
-      "community_name": "4. Launch Arguments",
+      "community": 31,
+      "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "`src/hydroships_bringup/launch/hydroships_sim.launch.py` (m1)"
     },
     {
@@ -8355,8 +8322,8 @@
       "source_location": "L120",
       "_origin": "ast",
       "id": "docs_config_reference_src_hydroships_bringup_launch_hydroships_stabilized_launch_py_m2",
-      "community": 83,
-      "community_name": "4. Launch Arguments",
+      "community": 31,
+      "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "`src/hydroships_bringup/launch/hydroships_stabilized.launch.py` (m2)"
     },
     {
@@ -8366,8 +8333,8 @@
       "source_location": "L124",
       "_origin": "ast",
       "id": "docs_config_reference_src_hydroships_bringup_launch_hydroships_mission_launch_py_m6_full_autonomy",
-      "community": 83,
-      "community_name": "4. Launch Arguments",
+      "community": 31,
+      "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "`src/hydroships_bringup/launch/hydroships_mission.launch.py` (m6, full autonomy)"
     },
     {
@@ -8377,8 +8344,8 @@
       "source_location": "L139",
       "_origin": "ast",
       "id": "docs_config_reference_src_hydroships_bringup_launch_hydroships_gui_launch_py_m7_gui_bridge",
-      "community": 83,
-      "community_name": "4. Launch Arguments",
+      "community": 31,
+      "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "`src/hydroships_bringup/launch/hydroships_gui.launch.py` (m7, gui bridge)"
     },
     {
@@ -8388,8 +8355,8 @@
       "source_location": "L149",
       "_origin": "ast",
       "id": "docs_config_reference_src_hydroships_control_launch_teleop_launch_py",
-      "community": 83,
-      "community_name": "4. Launch Arguments",
+      "community": 31,
+      "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "`src/hydroships_control/launch/teleop.launch.py`"
     },
     {
@@ -8399,8 +8366,8 @@
       "source_location": "L156",
       "_origin": "ast",
       "id": "docs_config_reference_5_parameter_node_mission_fsm_declare_parameter_bukan_file_yaml_terpisah",
-      "community": 83,
-      "community_name": "4. Launch Arguments",
+      "community": 31,
+      "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "5. parameter node `mission_fsm` (declare_parameter, bukan file yaml terpisah)"
     },
     {
@@ -9059,8 +9026,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "docs_p0_1_baseline",
-      "community": 84,
-      "community_name": "P0-1-BASELINE.md",
+      "community": 31,
+      "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "p0-1-baseline.md"
     },
     {
@@ -9070,7 +9037,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "docs_p0_1_baseline_p0_1_baseline_investigasi_koreksi_dive_kki_2026",
-      "community": 85,
+      "community": 31,
       "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "p0-1 baseline \u2014 investigasi & koreksi dive (kki 2026)"
     },
@@ -9081,7 +9048,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "docs_p0_1_baseline_dua_batasan_yang_tidak_boleh_dihilangkan_dari_ringkasan_mana_pun",
-      "community": 85,
+      "community": 31,
       "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "\u26a0\ufe0f dua batasan yang tidak boleh dihilangkan dari ringkasan mana pun"
     },
@@ -9092,7 +9059,7 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "docs_p0_1_baseline_1_ringkasan_rantai_investigasi",
-      "community": 85,
+      "community": 31,
       "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "1. ringkasan rantai investigasi"
     },
@@ -9103,7 +9070,7 @@
       "source_location": "L42",
       "_origin": "ast",
       "id": "docs_p0_1_baseline_2_akar_penyebab_koreksinya",
-      "community": 85,
+      "community": 31,
       "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "2. akar penyebab & koreksinya"
     },
@@ -9114,7 +9081,7 @@
       "source_location": "L74",
       "_origin": "ast",
       "id": "docs_p0_1_baseline_3_regresi_dive_sebelum_vs_sesudah",
-      "community": 85,
+      "community": 31,
       "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "3. regresi dive \u2014 sebelum vs sesudah"
     },
@@ -9125,7 +9092,7 @@
       "source_location": "L97",
       "_origin": "ast",
       "id": "docs_p0_1_baseline_4_yang_tidak_terbukti_jangan_diisi_dengan_ekstrapolasi",
-      "community": 85,
+      "community": 31,
       "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "4. yang tidak terbukti (jangan diisi dengan ekstrapolasi)"
     },
@@ -9136,7 +9103,7 @@
       "source_location": "L108",
       "_origin": "ast",
       "id": "docs_p0_1_baseline_5_reproduksi",
-      "community": 85,
+      "community": 31,
       "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "5. reproduksi"
     },
@@ -9147,7 +9114,7 @@
       "source_location": "L139",
       "_origin": "ast",
       "id": "docs_p0_1_baseline_6_pelajaran_metodologi_yang_layak_dipertahankan",
-      "community": 85,
+      "community": 31,
       "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "6. pelajaran metodologi yang layak dipertahankan"
     },
@@ -11446,8 +11413,8 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "docs_p1_0_architecture_audit_2_repository_module_responsibility_map",
-      "community": 86,
-      "community_name": "2. Repository/module responsibility map",
+      "community": 47,
+      "community_name": "P1-0: Cross-Repo Architecture Audit \u2014 `ros2_ws` \u2194 `GUI-ROV`",
       "norm_label": "2. repository/module responsibility map"
     },
     {
@@ -11457,8 +11424,8 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "docs_p1_0_architecture_audit_ros2_ws",
-      "community": 86,
-      "community_name": "2. Repository/module responsibility map",
+      "community": 47,
+      "community_name": "P1-0: Cross-Repo Architecture Audit \u2014 `ros2_ws` \u2194 `GUI-ROV`",
       "norm_label": "`ros2_ws`"
     },
     {
@@ -11468,8 +11435,8 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "docs_p1_0_architecture_audit_gui_rov",
-      "community": 86,
-      "community_name": "2. Repository/module responsibility map",
+      "community": 47,
+      "community_name": "P1-0: Cross-Repo Architecture Audit \u2014 `ros2_ws` \u2194 `GUI-ROV`",
       "norm_label": "`gui-rov`"
     },
     {
@@ -11677,8 +11644,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "docs_p1_1_architecture_decision",
-      "community": 71,
-      "community_name": "P1-OWNER-DECISIONS-AND-ROADMAP.md",
+      "community": 45,
+      "community_name": "P1-1: Architecture Decision Audit \u2014 ROS2-native vs. Pixhawk/ArduSub control authority",
       "norm_label": "p1-1-architecture-decision.md"
     },
     {
@@ -12851,7 +12818,7 @@
       "label": "6. Roadmap",
       "file_type": "document",
       "source_file": "docs/P1-OWNER-DECISIONS-AND-ROADMAP.md",
-      "source_location": "L158",
+      "source_location": "L156",
       "_origin": "ast",
       "id": "docs_p1_owner_decisions_and_roadmap_6_roadmap",
       "community": 55,
@@ -12862,7 +12829,7 @@
       "label": "7. Status evidence tiap klaim",
       "file_type": "document",
       "source_file": "docs/P1-OWNER-DECISIONS-AND-ROADMAP.md",
-      "source_location": "L173",
+      "source_location": "L171",
       "_origin": "ast",
       "id": "docs_p1_owner_decisions_and_roadmap_7_status_evidence_tiap_klaim",
       "community": 55,
@@ -12873,7 +12840,7 @@
       "label": "8. Yang TIDAK diubah",
       "file_type": "document",
       "source_file": "docs/P1-OWNER-DECISIONS-AND-ROADMAP.md",
-      "source_location": "L186",
+      "source_location": "L184",
       "_origin": "ast",
       "id": "docs_p1_owner_decisions_and_roadmap_8_yang_tidak_diubah",
       "community": 55,
@@ -13107,8 +13074,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "docs_tuning_guide",
-      "community": 84,
-      "community_name": "P0-1-BASELINE.md",
+      "community": 31,
+      "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "tuning_guide.md"
     },
     {
@@ -13119,7 +13086,7 @@
       "_origin": "ast",
       "id": "docs_tuning_guide_tuning_guide_pid_fsm_visual_servo",
       "community": 31,
-      "community_name": "1. Tuning PID `stabilizer` (`config/gains.yaml`)",
+      "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "tuning guide \u2014 pid, fsm, visual servo"
     },
     {
@@ -13130,7 +13097,7 @@
       "_origin": "ast",
       "id": "docs_tuning_guide_1_tuning_pid_stabilizer_config_gains_yaml",
       "community": 31,
-      "community_name": "1. Tuning PID `stabilizer` (`config/gains.yaml`)",
+      "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "1. tuning pid `stabilizer` (`config/gains.yaml`)"
     },
     {
@@ -13141,7 +13108,7 @@
       "_origin": "ast",
       "id": "docs_tuning_guide_metode_disarankan_ziegler_nichols_manual_disederhanakan",
       "community": 31,
-      "community_name": "1. Tuning PID `stabilizer` (`config/gains.yaml`)",
+      "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "metode disarankan (ziegler\u2013nichols manual, disederhanakan)"
     },
     {
@@ -13152,7 +13119,7 @@
       "_origin": "ast",
       "id": "docs_tuning_guide_urutan_tuning_disarankan",
       "community": 31,
-      "community_name": "1. Tuning PID `stabilizer` (`config/gains.yaml`)",
+      "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "urutan tuning disarankan"
     },
     {
@@ -13163,7 +13130,7 @@
       "_origin": "ast",
       "id": "docs_tuning_guide_isyarat_gain_terlalu_tinggi_vs_terlalu_rendah",
       "community": 31,
-      "community_name": "1. Tuning PID `stabilizer` (`config/gains.yaml`)",
+      "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "isyarat gain terlalu tinggi vs terlalu rendah"
     },
     {
@@ -13174,7 +13141,7 @@
       "_origin": "ast",
       "id": "docs_tuning_guide_catatan_khusus_buoyancy_ff",
       "community": 31,
-      "community_name": "1. Tuning PID `stabilizer` (`config/gains.yaml`)",
+      "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "catatan khusus `buoyancy_ff`"
     },
     {
@@ -13185,7 +13152,7 @@
       "_origin": "ast",
       "id": "docs_tuning_guide_use_sim_time",
       "community": 31,
-      "community_name": "1. Tuning PID `stabilizer` (`config/gains.yaml`)",
+      "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "`use_sim_time`"
     },
     {
@@ -13196,7 +13163,7 @@
       "_origin": "ast",
       "id": "docs_tuning_guide_2_tuning_mission_fsm_timeout_per_state",
       "community": 31,
-      "community_name": "1. Tuning PID `stabilizer` (`config/gains.yaml`)",
+      "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "2. tuning `mission_fsm` \u2014 timeout per state"
     },
     {
@@ -13207,7 +13174,7 @@
       "_origin": "ast",
       "id": "docs_tuning_guide_3_tuning_visual_servo_qr_approach_hook_approach",
       "community": 31,
-      "community_name": "1. Tuning PID `stabilizer` (`config/gains.yaml`)",
+      "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "3. tuning visual servo (qr approach & hook approach)"
     },
     {
@@ -13218,7 +13185,7 @@
       "_origin": "ast",
       "id": "docs_tuning_guide_3a_approach_qr_servo_ke_qr_code",
       "community": 31,
-      "community_name": "1. Tuning PID `stabilizer` (`config/gains.yaml`)",
+      "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "3a. `approach_qr` \u2014 servo ke qr code"
     },
     {
@@ -13229,7 +13196,7 @@
       "_origin": "ast",
       "id": "docs_tuning_guide_3b_approach_hook_servo_ke_hook_dinding_dipakai_hook_logic_hook_servo",
       "community": 31,
-      "community_name": "1. Tuning PID `stabilizer` (`config/gains.yaml`)",
+      "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "3b. `approach_hook` \u2014 servo ke hook dinding (dipakai `hook_logic.hook_servo`)"
     },
     {
@@ -13240,7 +13207,7 @@
       "_origin": "ast",
       "id": "docs_tuning_guide_metode_umum_tuning_visual_servo",
       "community": 31,
-      "community_name": "1. Tuning PID `stabilizer` (`config/gains.yaml`)",
+      "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "metode umum tuning visual servo"
     },
     {
@@ -13251,7 +13218,7 @@
       "_origin": "ast",
       "id": "docs_tuning_guide_4_tuning_thruster_allocation_alloc_damping",
       "community": 31,
-      "community_name": "1. Tuning PID `stabilizer` (`config/gains.yaml`)",
+      "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "4. tuning thruster allocation (`alloc_damping`)"
     },
     {
@@ -13262,7 +13229,7 @@
       "_origin": "ast",
       "id": "docs_tuning_guide_5_urutan_re_tuning_setelah_pindah_ke_hardware_fisik",
       "community": 31,
-      "community_name": "1. Tuning PID `stabilizer` (`config/gains.yaml`)",
+      "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "5. urutan re-tuning setelah pindah ke hardware fisik"
     },
     {
@@ -13437,8 +13404,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tools_p0_experiments_readme",
-      "community": 84,
-      "community_name": "P0-1-BASELINE.md",
+      "community": 31,
+      "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "p0-experiments/readme.md"
     },
     {
@@ -13448,8 +13415,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tools_p0_experiments_readme_tools_p0_experiments_skrip_investigasi_p0_1",
-      "community": 84,
-      "community_name": "P0-1-BASELINE.md",
+      "community": 31,
+      "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "tools/p0-experiments \u2014 skrip investigasi p0-1"
     },
     {
@@ -13459,8 +13426,8 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "tools_p0_experiments_readme_isi",
-      "community": 84,
-      "community_name": "P0-1-BASELINE.md",
+      "community": 31,
+      "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "isi"
     },
     {
@@ -13470,8 +13437,8 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "tools_p0_experiments_readme_cara_pakai",
-      "community": 84,
-      "community_name": "P0-1-BASELINE.md",
+      "community": 31,
+      "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "cara pakai"
     },
     {
@@ -13481,8 +13448,8 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "tools_p0_experiments_readme_aturan_yang_membuat_angkanya_bisa_dipercaya",
-      "community": 84,
-      "community_name": "P0-1-BASELINE.md",
+      "community": 31,
+      "community_name": "P0-1 BASELINE \u2014 Investigasi & Koreksi DIVE (KKI 2026)",
       "norm_label": "aturan yang membuat angkanya bisa dipercaya"
     }
   ],
@@ -14703,7 +14670,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/hydroships_control/hydroships_control/gripper_controller.py",
-      "source_location": "L222",
+      "source_location": "L195",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_hydroships_control_hydroships_control_gripper_controller",
@@ -14895,7 +14862,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/hydroships_control/hydroships_control/gripper_controller.py",
-      "source_location": "L224",
+      "source_location": "L197",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_hydroships_control_hydroships_control_gripper_controller_main",
@@ -15039,7 +15006,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/hydroships_control/hydroships_control/gripper_controller.py",
-      "source_location": "L214",
+      "source_location": "L187",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_hydroships_control_hydroships_control_gripper_controller_grippercontroller_on_cmd",
@@ -15087,7 +15054,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/hydroships_control/hydroships_control/gripper_controller.py",
-      "source_location": "L216",
+      "source_location": "L189",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_hydroships_control_hydroships_control_gripper_controller_grippercontroller_on_cmd",
@@ -15180,7 +15147,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/hydroships_control/hydroships_control/gripper_logic.py",
-      "source_location": "L205",
+      "source_location": "L172",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_hydroships_control_hydroships_control_gripper_logic_gripperlogic",
@@ -15191,7 +15158,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/hydroships_control/hydroships_control/gripper_logic.py",
-      "source_location": "L190",
+      "source_location": "L157",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_hydroships_control_hydroships_control_gripper_logic_gripperlogic",
@@ -15202,18 +15169,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/hydroships_control/hydroships_control/gripper_logic.py",
-      "source_location": "L144",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "src_hydroships_control_hydroships_control_gripper_logic_gripperlogic",
-      "target": "src_hydroships_control_hydroships_control_gripper_logic_gripperlogic_explain",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "source_file": "src/hydroships_control/hydroships_control/gripper_logic.py",
-      "source_location": "L217",
+      "source_location": "L184",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_hydroships_control_hydroships_control_gripper_logic_gripperlogic",
@@ -15246,7 +15202,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/hydroships_control/hydroships_control/gripper_logic.py",
-      "source_location": "L178",
+      "source_location": "L145",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_hydroships_control_hydroships_control_gripper_logic_gripperlogic",
@@ -15257,7 +15213,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/hydroships_control/hydroships_control/gripper_logic.py",
-      "source_location": "L225",
+      "source_location": "L192",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_hydroships_control_hydroships_control_gripper_logic_gripperlogic",
@@ -15706,22 +15662,10 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/hydroships_control/hydroships_control/gripper_logic.py",
-      "source_location": "L210",
+      "source_location": "L177",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_hydroships_control_hydroships_control_gripper_logic_gripperlogic_do_close",
-      "target": "src_hydroships_control_hydroships_control_gripper_logic_gripperlogic_is_safe",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "src/hydroships_control/hydroships_control/gripper_logic.py",
-      "source_location": "L174",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "src_hydroships_control_hydroships_control_gripper_logic_gripperlogic_explain",
       "target": "src_hydroships_control_hydroships_control_gripper_logic_gripperlogic_is_safe",
       "confidence_score": 1.0
     },
@@ -15737,22 +15681,11 @@
       "confidence_score": 1.0
     },
     {
-      "relation": "rationale_for",
-      "confidence": "EXTRACTED",
-      "source_file": "src/hydroships_control/hydroships_control/gripper_logic.py",
-      "source_location": "L145",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "src_hydroships_control_hydroships_control_gripper_logic_rationale_145",
-      "target": "src_hydroships_control_hydroships_control_gripper_logic_gripperlogic_explain",
-      "confidence_score": 1.0
-    },
-    {
       "relation": "calls",
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/hydroships_control/hydroships_control/gripper_logic.py",
-      "source_location": "L187",
+      "source_location": "L154",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_hydroships_control_hydroships_control_gripper_logic_gripperlogic_on_command",
@@ -15764,7 +15697,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/hydroships_control/hydroships_control/gripper_logic.py",
-      "source_location": "L185",
+      "source_location": "L152",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_hydroships_control_hydroships_control_gripper_logic_gripperlogic_on_command",
@@ -15775,10 +15708,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "src/hydroships_control/hydroships_control/gripper_logic.py",
-      "source_location": "L179",
+      "source_location": "L146",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "src_hydroships_control_hydroships_control_gripper_logic_rationale_179",
+      "source": "src_hydroships_control_hydroships_control_gripper_logic_rationale_146",
       "target": "src_hydroships_control_hydroships_control_gripper_logic_gripperlogic_on_command",
       "confidence_score": 1.0
     },
@@ -15786,10 +15719,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "src/hydroships_control/hydroships_control/gripper_logic.py",
-      "source_location": "L218",
+      "source_location": "L185",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "src_hydroships_control_hydroships_control_gripper_logic_rationale_218",
+      "source": "src_hydroships_control_hydroships_control_gripper_logic_rationale_185",
       "target": "src_hydroships_control_hydroships_control_gripper_logic_gripperlogic_force_detach",
       "confidence_score": 1.0
     },
@@ -15797,10 +15730,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "src/hydroships_control/hydroships_control/gripper_logic.py",
-      "source_location": "L226",
+      "source_location": "L193",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "src_hydroships_control_hydroships_control_gripper_logic_rationale_226",
+      "source": "src_hydroships_control_hydroships_control_gripper_logic_rationale_193",
       "target": "src_hydroships_control_hydroships_control_gripper_logic_gripperlogic_startup_detach",
       "confidence_score": 1.0
     },
@@ -19553,7 +19486,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/hydroships_control/hydroships_control/qr_detector.py",
-      "source_location": "L216",
+      "source_location": "L208",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_hydroships_control_hydroships_control_qr_detector",
@@ -19635,7 +19568,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/hydroships_control/hydroships_control/qr_detector.py",
-      "source_location": "L218",
+      "source_location": "L210",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_hydroships_control_hydroships_control_qr_detector_main",
@@ -19701,7 +19634,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/hydroships_control/hydroships_control/qr_detector.py",
-      "source_location": "L195",
+      "source_location": "L187",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_hydroships_control_hydroships_control_qr_detector_qrdetector",
@@ -19878,10 +19811,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "src/hydroships_control/hydroships_control/qr_detector.py",
-      "source_location": "L196",
+      "source_location": "L188",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "src_hydroships_control_hydroships_control_qr_detector_rationale_196",
+      "source": "src_hydroships_control_hydroships_control_qr_detector_rationale_188",
       "target": "src_hydroships_control_hydroships_control_qr_detector_qrdetector_publish_debug",
       "confidence_score": 1.0
     },
@@ -27313,17 +27246,6 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/CHANGELOG.md",
-      "source_location": "L596",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "docs_changelog_changelog_riwayat_kronologis_hydroships_kki_2026",
-      "target": "docs_changelog_2026_08_12_lanjutan_diagnosis_gerbang_attach_diagnosis_only",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/CHANGELOG.md",
       "source_location": "L552",
       "weight": 1.0,
       "_origin": "ast",
@@ -27973,7 +27895,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "docs/P1-OWNER-DECISIONS-AND-ROADMAP.md",
-      "source_location": "L169",
+      "source_location": "L167",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_p1_owner_decisions_and_roadmap",
@@ -31966,7 +31888,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/P1-OWNER-DECISIONS-AND-ROADMAP.md",
-      "source_location": "L158",
+      "source_location": "L156",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_p1_owner_decisions_and_roadmap_p1_keputusan_pemilik_proyek_audit_lintas_repo_dan_roadmap",
@@ -31977,7 +31899,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/P1-OWNER-DECISIONS-AND-ROADMAP.md",
-      "source_location": "L173",
+      "source_location": "L171",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_p1_owner_decisions_and_roadmap_p1_keputusan_pemilik_proyek_audit_lintas_repo_dan_roadmap",
@@ -31988,7 +31910,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/P1-OWNER-DECISIONS-AND-ROADMAP.md",
-      "source_location": "L186",
+      "source_location": "L184",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_p1_owner_decisions_and_roadmap_p1_keputusan_pemilik_proyek_audit_lintas_repo_dan_roadmap",
@@ -32525,5 +32447,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "14107d95dddcad11e644952f8d4d06ad459f3838"
+  "built_at_commit": "e8ee4d2c63565f9264b504d8f4240840f4b00930"
 }

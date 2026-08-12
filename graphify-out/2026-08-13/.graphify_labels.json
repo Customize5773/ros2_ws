@@ -30,7 +30,7 @@
   "28": "ros2-ws",
   "29": "__init__.py",
   "30": "setup.py",
-  "31": "1. Tuning PID `stabilizer` (`config/gains.yaml`)",
+  "31": "P0-1 BASELINE — Investigasi & Koreksi DIVE (KKI 2026)",
   "32": "4.7 Sub-Kategori Remotely Operated Underwater Vehicle (ROV)",
   "33": "P0-2.4 SPEC — APPROACH_QR precision convergence retest (Gate 4) (KKI 2026)",
   "34": "CI/CD",
@@ -81,9 +81,5 @@
   "79": "run_mission_cycle.sh",
   "80": "run_qr_failure_battery.sh",
   "81": "trim_audit.py",
-  "82": "test_grab_geometry.py",
-  "83": "4. Launch Arguments",
-  "84": "P0-1-BASELINE.md",
-  "85": "P0-1 BASELINE — Investigasi & Koreksi DIVE (KKI 2026)",
-  "86": "2. Repository/module responsibility map"
+  "82": "test_grab_geometry.py"
 }

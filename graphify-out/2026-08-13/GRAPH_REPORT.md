@@ -1,16 +1,16 @@
-# Graph Report - ros2_ws  (2026-08-13)
+# Graph Report - ros2_ws  (2026-08-12)
 
 ## Corpus Check
-- 112 files · ~198,655 words
+- 112 files · ~197,650 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1221 nodes · 1680 edges · 87 communities (72 shown, 15 thin omitted)
+- 1218 nodes · 1676 edges · 83 communities (68 shown, 15 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 16 edges (avg confidence: 0.67)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `14107d95`
+- Built from commit: `e8ee4d2c`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -42,7 +42,7 @@
 - P0-2.2 SPEC — QR-driven vs Ground-truth-driven APPROACH_QR (KKI 2026)
 - meshes/README.md
 - ros2-ws
-- 1. Tuning PID `stabilizer` (`config/gains.yaml`)
+- P0-1 BASELINE — Investigasi & Koreksi DIVE (KKI 2026)
 - 4.7 Sub-Kategori Remotely Operated Underwater Vehicle (ROV)
 - P0-2.4 SPEC — APPROACH_QR precision convergence retest (Gate 4) (KKI 2026)
 - CI/CD
@@ -92,13 +92,9 @@
 - run_mission_cycle.sh
 - run_qr_failure_battery.sh
 - test_grab_geometry.py
-- 4. Launch Arguments
-- P0-1-BASELINE.md
-- P0-1 BASELINE — Investigasi & Koreksi DIVE (KKI 2026)
-- 2. Repository/module responsibility map
 
 ## God Nodes (most connected - your core abstractions)
-1. `GripperLogic` - 43 edges
+1. `GripperLogic` - 42 edges
 2. `MissionFSM` - 36 edges
 3. `ComplementaryFilter` - 22 edges
 4. `P0-2.3 SPEC — Positioning/centering accuracy at GRAB (KKI 2026)` - 22 edges
@@ -106,8 +102,8 @@
 6. `hook_servo()` - 17 edges
 7. `PID` - 17 edges
 8. `TeleopGamepad` - 16 edges
-9. `CHANGELOG — Riwayat Kronologis HYDROships (KKI 2026)` - 16 edges
-10. `P0-2.3 SEPARATION EXPERIMENT SPEC — AABB/model error vs detection/decode quality (KKI 2026)` - 16 edges
+9. `P0-2.3 SEPARATION EXPERIMENT SPEC — AABB/model error vs detection/decode quality (KKI 2026)` - 16 edges
+10. `RecorderQR` - 15 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `goto_xy_predict()` --calls--> `clamp()`  [INFERRED]
@@ -124,7 +120,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (87 total, 15 thin omitted)
+## Communities (83 total, 15 thin omitted)
 
 ### Community 0 - "MissionFSM"
 Cohesion: 0.08
@@ -136,7 +132,7 @@ Nodes (48): GuiBridge, GuiBridgeLogic, _num(), gui_bridge_logic — inti terjema
 
 ### Community 2 - "GripperLogic"
 Cohesion: 0.06
-Nodes (45): GripperLogic, gripper_logic — inti keputusan manipulator ROV (murni Python, tanpa ROS).…, Syarat visual murni (tanpa kesegaran & tanpa altitude)., True bila payload boleh di-attach. Dua gerbang, sengaja terpisah: 1. VISUAL…, Rincian TIAP sub-kondisi is_safe() pada `now` — instrumentasi diagnostik M5-D…, Proses perintah semantik. Kembalikan dict aksi tingkat-rendah: {'jaw': <sudut…, Paksa lepas tanpa perintah (mis. saat shutdown/abort)., Aksi auto-detach saat node START. gz-sim Fortress SELALU meng-attach… (+37 more)
+Nodes (44): GripperLogic, gripper_logic — inti keputusan manipulator ROV (murni Python, tanpa ROS).…, Syarat visual murni (tanpa kesegaran & tanpa altitude)., True bila payload boleh di-attach. Dua gerbang, sengaja terpisah: 1. VISUAL…, Proses perintah semantik. Kembalikan dict aksi tingkat-rendah: {'jaw': <sudut…, Paksa lepas tanpa perintah (mis. saat shutdown/abort)., Aksi auto-detach saat node START. gz-sim Fortress SELALU meng-attach…, Mesin keputusan gripper. Semua waktu (``now``, ``stamp``) dalam detik.… (+36 more)
 
 ### Community 3 - "PID"
 Cohesion: 0.05
@@ -159,8 +155,8 @@ Cohesion: 0.09
 Nodes (31): CameraInfo, PointStamped, main(), Image, Node, QRDetector, qr_detector — deteksi QR dari kamera → sisi kolam A/B/C/D + offset piksel (M3).…, P0-2.3: raw corner points + decode_success, SAME pts/data already computed for… (+23 more)
 
 ### Community 8 - "CHANGELOG — Riwayat Kronologis HYDROships (KKI 2026)"
-Cohesion: 0.09
-Nodes (22): 2026-07-07, 2026-07-08, 2026-07-11, 2026-07-12, 2026-07-14, 2026-07-15 … 07-16, 2026-07-17, 2026-07-18 (+14 more)
+Cohesion: 0.10
+Nodes (21): 2026-07-07, 2026-07-08, 2026-07-11, 2026-07-12, 2026-07-14, 2026-07-15 … 07-16, 2026-07-17, 2026-07-18 (+13 more)
 
 ### Community 9 - "hook_detector.py"
 Cohesion: 0.10
@@ -206,9 +202,9 @@ Nodes (42): 1. Ringkasan evidence (rekap, bukan analisis baru), 2. Opsi-opsi, 3.
 Cohesion: 0.06
 Nodes (34): 10. Status P0-2 (update), 1. Mengapa menghitung transisi state saja tidak cukup, 2. Prinsip metodologis (dibawa dari P0-1 & diperkuat pengguna), 3. Enam gate → kriteria terukur, 4. P0-2.2a — instrumentation extension (CLOSED), 5. P0-2.2b — Rancangan run battery (dispesifikasi, belum dijalankan), 6. Dua prasyarat kecil sebelum eksekusi (ditemukan saat implementasi P0-2.2b), 7. P0-2.2b — Hasil eksekusi battery (EVIDENCE, bukan verdict) (+26 more)
 
-### Community 31 - "1. Tuning PID `stabilizer` (`config/gains.yaml`)"
-Cohesion: 0.14
-Nodes (14): 1. Tuning PID `stabilizer` (`config/gains.yaml`), 2. Tuning `mission_fsm` — Timeout per state, 3. Tuning Visual Servo (QR approach & Hook approach), 3a. `APPROACH_QR` — servo ke QR code, 3b. `APPROACH_HOOK` — servo ke hook dinding (dipakai `hook_logic.hook_servo`), 4. Tuning Thruster Allocation (`alloc_damping`), 5. Urutan re-tuning setelah pindah ke hardware fisik, Catatan khusus `buoyancy_ff` (+6 more)
+### Community 31 - "P0-1 BASELINE — Investigasi & Koreksi DIVE (KKI 2026)"
+Cohesion: 0.05
+Nodes (38): 1. `src/hydroships_description/config/rov_params.yaml`, 2. `src/hydroships_control/config/gains.yaml`, 3. `src/hydroships_gazebo/config/bridge.yaml`, 4. Launch Arguments, 5. Parameter node `mission_fsm` (declare_parameter, bukan file YAML terpisah), Config Reference — YAML & Launch Arguments, `src/hydroships_bringup/launch/hydroships_gui.launch.py` (M7, GUI bridge), `src/hydroships_bringup/launch/hydroships_mission.launch.py` (M6, full autonomy) (+30 more)
 
 ### Community 32 - "4.7 Sub-Kategori Remotely Operated Underwater Vehicle (ROV)"
 Cohesion: 0.18
@@ -259,7 +255,7 @@ Cohesion: 0.17
 Nodes (22): clamp(), analyze_run(), attribute_convergence(), classify_exit(), first_dwell(), fmt(), goto_xy_predict(), is_nan() (+14 more)
 
 ### Community 45 - "P1-1: Architecture Decision Audit — ROS2-native vs. Pixhawk/ArduSub control authority"
-Cohesion: 0.12
+Cohesion: 0.11
 Nodes (17): 10. P1.3 dependencies (telemetry/observability), 11. Migration risks, 12. Unresolved questions requiring human/project-owner decision, 1. Architecture reconstruction, 2. Evidence for intended target architecture, 3. `gui_bridge` role assessment, 4. Architecture decision matrix, 5. Dual-authority / safety risk analysis (+9 more)
 
 ### Community 46 - "P1-2A: Verifikasi Runtime IMU — Gate Sebelum Implementasi Estimator"
@@ -267,8 +263,8 @@ Cohesion: 0.12
 Nodes (16): 1.1 Sampel mentah saat diam (init, ~t=13.9s sim time), 1.2 Beberapa sampel berurutan (steady-state, ~t=21.7-21.8s), 1.3 Rate publish aktual, 1.4 Uji rotasi — respons terhadap `angular_velocity.z`, 1.5 `/hydroships/odom` — pembanding (sekali, saat diam), 1. Bukti runtime IMU, 2. Consumer yang ada saat ini, 3. Determinasi viabilitas input estimator (+8 more)
 
 ### Community 47 - "P1-0: Cross-Repo Architecture Audit — `ros2_ws` ↔ `GUI-ROV`"
-Cohesion: 0.15
-Nodes (13): 10. Findings table, 11. Top integration risks, 12. Recommended next steps, 1. Executive architecture summary, 3. ROS interface inventory (`ros2_ws`), 4. `gui_bridge` boundary trace, 5. Parameter/configuration map, 6. Frame and coordinate convention audit (+5 more)
+Cohesion: 0.12
+Nodes (16): 10. Findings table, 11. Top integration risks, 12. Recommended next steps, 1. Executive architecture summary, 2. Repository/module responsibility map, 3. ROS interface inventory (`ros2_ws`), 4. `gui_bridge` boundary trace, 5. Parameter/configuration map (+8 more)
 
 ### Community 48 - "P1-2: Audit Integrasi Estimasi State — `ros2_ws`"
 Cohesion: 0.12
@@ -374,24 +370,8 @@ Nodes (3): ARENA ROV KKI 2026, Instalasi Dependensi, Status Milestone
 Cohesion: 0.27
 Nodes (11): _geom(), _param(), Uji geometri fase turun-untuk-mencengkeram (M5-D) — murni aritmetika. Blocker…, Nilai default parameter ROS `p('nama', <float>)` dari sumber node., Dasar gripper harus SANGAT dekat bidang QR — inilah inti M5-D. Kalau celah ini…, Turun secukupnya, jangan sampai setpoint kedalaman menekan hull ke lantai…, max_alt_gap diukur dari DASAR GRIPPER; harus cukup longgar untuk celah…, test_gerbang_attach_konsisten_dengan_grab_depth() (+3 more)
 
-### Community 83 - "4. Launch Arguments"
-Cohesion: 0.17
-Nodes (12): 1. `src/hydroships_description/config/rov_params.yaml`, 2. `src/hydroships_control/config/gains.yaml`, 3. `src/hydroships_gazebo/config/bridge.yaml`, 4. Launch Arguments, 5. Parameter node `mission_fsm` (declare_parameter, bukan file YAML terpisah), Config Reference — YAML & Launch Arguments, `src/hydroships_bringup/launch/hydroships_gui.launch.py` (M7, GUI bridge), `src/hydroships_bringup/launch/hydroships_mission.launch.py` (M6, full autonomy) (+4 more)
-
-### Community 84 - "P0-1-BASELINE.md"
-Cohesion: 0.25
-Nodes (4): Aturan yang membuat angkanya bisa dipercaya, Cara pakai, Isi, tools/p0-experiments — skrip investigasi P0-1
-
-### Community 85 - "P0-1 BASELINE — Investigasi & Koreksi DIVE (KKI 2026)"
-Cohesion: 0.25
-Nodes (8): 1. Ringkasan rantai investigasi, 2. Akar penyebab & koreksinya, 3. Regresi DIVE — sebelum vs sesudah, 4. Yang TIDAK terbukti (jangan diisi dengan ekstrapolasi), 5. Reproduksi, 6. Pelajaran metodologi yang layak dipertahankan, ⚠️ Dua batasan yang TIDAK boleh dihilangkan dari ringkasan mana pun, P0-1 BASELINE — Investigasi & Koreksi DIVE (KKI 2026)
-
-### Community 86 - "2. Repository/module responsibility map"
-Cohesion: 0.67
-Nodes (3): 2. Repository/module responsibility map, `GUI-ROV`, `ros2_ws`
-
 ## Knowledge Gaps
-- **411 isolated node(s):** `ros2-ws`, `gate_mission.sh script`, `run_approach_qr_battery.sh script`, `run_approach_qr_smoke.sh script`, `run_mission.sh script` (+406 more)
+- **410 isolated node(s):** `ros2-ws`, `gate_mission.sh script`, `run_approach_qr_battery.sh script`, `run_approach_qr_smoke.sh script`, `run_mission.sh script` (+405 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **15 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
@@ -399,16 +379,16 @@ Nodes (3): 2. Repository/module responsibility map, `GUI-ROV`, `ros2_ws`
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `GripperLogic` connect `GripperLogic` to `GripperController`?**
-  _High betweenness centrality (0.029) - this node is a cross-community bridge._
+  _High betweenness centrality (0.027) - this node is a cross-community bridge._
 - **Why does `qr_ey_target()` connect `MissionFSM` to `test_qr_ey_target.py`, `GripperController`, `test_qr_logic.py`?**
-  _High betweenness centrality (0.017) - this node is a cross-community bridge._
+  _High betweenness centrality (0.015) - this node is a cross-community bridge._
 - **What connects `ros2-ws`, `gate_mission.sh script`, `run_approach_qr_battery.sh script` to the rest of the system?**
-  _411 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _410 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `MissionFSM` be split into smaller, more focused modules?**
   _Cohesion score 0.08418079096045197 - nodes in this community are weakly interconnected._
 - **Should `GuiBridgeLogic` be split into smaller, more focused modules?**
   _Cohesion score 0.050595238095238096 - nodes in this community are weakly interconnected._
 - **Should `GripperLogic` be split into smaller, more focused modules?**
-  _Cohesion score 0.06110102843315184 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.06363636363636363 - nodes in this community are weakly interconnected._
 - **Should `PID` be split into smaller, more focused modules?**
   _Cohesion score 0.054098360655737705 - nodes in this community are weakly interconnected._
