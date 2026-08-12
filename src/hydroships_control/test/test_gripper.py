@@ -161,3 +161,31 @@ def test_force_detach():
     assert g.force_detach() is True         # ada yg dilepas
     assert g.attached is False
     assert g.force_detach() is False        # sudah lepas
+
+
+# --- Regresi M5: gerbang attach harus berpatokan GRIPPER, bukan pusat kamera ---
+# Bug terukur 2026-08-12 (run C1): mission_fsm membidik ey_target~-0.52 pada
+# scan_depth=0.30 (gripper 0.16 m di depan kamera bawah), sementara is_safe()
+# lama menuntut |ey| <= max_offset(0.30). Kedua kriteria mustahil dipenuhi
+# bersamaan -> 0/34 tick GRAB lolos, attach tak pernah terpicu meski ROV sudah
+# terpusat rapi (gripper_err=0.032 m).
+
+def test_is_safe_dengan_ey_target_gripper_terpusat_attach_boleh():
+    g = GripperLogic()
+    # Nilai nyata dari run C1 saat GRAB: gripper tepat di atas payload.
+    g.update_offset(0.0557, -0.5177, 0.1747, stamp=100.0, ey_target=-0.5177)
+    assert g.is_safe(100.1) is True
+
+
+def test_is_safe_ey_target_nol_menolak_offset_gripper_yang_benar():
+    """Perilaku LAMA pada data yang sama: ditolak. Ini bug-nya, dikunci."""
+    g = GripperLogic()
+    g.update_offset(0.0557, -0.5177, 0.1747, stamp=100.0)   # ey_target default 0.0
+    assert g.is_safe(100.1) is False
+
+
+def test_is_safe_masih_menolak_bila_meleset_dari_ey_target():
+    """Gerbang tetap punya gigi: jauh dari ey_target tetap ditolak."""
+    g = GripperLogic()
+    g.update_offset(0.0, 0.10, 0.1747, stamp=100.0, ey_target=-0.5177)
+    assert g.is_safe(100.1) is False        # |0.10 - (-0.5177)| = 0.62 > 0.30

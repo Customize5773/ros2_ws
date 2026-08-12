@@ -165,3 +165,28 @@ def offset_from_points(pts, shape):
     ey = (cy - h / 2.0) / (h / 2.0)
     size = max(bw / w, bh / h)
     return float(ex), float(ey), float(size)
+
+def qr_ey_target(depth, cam_gripper_dx, qr_floor_z, cam_bottom_dz,
+                 vfov_half_tan, ey_max):
+    """Offset vertikal ternormalisasi tempat QR HARUS tampak di kamera bawah.
+
+    Gripper berada `cam_gripper_dx` meter DI DEPAN kamera bawah (sumbu x body).
+    Kalau servo memusatkan QR di kamera (ey=0), gripper meleset sejauh itu. Jadi
+    QR harus dibiarkan tampak di DEPAN pusat frame supaya gripper-lah yang tepat
+    di atas QR.
+
+    Konvensi `qr_logic.offset_from_points`: ey > 0 = QR di BAWAH pusat frame =
+    payload di BELAKANG ROV. Maka "QR di depan" berarti ey NEGATIF.
+
+    Geometri: kamera berada `h_cam` di atas bidang QR, dan setengah-tinggi
+    petak pandang di bidang itu = h_cam * tan(½ FOV vertikal). Offset metrik
+    dinormalkan terhadap setengah-tinggi tsb.
+
+    Dikembalikan sudah ter-clamp ke ±ey_max agar QR tak terdorong keluar frame
+    (|ey| = 1.0 tepat di tepi). Clamp yang AKTIF adalah tanda bahwa `depth`
+    terlalu dalam untuk offset gripper sebesar ini — lihat catatan `scan_depth`.
+    """
+    h_cam = max(0.05, abs(qr_floor_z) - depth - cam_bottom_dz)
+    half_h = max(1e-3, h_cam * vfov_half_tan)
+    ey = -cam_gripper_dx / half_h
+    return max(-ey_max, min(ey_max, ey))

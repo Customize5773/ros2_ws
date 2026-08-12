@@ -53,20 +53,37 @@ class GripperLogic:
         self._offset = None                   # (x, y, z, stamp) atau None
 
     # ---- sinyal masuk ----
-    def update_offset(self, x, y, z, stamp):
-        """Simpan sinyal visual servo terbaru (dari /hydroships/qr_offset)."""
-        self._offset = (float(x), float(y), float(z), float(stamp))
+    def update_offset(self, x, y, z, stamp, ey_target=0.0):
+        """Simpan sinyal visual servo terbaru (dari /hydroships/qr_offset).
+
+        ``ey_target`` = di mana QR SEHARUSNYA tampak di kamera bawah supaya
+        GRIPPER-lah yang tepat di atas payload (lihat qr_logic.qr_ey_target).
+        Default 0.0 = perilaku lama (berpatokan pusat kamera), dipertahankan
+        agar pemanggil/test lama tak berubah artinya.
+        """
+        self._offset = (float(x), float(y), float(z), float(stamp),
+                        float(ey_target))
 
     def is_safe(self, now):
-        """True bila payload ada di jangkauan aman untuk di-attach:
-        offset kecil (ROV tepat di atas), ukuran-tampak cukup besar (dekat),
-        dan sinyal masih segar."""
+        """True bila payload ada di jangkauan aman untuk di-attach: offset
+        kecil, ukuran-tampak cukup besar (dekat), dan sinyal masih segar.
+
+        PENTING — sumbu y diukur relatif ``ey_target``, bukan relatif pusat
+        frame. Gripper berada 0.16 m DI DEPAN kamera bawah, jadi saat gripper
+        tepat di atas payload, QR memang tampak jauh dari pusat (terukur
+        ey~-0.52 pada scan_depth=0.30). Memakai |y|<=max_offset di sini berarti
+        menuntut QR terpusat di KAMERA, yang bertentangan langsung dengan
+        kriteria centering mission_fsm dan membuat is_safe() mustahil True
+        selama APPROACH_QR berjalan benar (terukur 0/34 tick di run C1,
+        2026-08-12). Lihat docs/STATUS.md M5.
+        """
         if self._offset is None:
             return False
-        x, y, z, stamp = self._offset
+        x, y, z, stamp, ey_target = self._offset
         if now - stamp > self.offset_timeout:
             return False
-        return (abs(x) <= self.max_offset and abs(y) <= self.max_offset
+        return (abs(x) <= self.max_offset
+                and abs(y - ey_target) <= self.max_offset
                 and z >= self.min_size)
 
     # ---- keputusan ----
