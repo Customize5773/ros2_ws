@@ -129,13 +129,17 @@ class QRDetector(Node):
         if img is None:
             return
         # Decode berjenjang (mentah -> CLAHE -> adaptive-threshold -> upscale).
-        data, pts = robust_decode(img, self.det)
+        # P0-2.6 instrumentasi (approved, observability only): debug_info diisi
+        # robust_decode() dgn kandidat preprocessing mana yg menang/pertama
+        # punya corner points -- TIDAK mengubah decode/urutan kandidat itu sendiri.
+        debug_info = {}
+        data, pts = robust_decode(img, self.det, debug_info=debug_info)
 
         # Offset piksel: publish begitu QR TERDETEKSI (pts ada), walau decode gagal,
         # supaya visual servo tetap bisa memusatkan QR di frame.
         if pts is not None and len(pts) > 0:
             self._publish_offset(pts, img.shape, self._frame_of(topic))
-            self._publish_debug(data, pts, self._frame_of(topic))
+            self._publish_debug(data, pts, self._frame_of(topic), debug_info)
 
         if not data:
             # Bedakan dua kegagalan (butuh diagnosis beda) — throttle agar tak spam:
@@ -147,9 +151,21 @@ class QRDetector(Node):
                     % (img.shape, topic), throttle_duration_sec=5.0)
             else:
                 self.get_logger().warn(
-                    'DECODE GAGAL: QR terdeteksi (pts ada) tapi decode kosong '
-                    'shape=%s [%s]' % (img.shape, topic), throttle_duration_sec=5.0)
+                    'DECODE GAGAL: QR terdeteksi (pts ada, kandidat=%s) tapi decode '
+                    'kosong shape=%s [%s]'
+                    % (debug_info.get('first_pts_candidate_name'), img.shape, topic),
+                    throttle_duration_sec=5.0)
             return
+        # P0-2.6 instrumentasi: kandidat mana yg berhasil decode (throttled, tidak
+        # spam tiap frame) -- indikator langsung utk kandidat perbaikan #1
+        # (docs/P0-2-6-DIAGNOSTIC.md S4): apakah kandidat awal/murah sudah cukup,
+        # atau decode sukses didominasi kandidat belakangan/mahal.
+        self.get_logger().info(
+            'DECODE SUKSES via kandidat #%d (%s) dari %d dicoba [%s]'
+            % (debug_info.get('winning_candidate_index', -1),
+               debug_info.get('winning_candidate_name'),
+               debug_info.get('n_candidates_tried', 0), topic),
+            throttle_duration_sec=2.0)
         wall = parse_wall(data)
         out = String()
         out.data = wall if wall else data
@@ -168,13 +184,24 @@ class QRDetector(Node):
         ps.point.z = size      # ukuran-tampak (proxy jarak)
         self.pub_off.publish(ps)
 
-    def _publish_debug(self, data, pts, frame_id):
+    def _publish_debug(self, data, pts, frame_id, debug_info=None):
         """P0-2.3: raw corner points + decode_success, SAME pts/data already
-        computed for _publish_offset() above -- no new detection logic."""
+        computed for _publish_offset() above -- no new detection logic.
+        P0-2.6 (additive, approved): trailing field = winning candidate index
+        (>=0 if decode succeeded) or first-pts candidate index (if decode
+        failed but corners were found) -- -1 if neither present. Format:
+        "decode_success,x1,y1,...,x4,y4,candidate_idx"."""
         p = np.asarray(pts, dtype=float).reshape(-1, 2)
+        di = debug_info or {}
+        cand_idx = di.get('winning_candidate_index')
+        if cand_idx is None or cand_idx < 0:
+            cand_idx = di.get('first_pts_candidate_index')
+        if cand_idx is None:
+            cand_idx = -1
         out = String()
-        out.data = '%d,%s' % (1 if data else 0,
-                              ','.join('%.2f' % v for v in p.flatten()))
+        out.data = '%d,%s,%d' % (1 if data else 0,
+                                 ','.join('%.2f' % v for v in p.flatten()),
+                                 cand_idx)
         self.pub_debug.publish(out)
 
 

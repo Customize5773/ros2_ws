@@ -40,6 +40,13 @@ from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64, String, Empty
 
 from hydroships_control.hook_logic import HookServoGains, hook_servo
+# qr_ey_target dipindah ke qr_logic (modul murni) supaya gripper_controller
+# memakai geometri yang SAMA PERSIS untuk gerbang attach-nya — sebelumnya FSM
+# membidik ey_target~-0.52 sementara GripperLogic.is_safe() menuntut |ey|<=0.30,
+# dua kriteria yang mustahil dipenuhi bersamaan sehingga attach tak pernah
+# terpicu. Di-re-export di sini agar `mission_fsm.qr_ey_target` tetap resolve
+# (dipakai test/test_qr_ey_target.py dan reduce_approach_qr.py).
+from hydroships_control.qr_logic import qr_ey_target  # noqa: F401 (re-export)
 
 
 def yaw_from_quaternion(q):
@@ -52,30 +59,6 @@ def wrap_to_pi(a):
     return math.atan2(math.sin(a), math.cos(a))
 
 
-def qr_ey_target(depth, cam_gripper_dx, qr_floor_z, cam_bottom_dz,
-                 vfov_half_tan, ey_max):
-    """Offset vertikal ternormalisasi tempat QR HARUS tampak di kamera bawah.
-
-    Gripper berada `cam_gripper_dx` meter DI DEPAN kamera bawah (sumbu x body).
-    Kalau servo memusatkan QR di kamera (ey=0), gripper meleset sejauh itu. Jadi
-    QR harus dibiarkan tampak di DEPAN pusat frame supaya gripper-lah yang tepat
-    di atas QR.
-
-    Konvensi `qr_logic.offset_from_points`: ey > 0 = QR di BAWAH pusat frame =
-    payload di BELAKANG ROV. Maka "QR di depan" berarti ey NEGATIF.
-
-    Geometri: kamera berada `h_cam` di atas bidang QR, dan setengah-tinggi
-    petak pandang di bidang itu = h_cam * tan(½ FOV vertikal). Offset metrik
-    dinormalkan terhadap setengah-tinggi tsb.
-
-    Dikembalikan sudah ter-clamp ke ±ey_max agar QR tak terdorong keluar frame
-    (|ey| = 1.0 tepat di tepi). Clamp yang AKTIF adalah tanda bahwa `depth`
-    terlalu dalam untuk offset gripper sebesar ini — lihat catatan `scan_depth`.
-    """
-    h_cam = max(0.05, abs(qr_floor_z) - depth - cam_bottom_dz)
-    half_h = max(1e-3, h_cam * vfov_half_tan)
-    ey = -cam_gripper_dx / half_h
-    return max(-ey_max, min(ey_max, ey))
 
 
 WALL_HEADING_DEG = {'A': 270.0, 'B': 90.0, 'C': 0.0, 'D': 180.0}
@@ -710,12 +693,25 @@ class MissionFSM(Node):
             self.get_logger().error('APPROACH_QR timeout'); self._to(St.ABORT)
 
     def _st_grab(self):
-        """Misi 2 (REMOTELY): payload sudah nempel ke ROV sejak spawn
-        (DetachableJoint). Verifikasi ROV diam sejenak di atas QR sebagai
-        pengganti event attach nyata."""
+        """Misi 2 (REMOTELY): kirim perintah "close" ke gripper_controller,
+        lalu verifikasi ROV diam sejenak di atas QR.
+
+        CATATAN PENTING soal apa yang dibuktikan state ini: di sim, payload
+        sudah ter-DetachableJoint ke ROV sejak spawn, jadi attach yang dipicu
+        di sini praktis no-op dan diam 2 detik BUKAN bukti cengkeraman
+        berhasil. Perintah "close" tetap dikirim supaya jalur perintah
+        FSM -> gripper_controller -> attach benar-benar dilatih dan bisa
+        divalidasi (sebelumnya `pub_grip` dideklarasikan tapi tak pernah
+        dipakai -- lihat docs/STATUS.md M5). gripper_controller sendiri yang
+        menilai keamanan lewat GripperLogic.is_safe() atas /hydroships/qr_offset;
+        FSM sengaja tidak menduplikasi gerbang itu. Tidak ada jalur ack balik,
+        jadi kriteria sukses GRAB tidak bisa menunggu konfirmasi attach."""
         self._set_surge(0.0)
         if self._hold_since is None:
             self._hold_since = self._now()
+            # Sekali per masuk GRAB (_to() mereset _hold_since), bukan tiap tick.
+            self.pub_grip.publish(String(data='close'))
+            self.get_logger().info('GRAB: perintah "close" -> gripper_controller')
         if self._now() - self._hold_since >= self.hold_settle_s:
             self.score['m2'] = 15
             self.get_logger().info('GRAB terverifikasi (+15)')

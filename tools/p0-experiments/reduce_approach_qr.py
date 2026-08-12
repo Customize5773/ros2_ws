@@ -16,7 +16,17 @@ instrumentation. The aggregate section prints a Gate 4 PASS/FAIL/INCONCLUSIVE
 verdict per docs/P0-2-4-SPEC.md S7 (still evidence for review, not a license
 to change qr_detector.py/qr_logic.py/mission_fsm.py/controller/parameters).
 
+P1-0 Fase 0 adds a vision-attribution breakdown. `entered_band_with_dwell` --
+the number the Gate 4 verdict is computed from -- is a logical OR of a camera
+criterion and a pure-odometry criterion (dist to the simulator's ground-truth
+payload_pose). It therefore CANNOT answer "did the camera contribute?", and
+must not be quoted as perception evidence on its own. The new block reports the
+same dwell test over three disjoint criteria (camera / decoded-QR /
+ground-truth) so both populations are visible with their own n. No pre-existing
+number is altered.
+
 usage: reduce_approach_qr.py <data_dir> [tag ...]
+       reduce_approach_qr.py --selftest     # runs the P1-0 attribution checks
   (default tags: Q1 Q2 Q3 Q4 Q5 Q6)
 """
 import csv
@@ -50,6 +60,37 @@ DEFAULT_PARAMS = {
 DWELL_TICKS = 3          # S3.1: min consecutive 10Hz ticks in-band to count as "converged"
 SATURATION_FRAC_DIVERGED = 0.8  # S3.3: fraction of ticks at |cmd|>=fmax to flag divergence
 DIVERGED_TREND_MIN_LEN = 6      # trend() itself already requires len>=6 (thirds of >=2)
+
+
+def first_dwell(flags, t_l, dwell):
+    """First index where `flags` is True for `dwell` consecutive ticks.
+
+    Returns (index, seconds_since_window_start) or (None, None). Extracted in
+    P1-0 Fase 0 because the same dwell scan now runs over four different
+    criteria series (combined / camera / decoded / ground-truth) -- one scan,
+    four inputs, so the populations cannot drift apart by copy-paste.
+    """
+    for i in range(len(flags) - dwell + 1):
+        if all(flags[i:i + dwell]):
+            return i, t_l[i] - t_l[0]
+    return None, None
+
+
+def attribute_convergence(cam_idx, gt_idx):
+    """Who got the ROV into the band first: the camera or ground-truth homing?
+
+    VISION / GROUND_TRUTH / NONE are unambiguous. When both criteria qualify,
+    the EARLIER dwell entry is credited -- a tie goes to GROUND_TRUTH, because
+    ground-truth homing runs unconditionally and is therefore the null
+    hypothesis the camera has to beat, not the other way round.
+    """
+    if cam_idx is None and gt_idx is None:
+        return 'NONE'
+    if gt_idx is None:
+        return 'VISION'
+    if cam_idx is None:
+        return 'GROUND_TRUTH'
+    return 'VISION' if cam_idx < gt_idx else 'GROUND_TRUTH'
 
 
 def qr_ey_target(depth, cam_gripper_dx, qr_floor_z, cam_bottom_dz, vfov_half_tan, ey_max):
@@ -215,7 +256,7 @@ def analyze_run(tag, data_dir, rows, params, used_defaults):
     qr_ex_l, qr_ey_l, qr_size_l, bx0_l, by0_l, dist0_l = [], [], [], [], [], []
     actual_cmd, pred_without, pred_with, servoing_mask = [], [], [], []
     ey_target_l = []
-    t_l, dist_l, off_fresh_l = [], [], []  # P0-2.4 S3: dist_l uses the (possibly
+    t_l, dist_l, off_fresh_l, decode_l = [], [], [], []  # P0-2.4 S3: dist_l uses the (possibly
     # servo-shifted) target tx,ty -- the same value mission_fsm.py:569 checks
     # against approach_tol, not the unshifted tx0,ty0 used for dist0_l above.
     tx_l, ty_l = [], []  # P0-2.5 Candidate #2 guardrail: reconstructed servo
@@ -283,6 +324,11 @@ def analyze_run(tag, data_dir, rows, params, used_defaults):
         t_l.append(to_float(r['t']))
         dist_l.append(math.hypot(x - tx, y - ty))
         off_fresh_l.append(off_fresh)
+        # P1-0 Fase 0: per-tick decode flag, needed to separate "camera produced
+        # an offset" (corner points survive a failed decode -- qr_logic.py
+        # best_pts) from "the QR was actually read". Recorded by recorder_qr.py
+        # since P0-2.3; previously only aggregated into qr_decode_rate.
+        decode_l.append(to_float(r['qr_decode_success']) == 1.0)
 
     # Gate 2
     r_size_dist, n_size = pearson(qr_size_l, dist0_l)
@@ -326,21 +372,28 @@ def analyze_run(tag, data_dir, rows, params, used_defaults):
     # tick, not just "ever touched the band once" (that's the pre-existing
     # entered_band above, kept unchanged for P0-2.2b comparability).
     n_rows = len(approach)
-    combined_entered = []
+    # P1-0 Fase 0: the three criteria are now built SEPARATELY and only then
+    # OR-ed into `combined_entered`. The combined series is what P0-2.4/2.5
+    # already reported; keeping it byte-identical preserves comparability with
+    # docs/P0-2-4-RESULTS.md, while the separate series make it visible how
+    # much of that number the camera actually earned.
+    camera_entered = []    # centering from a camera-derived offset (decode OR corner-only)
+    decoded_entered = []   # same, but restricted to ticks where the QR really decoded
+    gt_entered = []        # pure odometry vs ground-truth payload_pose -- no camera at all
     for i in range(n_rows):
         centered_i = (off_fresh_l[i] and not is_nan(qr_ex_l[i]) and not is_nan(qr_ey_l[i])
                       and abs(qr_ex_l[i]) < params['qr_center_tol']
                       and abs(qr_ey_l[i] - ey_target_l[i]) < params['qr_center_tol'])
-        combined_entered.append(centered_i or dist_l[i] < params['approach_tol'])
+        camera_entered.append(centered_i)
+        decoded_entered.append(centered_i and decode_l[i])
+        gt_entered.append(dist_l[i] < params['approach_tol'])
+    combined_entered = [camera_entered[i] or gt_entered[i] for i in range(n_rows)]
 
-    t_conv_s = None
-    dwell_entry_idx = None
-    for i in range(n_rows - DWELL_TICKS + 1):
-        if all(combined_entered[i:i + DWELL_TICKS]):
-            dwell_entry_idx = i
-            t_conv_s = t_l[i] - t_l[0]
-            break
+    _, t_conv_s = first_dwell(combined_entered, t_l, DWELL_TICKS)
     entered_band_with_dwell = t_conv_s is not None
+    cam_idx, t_conv_camera_s = first_dwell(camera_entered, t_l, DWELL_TICKS)
+    dec_idx, t_conv_decoded_s = first_dwell(decoded_entered, t_l, DWELL_TICKS)
+    gt_idx, t_conv_gt_s = first_dwell(gt_entered, t_l, DWELL_TICKS)
 
     # Overshoot: after the first tick dist<approach_tol (not necessarily
     # dwell-qualified), how far does dist excurse above approach_tol again.
@@ -381,6 +434,28 @@ def analyze_run(tag, data_dir, rows, params, used_defaults):
             sum(1 for r in approach if r.get('qr_decode_success') == '1')
             / n_rows) if n_rows else None,
         'window_duration_s': (t_l[-1] - t_l[0]) if n_rows else None,
+    }
+
+    # P1-0 Fase 0 -- vision attribution. `entered_band_with_dwell` above ORs a
+    # camera criterion with a ground-truth-odometry criterion, so it cannot
+    # answer "did the camera do anything?". These three disjoint views can.
+    # Nothing here changes any pre-existing number; it only says which
+    # population each run belongs to.
+    p1_0_vision_attribution = {
+        'converged_via': attribute_convergence(cam_idx, gt_idx),
+        'entered_band_with_dwell_camera': cam_idx is not None,
+        'entered_band_with_dwell_decoded': dec_idx is not None,
+        'entered_band_with_dwell_ground_truth': gt_idx is not None,
+        'time_to_converge_camera_s': t_conv_camera_s,
+        'time_to_converge_decoded_s': t_conv_decoded_s,
+        'time_to_converge_ground_truth_s': t_conv_gt_s,
+        # Provable non-contribution: the QR was never read in the whole
+        # episode, so any convergence in this run is ground-truth homing.
+        'qr_never_decoded': (p0_2_4_gate4_retest['qr_decode_rate'] == 0.0
+                             if p0_2_4_gate4_retest['qr_decode_rate'] is not None else None),
+        'n_ticks_camera_offset_fresh': sum(off_fresh_l),
+        'n_ticks_decoded': sum(decode_l),
+        'n_approach_qr_ticks': n_rows,
     }
 
     # P0-2.5 Candidate #2 guardrails (design-hardening review, approved
@@ -441,15 +516,62 @@ def analyze_run(tag, data_dir, rows, params, used_defaults):
             'entered_qr_center_tol_band': entered_band,
         },
         'p0_2_4_gate4_retest': p0_2_4_gate4_retest,
+        'p1_0_vision_attribution': p1_0_vision_attribution,
         'p0_2_5_candidate2_guardrail': p0_2_5_candidate2_guardrail,
         'gate5_exit_path': {'primary': exit_path, 'occurrence_counts': exit_counts},
     }
+
+
+def selftest():
+    """P1-0 Fase 0 checks: the split must not change the combined number, and
+    must actually separate a ground-truth-only run from a camera-led one."""
+    t = [i * 0.1 for i in range(10)]
+    F, T = False, True
+
+    # dwell scan
+    assert first_dwell([F] * 10, t, 3) == (None, None)
+    assert first_dwell([F, F, T, T, T, F, F, F, F, F], t, 3)[0] == 2
+    assert first_dwell([T, T, F, T, T, F, F, F, F, F], t, 3) == (None, None), \
+        'must require CONSECUTIVE ticks, not a total count'
+    idx, secs = first_dwell([F, T, T, T, T, F, F, F, F, F], t, 3)
+    assert idx == 1 and abs(secs - 0.1) < 1e-9, 'time is measured from window start'
+
+    # attribution
+    assert attribute_convergence(None, None) == 'NONE'
+    assert attribute_convergence(3, None) == 'VISION'
+    assert attribute_convergence(None, 3) == 'GROUND_TRUTH'
+    assert attribute_convergence(2, 5) == 'VISION'
+    assert attribute_convergence(5, 2) == 'GROUND_TRUTH'
+    assert attribute_convergence(4, 4) == 'GROUND_TRUTH', \
+        'tie goes to ground truth -- it is the null hypothesis vision must beat'
+
+    # the contamination this whole block exists to expose: a run where the
+    # camera never contributed still counts as converged in the combined view.
+    cam = [F] * 10
+    gt = [F, F, F, T, T, T, T, F, F, F]
+    combined = [cam[i] or gt[i] for i in range(10)]
+    assert first_dwell(combined, t, 3)[0] is not None, 'combined says converged'
+    assert first_dwell(cam, t, 3)[0] is None, 'camera says it did nothing'
+    assert attribute_convergence(first_dwell(cam, t, 3)[0],
+                                 first_dwell(gt, t, 3)[0]) == 'GROUND_TRUTH'
+
+    # decoded is a strict subset of camera: centring on corner points that
+    # never decoded must not be credited as a decoded-QR convergence.
+    cam2 = [F, T, T, T, T, F, F, F, F, F]
+    decode = [F, T, T, F, T, F, F, F, F, F]
+    decoded = [cam2[i] and decode[i] for i in range(10)]
+    assert first_dwell(cam2, t, 3)[0] is not None
+    assert first_dwell(decoded, t, 3)[0] is None
+    print('selftest OK')
 
 
 def main():
     if len(sys.argv) < 2:
         print(__doc__)
         sys.exit(1)
+    if sys.argv[1] == '--selftest':
+        selftest()
+        return
     data_dir = sys.argv[1]
     tags = sys.argv[2:] or ['Q1', 'Q2', 'Q3', 'Q4', 'Q5', 'Q6']
 
@@ -500,6 +622,18 @@ def main():
                  fmt(p24['overshoot_dist_m']), fmt(p24['stdev_cmd_fx_N']),
                  fmt(p24['stdev_cmd_fy_N']), fmt(p24['saturation_frac']),
                  p24['diverged'], fmt(p24['qr_decode_rate'])))
+        pva = result['p1_0_vision_attribution']
+        print('  P1-0 vision attribution: converged_via=%s  dwell entry: camera=%s '
+              'decoded=%s ground_truth=%s  t_conv(camera/decoded/gt)=(%s/%s/%s)s  '
+              'qr_never_decoded=%s  ticks decoded/fresh/total=%d/%d/%d'
+              % (pva['converged_via'], pva['entered_band_with_dwell_camera'],
+                 pva['entered_band_with_dwell_decoded'],
+                 pva['entered_band_with_dwell_ground_truth'],
+                 fmt(pva['time_to_converge_camera_s']),
+                 fmt(pva['time_to_converge_decoded_s']),
+                 fmt(pva['time_to_converge_ground_truth_s']),
+                 pva['qr_never_decoded'], pva['n_ticks_decoded'],
+                 pva['n_ticks_camera_offset_fresh'], pva['n_approach_qr_ticks']))
         p25 = result['p0_2_5_candidate2_guardrail']
         print('  P0-2.5 Candidate #2 guardrail: alpha=%s  stdev(diff tx,ty | servoing)=(%s,%s)m '
               '(n_servo_ticks=%d)  final_dist=%sm  min_dist_target=%sm'
@@ -563,6 +697,46 @@ def main():
     print('  VERDICT: %s (%s)' % (verdict, reason))
     print('  This verdict answers Gate 4 (precision convergence) only -- it does not')
     print('  authorize any qr_detector.py/qr_logic.py/mission_fsm.py/controller/param change.')
+    print('  SCOPE: entered_band_with_dwell is camera-OR-ground-truth. Read the P1-0')
+    print('  breakdown below before quoting this number as evidence the camera works.')
+
+    # ------------------------------------------------------------------
+    # P1-0 Fase 0 -- vision attribution breakdown.
+    # The verdict above cannot distinguish "the visual servo centred the ROV"
+    # from "PD homing to the simulator's exact payload coordinates centred the
+    # ROV". mission_fsm.py navigates to /hydroships/payload_pose, which is the
+    # spawner's ground truth, and its APPROACH_QR exit also scores +15 through
+    # a fallback branch that picks a wall from a shuffled list. So the combined
+    # number is an upper bound on vision performance, never a measurement of it.
+    # ------------------------------------------------------------------
+    print('\n' + '-' * 78)
+    print('P1-0 Fase 0: vision attribution (two populations, reported separately)')
+    print('-' * 78)
+    pva_all = [r['p1_0_vision_attribution'] for r in reached.values()]
+    n_cam = sum(p['entered_band_with_dwell_camera'] for p in pva_all)
+    n_dec = sum(p['entered_band_with_dwell_decoded'] for p in pva_all)
+    n_gt = sum(p['entered_band_with_dwell_ground_truth'] for p in pva_all)
+    n_never = sum(1 for p in pva_all if p['qr_never_decoded'])
+    by_attr = {k: sum(1 for p in pva_all if p['converged_via'] == k)
+               for k in ('VISION', 'GROUND_TRUTH', 'NONE')}
+    print('  n_reached_approach_qr = %d' % n_reached)
+    print('    combined (camera OR ground truth) : %d/%d   <- the P0-2.4 number above'
+          % (n_entered, n_reached))
+    print('    camera-derived offset centred     : %d/%d' % (n_cam, n_reached))
+    print('    decoded-QR centred (strictest)    : %d/%d' % (n_dec, n_reached))
+    print('    ground-truth odometry alone       : %d/%d' % (n_gt, n_reached))
+    print('  first to reach the band: VISION=%d  GROUND_TRUTH=%d  NONE=%d'
+          % (by_attr['VISION'], by_attr['GROUND_TRUTH'], by_attr['NONE']))
+    print('  runs where the QR was NEVER decoded: %d/%d -- vision provably contributed'
+          % (n_never, n_reached))
+    print('    nothing in these; any convergence they show is ground-truth homing.')
+    if n_reached:
+        print('  Vision-only Gate 4 rate: %d/%d = %.0f%%   (combined rate: %d/%d = %.0f%%)'
+              % (n_dec, n_reached, 100.0 * n_dec / n_reached,
+                 n_entered, n_reached, 100.0 * n_entered / n_reached))
+    print('  Interpretation rule: quote the CAMERA or DECODED row as evidence about')
+    print('  perception. The COMBINED row is only valid as an end-to-end mission')
+    print('  statistic, and only while payload_pose ground truth remains wired in.')
 
     # docs/P0-2-5-ENGINEERING-ANALYSIS.md Candidate #2 guardrail (design-
     # hardening review): variance reduction alone does NOT credit this
@@ -604,6 +778,15 @@ def main():
             'stopping_rule_met': stopping_rule_met,
             'verdict': verdict,
             'reason': reason,
+        },
+        'p1_0_vision_attribution_summary': {
+            'n_reached_approach_qr': n_reached,
+            'entered_band_combined': n_entered,
+            'entered_band_camera': n_cam,
+            'entered_band_decoded': n_dec,
+            'entered_band_ground_truth': n_gt,
+            'converged_via_counts': by_attr,
+            'runs_qr_never_decoded': n_never,
         },
         'p0_2_5_candidate2_guardrail_summary': {
             'qr_offset_ema_alpha_used': alphas,

@@ -26,6 +26,10 @@ from std_msgs.msg import String, Float64, Empty
 from geometry_msgs.msg import PointStamped
 
 from hydroships_control.gripper_logic import GripperLogic
+# Geometri yang SAMA dipakai mission_fsm untuk membidik APPROACH_QR. Wajib satu
+# sumber: kalau gerbang attach di sini dan kriteria centering FSM memakai acuan
+# berbeda, keduanya bisa jadi mustahil dipenuhi bersamaan (itulah bug M5).
+from hydroships_control.qr_logic import qr_ey_target
 
 
 class GripperController(Node):
@@ -35,6 +39,15 @@ class GripperController(Node):
         p('max_offset', 0.30)       # |offset x/y| maks agar "di atas payload"
         p('min_size', 0.12)         # ukuran-tampak QR min (proxy dekat)
         p('offset_timeout', 1.5)    # umur maks qr_offset (s)
+        # Kamera sumber qr_offset yang dipakai gerbang attach. HARUS sama dengan
+        # filter mission_fsm (camera_bottom_link) — lihat _on_offset().
+        p('offset_frame', 'camera_bottom_link')
+        # Geometri untuk qr_ey_target — HARUS sama dengan default mission_fsm.
+        p('cam_gripper_dx', 0.16)     # m, gripper_base di depan kamera bawah
+        p('qr_floor_z', -0.894)       # m, ketinggian bidang QR di dunia
+        p('cam_bottom_dz', 0.18)      # m, kamera bawah di bawah base_link
+        p('cam_vfov_half_tan', 0.6293)
+        p('ey_target_max', 0.8)
         p('jaw_open', 0.35)         # sudut jari terbuka (rad; <= upper limit URDF 0.5)
         p('jaw_close', 0.0)         # sudut jari menutup (rad)
         # Auto-detach startup kini DIPICU TOPIK /hydroships/payload/spawned (dari
@@ -45,6 +58,12 @@ class GripperController(Node):
         # ada -> Fortress lalu auto-attach payload saat load -> payload nempel salah).
         p('startup_detach_fallback', 8.0)   # s (was startup_detach_delay=1.5)
         g = lambda n: self.get_parameter(n).value
+        self.offset_frame = str(g('offset_frame'))
+        self._ey_geom = (float(g('cam_gripper_dx')), float(g('qr_floor_z')),
+                         float(g('cam_bottom_dz')), float(g('cam_vfov_half_tan')),
+                         float(g('ey_target_max')))
+        # Kedalaman terakhir; None = belum ada -> ey_target 0.0 (perilaku lama).
+        self._depth = None
 
         self.logic = GripperLogic(
             max_offset=float(g('max_offset')), min_size=float(g('min_size')),
@@ -57,6 +76,7 @@ class GripperController(Node):
         self.pub_detach = self.create_publisher(Empty, '/hydroships/gripper/detach', 10)
         self.create_subscription(String, '/hydroships/gripper/command', self._on_cmd, 10)
         self.create_subscription(PointStamped, '/hydroships/qr_offset', self._on_offset, 10)
+        self.create_subscription(Float64, '/hydroships/depth', self._on_depth, 10)
 
         # Terbitkan target jari berkala (2 Hz) agar tak hilang bila bridge/gz belum
         # siap saat publish awal — sama pola gripper lama.
@@ -81,11 +101,29 @@ class GripperController(Node):
         return self.get_clock().now().nanoseconds * 1e-9
 
     def _on_offset(self, msg: PointStamped):
+        # qr_detector menerbitkan KEDUA kamera ke topic yang sama, dibedakan
+        # hanya lewat frame_id. Gerbang keamanan attach harus dinilai dari
+        # kamera BAWAH: gripper_base sejajar pandangan kamera bawah (offset
+        # tetap cam_gripper_dx=0.16 m, yang sudah dikoreksi mission_fsm), dan
+        # mission_fsm juga memfilter ke frame yang sama (mission_fsm.py:466).
+        # Tanpa filter ini, gerbang dinilai dari kamera mana pun yang kebetulan
+        # terbit terakhir — biasanya kamera depan, yang melihat payload dengan
+        # sudut lebar (terukur ex=0.90 ey=0.75 saat ROV justru terpusat rapi,
+        # gripper_err=0.032 m) sehingga is_safe() selalu False dan attach tak
+        # pernah terpicu. Lihat docs/STATUS.md M5.
+        if msg.header.frame_id != self.offset_frame:
+            return
         stamp = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
         # Bila stamp kosong (0), pakai jam node agar tetap dianggap segar.
         if stamp <= 0.0:
             stamp = self._now()
-        self.logic.update_offset(msg.point.x, msg.point.y, msg.point.z, stamp)
+        ey_target = 0.0 if self._depth is None else qr_ey_target(
+            self._depth, *self._ey_geom)
+        self.logic.update_offset(msg.point.x, msg.point.y, msg.point.z, stamp,
+                                 ey_target)
+
+    def _on_depth(self, msg: Float64):
+        self._depth = float(msg.data)
 
     def _apply_jaw(self):
         # Nilai sama untuk kedua jari: arah tutup dibedakan oleh tanda axis di URDF.
