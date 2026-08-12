@@ -127,8 +127,15 @@ Folder build/ install/ log/ sengaja di-gitignore; regenerasi dgn colcon build.
 
   ── 3G. REPRODUCIBLE SPAWN (DEBUG/REPLAY) ─────────────────────────────────────
   Untuk testing yang konsisten, pakai spawn_seed untuk mengunci posisi spawn
-  ROV. Kosong (default) = acak penuh tiap launch.
-      ros2 launch hydroships_bringup hydroships_mission.launch.py spawn_seed:=42
+  ROV (gabungankan dengan headless + qr_letter + payload_* bila inginkan
+  run penuh yang deterministis). Kosong (default) = acak penuh tiap launch.
+      # Run reproducibel penuh: headless + seed 1001 + QR 'A' + pose (0.4, 0.04)
+      ros2 launch hydroships_bringup hydroships_mission.launch.py \
+          headless:=true spawn_seed:=1001 qr_letter:=A payload_x:=0.4 payload_y:=0.04
+  Eksperimen 3-seed pakai seed 1001/1002/1003 supaya hasil bisa direproduksi
+  persis tiap run (covariance/RNG di sim.launch.py & _spawn_rng). Untuk replay
+  debug tunggal cukup set spawn_seed saja:
+      ros2 launch hydroships_bringup hydroships_mission.launch.py spawn_seed:=1001
   Untuk spawn manual pada posisi tetap (mis. dekat wall B untuk uji NAV_WALL):
       ros2 launch hydroships_bringup hydroships_mission.launch.py \
           start_state:=NAV_WALL start_wall:=B \
@@ -167,19 +174,26 @@ Folder build/ install/ log/ sengaja di-gitignore; regenerasi dgn colcon build.
   rov_arena_half:=2.55 -> setengah lebar kolam (dinding di +-nilai ini).
   spawn_delay:=3.0    -> jeda (detik) sebelum spawn ROV; naikkan bila mesin lambat
                          (cegah race: service create belum siap).
-  spawn_seed:=42      -> fix seed pose spawn acak supaya run bisa diulang persis
-                         (replay/debug). KOSONG (default) = acak penuh tiap launch.
+  spawn_seed:=<n>    -> fix seed pose spawn acak supaya run bisa diulang persis
+                       (replay/debug). Contoh eksperimen 3-seed:
+                       1001/1002/1003 supaya hasil konsisten tiap run.
+                       Nilai kosong (default) = acak penuh tiap launch.
   qr_letter:=B        -> (mission/stabilized/sim) huruf QR payload A/B/C/D.
                          KOSONG (default) = random + posisi acak dalam bounds arena.
-  payload_x:=0.5      -> posisi X payload (m); dipakai bila qr_letter di-set eksplisit.
-  payload_y:=-1.2     -> posisi Y payload (m); dipakai bila qr_letter di-set eksplisit.
+  payload_x:=0.4      -> posisi X payload (m); default launch 0.4. Dipakai bila
+                       qr_letter di-set eksplisit.
+  payload_y:=0.04     -> posisi Y payload (m); default launch 0.04. Dipakai bila
+                       qr_letter di-set eksplisit.
   scan_depth:=0.30     -> (mission) kedalaman scan QR (m). Lebih dalam = QR lebih besar
                          tapi petak pandang menyempit.
   cam_gripper_dx:=0.16 -> (mission) koreksi offset kamera bawah ke gripper (m).
                           0.0 = QR dipusatkan di kamera (tanpa koreksi).
 
-Contoh gabungan:
-  ros2 launch hydroships_bringup hydroships_mission.launch.py headless:=true world:=kki_arena.sdf
+  Contoh gabungan:
+      # Run reproducibel penuh (headless + seed + QR + payload):
+      ros2 launch hydroships_bringup hydroships_mission.launch.py \
+          headless:=true spawn_seed:=1001 qr_letter:=A payload_x:=0.4 payload_y:=0.04
+      ros2 launch hydroships_bringup hydroships_mission.launch.py headless:=true world:=kki_arena.sdf
 
 
 --------------------------------------------------------------------------------
