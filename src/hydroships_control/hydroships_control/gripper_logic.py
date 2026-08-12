@@ -133,14 +133,46 @@ class GripperLogic:
         """
         if self._offset is None:
             return False
-        x, y, z, stamp, ey_target, alt_gap = self._offset
-        if now - stamp > self.offset_timeout:
+        if self._alt_gap is not None and self._alt_gap > self.max_alt_gap:
             return False
-        if alt_gap is not None and alt_gap > self.max_alt_gap:
-            return False
-        return (abs(x) <= self.max_offset
-                and abs(y - ey_target) <= self.max_offset
-                and z >= self.min_size)
+        fresh = (now - self._offset[3]) <= self.offset_timeout
+        if fresh and self._visual_ok():
+            return True
+        return (self._armed_t is not None
+                and (now - self._armed_t) <= self.arm_timeout)
+
+    def explain(self, now):
+        """Rincian TIAP sub-kondisi is_safe() pada `now` — instrumentasi
+        diagnostik M5-D (DIAGNOSIS ONLY, tidak dipakai mengambil keputusan).
+
+        Dipisah dari is_safe() supaya alur keputusan sama sekali tak berubah:
+        pemanggil (gripper_controller._on_cmd) memanggil ini HANYA untuk
+        mencetak log saat perintah "close" tiba. Kembalikan dict datar supaya
+        gampang di-grep/di-parse dari log run."""
+        if self._offset is None:
+            return {'has_offset': False, 'result': False}
+        x, y, z, stamp, ey_target = self._offset
+        age = now - stamp
+        d = {
+            'has_offset': True,
+            'x': x, 'y': y, 'z': z, 'ey_target': ey_target,
+            'alt_gap': self._alt_gap,
+            'age': age,
+            'arm_age': None if self._armed_t is None else (now - self._armed_t),
+            'max_offset': self.max_offset, 'min_size': self.min_size,
+            'max_alt_gap': self.max_alt_gap,
+            'offset_timeout': self.offset_timeout, 'arm_timeout': self.arm_timeout,
+            # sub-kondisi, satu per baris keputusan di is_safe()
+            'ok_alt': self._alt_gap is None or self._alt_gap <= self.max_alt_gap,
+            'ok_fresh': age <= self.offset_timeout,
+            'ok_x': abs(x) <= self.max_offset,
+            'ok_y': abs(y - ey_target) <= self.max_offset,
+            'ok_size': z >= self.min_size,
+            'ok_armed': (self._armed_t is not None
+                         and (now - self._armed_t) <= self.arm_timeout),
+        }
+        d['result'] = self.is_safe(now)
+        return d
 
     # ---- keputusan ----
     def on_command(self, cmd, now):

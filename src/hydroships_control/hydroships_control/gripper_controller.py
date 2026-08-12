@@ -180,7 +180,34 @@ class GripperController(Node):
                                % (action['state'], action['reason'], trigger))
 
     def _on_cmd(self, msg: String):
-        action = self.logic.on_command(msg.data, self._now())
+        now = self._now()
+        # --- Instrumentasi diagnostik M5-D (DIAGNOSIS ONLY) -------------------
+        # Cetak status TIAP sub-kondisi gerbang PADA TICK KEPUTUSAN, sebelum
+        # on_command() mengubah state. Murni observability: tidak ada cabang
+        # keputusan yang bergantung pada blok ini. Prefiks GATEDBG supaya
+        # gampang di-grep dari log run.
+        if (msg.data or '').strip().lower() in ('close', 'tutup', 'grab',
+                                                'jepit', '1', 'true'):
+            d = self.logic.explain(now)
+            if not d.get('has_offset'):
+                self.get_logger().info(
+                    'GATEDBG close: BELUM ADA qr_offset sama sekali -> tolak')
+            else:
+                self.get_logger().info(
+                    'GATEDBG close: result=%s | x=%+.3f (ok=%s) y=%+.3f '
+                    'ey_target=%+.3f |y-ey|=%.3f (ok=%s) size=%.3f (ok=%s) '
+                    'alt_gap=%s (ok=%s) age=%.2fs (fresh=%s) arm_age=%s (armed=%s) '
+                    '| batas: max_offset=%.2f min_size=%.2f max_alt_gap=%.2f '
+                    'offset_timeout=%.1f arm_timeout=%.1f'
+                    % (d['result'], d['x'], d['ok_x'], d['y'], d['ey_target'],
+                       abs(d['y'] - d['ey_target']), d['ok_y'], d['z'], d['ok_size'],
+                       'n/a' if d['alt_gap'] is None else '%.3f' % d['alt_gap'],
+                       d['ok_alt'], d['age'], d['ok_fresh'],
+                       'n/a' if d['arm_age'] is None else '%.2fs' % d['arm_age'],
+                       d['ok_armed'], d['max_offset'], d['min_size'],
+                       d['max_alt_gap'], d['offset_timeout'], d['arm_timeout']))
+        # --- akhir instrumentasi ---------------------------------------------
+        action = self.logic.on_command(msg.data, now)
         if action is None:
             self.get_logger().warn('perintah gripper tak dikenal: %r' % msg.data)
             return
