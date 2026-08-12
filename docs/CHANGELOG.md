@@ -546,3 +546,77 @@ Tag ini diabaikan diam-diam oleh gz-sim Fortress; digantikan mekanisme auto-deta
 - Perbesar QR jauh lebih besar dari 4 cm (15–25 cm) khusus sim — hanya bila approach+hold
   presisi belum cukup untuk decode.
 - Servo hook pose-based (solvePnP/PBVS) — menyusul bila kalibrasi kamera fisik hook tersedia.
+
+---
+
+## 2026-08-12 — M5-D lanjutan: gripper diturunkan + latch hak attach
+
+Melanjutkan `e8ee4d2` (state `DESCEND`). Run verifikasi commit itu menunjukkan
+NAV_WALL sembuh tapi `gripper closed: tutup TAPI payload di luar jangkauan -> tak
+attach`. Sebabnya **bukan** `DECODE GAGAL` yang kebetulan: di `grasp_depth`, kamera
+bawah (`cam_bottom_dz=0.18`) turun sampai sejajar bidang QR (`qr_floor_z=-0.894`),
+jadi **tak mungkin** ada deteksi segar saat `"close"` dikirim — sementara
+`is_safe()` mensyaratkannya. Gerbang lama tak bisa lolos di desain apa pun.
+
+- **[RESOLVED] URDF `gripper_base_joint` z `0` → `-0.13`.** Gripper dulu setinggi
+  PUSAT hull, 0.14 m di atas dasar hull: walau ROV turun sampai hull hampir menyentuh
+  lantai, gripper tetap ~0.19 m di atas payload — `DetachableJoint` tetap mengelas
+  lintas celah. Sekarang di `grab_depth=0.70`: dasar gripper `-0.860` (**0.034 m** di
+  atas bidang QR), dasar collision hull `-0.771` (0.12 m di atas lantai). Aman thd
+  neraca apung: `gripper_base` memang tanpa `<collision>`; yang bergeser hanya massa
+  0.08 kg turun 0.13 m (CoG sedikit turun = lebih stabil).
+- **[RESOLVED] Latch "armed" di `GripperLogic`** (`arm_timeout=8.0 s`): syarat visual
+  yang terpenuhi di `APPROACH_QR` memberi hak attach yang bertahan melewati fase buta
+  `DESCEND`. Di-reset pada `open`/`force_detach`/`startup_detach` supaya payload
+  BERIKUTNYA tak mewarisi arm payload sebelumnya (kelas bug yang sama dgn EMA basi
+  `_qr_ex_filt` di `mission_fsm._to(APPROACH_QR)`).
+- **[RESOLVED] `alt_gap` pindah dari `_on_offset` ke `_on_depth`.** Menumpang
+  `qr_offset` berarti gerbang fisik mati persis saat dibutuhkan (topiknya berhenti
+  terbit begitu QR hilang). Sekarang dari `/hydroships/depth` yang terbit terus, dan
+  diukur dari **dasar gripper** (`gripper_bottom_dz=0.16`), bukan base_link;
+  `max_alt_gap` 0.15 → **0.08** menyesuaikan celah rancangan 0.034 m.
+  Kontrak akhir `is_safe()`: **latch/segar (arah) DAN altitude (fisik)** — latch tanpa
+  gerbang fisik mengizinkan attach dari mana saja; gerbang fisik tanpa latch tak pernah
+  attach sama sekali.
+- Param `grasp_standoff` → **`grab_depth` (0.70)**, dgn turunan angkanya ditulis di
+  komentar `mission_fsm.py`. `ey_target` selama `DESCEND` kini dihitung dari kedalaman
+  **aktual**, bukan target (kalau tidak, nilainya ter-clamp ke `ey_max` dan servo
+  mendorong ke arah salah selama detik pertama turun, saat QR masih terlihat).
+- Test: `test/test_grab_geometry.py` (baru) membaca nilai sesungguhnya dari xacro +
+  `rov_params.yaml` + kedua node, lalu mengunci tiga syarat sekaligus (gripper
+  menjangkau QR, hull tak menabrak lantai, gerbang attach konsisten dgn `grab_depth`)
+  — ubah satu file tanpa yang lain, test gagal. Plus 3 test latch di `test_gripper.py`.
+  **101 test hijau.**
+- **[RESOLVED, 3/3 run]** Diverifikasi runtime pada sesi diagnosis di bawah:
+  `attach (payload dalam jangkauan)` muncul di ketiga run. **[VERIFY] tersisa:**
+  payload benar-benar terangkat (pose payload runtime belum diukur).
+
+---
+
+## 2026-08-12 (lanjutan) — Diagnosis gerbang attach (DIAGNOSIS ONLY)
+
+Instrumentasi `GATEDBG` (commit terpisah, non-fungsional: `GripperLogic.explain()`
++ satu baris log di `gripper_controller._on_cmd` dan `qr_detector._publish_offset`).
+Tanpa perubahan threshold, urutan FSM, kriteria transisi, atau topic. 3 run
+(`headless:=true`, payload di (0.40,0.04) / (−0.30,0.55) / (0.75,−0.45), spawn ROV
+acak). Log mentah: `~/m5d-diagnosis-logs/run{1,2,3}.log`.
+
+- **[RESOLVED] Root cause penolakan gerbang = dropout deteksi QR (kandidat c).**
+  Offset terakhir dari kamera bawah tiba **0.90 / 2.81 / 2.03 detik** sebelum tick
+  `"close"`; pada run2 `age=1.53 s` sudah melewati `offset_timeout=1.5` sehingga
+  `fresh=False` dan attach lolos **hanya lewat latch** (`armed=True`). Ini bukan
+  kebetulan timing melainkan konsekuensi geometri: di `grab_depth` kamera bawah
+  sejajar bidang QR. Gerbang lama (freshness wajib) memang tak bisa lolos.
+- **[MOOT] Kandidat (a) `alt_gap`** bukan penyebab: 0.073/0.074/0.075 ≤ 0.08 (3/3).
+  Tapi marginnya 5–7 mm → gap baru **R-10** di P1-OWNER-DECISIONS-AND-ROADMAP.
+- **[MOOT] Kandidat (b) `ey_target`** bukan penyebab: `|y−ey_target|` =
+  0.235/0.057/0.164 vs 0.30. Catatan: `ey_target` ter-clamp di `ey_target_max`
+  (−0.800) pada run1 & run3.
+- **[OPEN] Docstring `_st_grab` BASI (komentar, bukan logika).** Klaimnya "payload
+  sudah ter-DetachableJoint ke ROV sejak spawn ... attach praktis no-op" dibantah
+  log di 3/3 run: `auto-detach startup [pemicu: payload spawn terdeteksi]` terbit
+  **14.6 / 19.3 / 15.3 detik SEBELUM** `close`. Sengaja TIDAK diedit sesi ini —
+  redaksi diserahkan ke penulis repo.
+- **[OPEN] `_st_grab` tanpa ack** dari `gripper_controller` (skor `m2=15` &
+  transisi `NAV_WALL` tanpa konfirmasi attach) → item roadmap **R-9**, tidak
+  diimplementasikan sesi ini.

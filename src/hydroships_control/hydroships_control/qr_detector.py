@@ -183,6 +183,14 @@ class QRDetector(Node):
         ps.point.y = ey        # + = QR di bawah pusat
         ps.point.z = size      # ukuran-tampak (proxy jarak)
         self.pub_off.publish(ps)
+        # Instrumentasi diagnostik M5-D (DIAGNOSIS ONLY, tanpa throttle): satu
+        # baris per frame yang BERHASIL menghasilkan corner points — inilah
+        # sinyal yang menyuapi gerbang attach. Ketiadaan baris ini di sekitar
+        # transisi DESCEND->GRAB = dropout deteksi (kandidat penyebab (c)).
+        self.get_logger().info(
+            'GATEDBG offset: t=%.3f frame=%s ex=%+.3f ey=%+.3f size=%.3f'
+            % (ps.header.stamp.sec + ps.header.stamp.nanosec * 1e-9,
+               frame_id, ex, ey, size))
 
     def _publish_debug(self, data, pts, frame_id, debug_info=None):
         """P0-2.3: raw corner points + decode_success, SAME pts/data already

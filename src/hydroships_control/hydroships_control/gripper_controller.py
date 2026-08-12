@@ -39,10 +39,19 @@ class GripperController(Node):
         p('max_offset', 0.30)       # |offset x/y| maks agar "di atas payload"
         p('min_size', 0.12)         # ukuran-tampak QR min (proxy dekat)
         p('offset_timeout', 1.5)    # umur maks qr_offset (s)
-        # Lapis pengaman kedua M5-D (docs/STATUS.md), independen dari urutan
-        # FSM: tolak attach kalau ROV masih jauh di atas lantai QR (mis. FSM
-        # di-skip via start_state:=GRAB saat testing manual).
-        p('max_alt_gap', 0.15)      # m jarak vertikal maks ROV di atas lantai QR
+        # Gerbang fisik M5-D (docs/STATUS.md): tolak attach kalau gripper masih
+        # jauh di atas lantai QR — DetachableJoint mengelas pada pose saat itu,
+        # jadi attach dari ketinggian jelajah menjangkarkan ROV ke lantai.
+        # Independen dari urutan FSM (mis. start_state:=GRAB saat testing manual).
+        # 0.08 dipilih thd celah rancangan 0.034 m di grab_depth=0.70 (mission_fsm).
+        p('max_alt_gap', 0.08)      # m jarak vertikal maks DASAR GRIPPER di atas lantai QR
+        # Dasar gripper relatif base_link: gripper_base_joint z=-0.13 + ½ tinggi
+        # box 0.03 (hydroships.urdf.xacro).
+        p('gripper_bottom_dz', 0.16)
+        # Berapa lama syarat visual tetap berlaku setelah QR hilang. WAJIB > durasi
+        # DESCEND: di grab_depth kamera bawah sejajar bidang QR, jadi tak ada
+        # deteksi segar saat "close" dikirim. Lihat gripper_logic.is_safe().
+        p('arm_timeout', 8.0)       # s
         # Kamera sumber qr_offset yang dipakai gerbang attach. HARUS sama dengan
         # filter mission_fsm (camera_bottom_link) — lihat _on_offset().
         p('offset_frame', 'camera_bottom_link')
@@ -64,6 +73,7 @@ class GripperController(Node):
         g = lambda n: self.get_parameter(n).value
         self.offset_frame = str(g('offset_frame'))
         self.qr_floor_z = float(g('qr_floor_z'))
+        self.gripper_bottom_dz = float(g('gripper_bottom_dz'))
         self._ey_geom = (float(g('cam_gripper_dx')), self.qr_floor_z,
                          float(g('cam_bottom_dz')), float(g('cam_vfov_half_tan')),
                          float(g('ey_target_max')))
@@ -73,7 +83,7 @@ class GripperController(Node):
         self.logic = GripperLogic(
             max_offset=float(g('max_offset')), min_size=float(g('min_size')),
             offset_timeout=float(g('offset_timeout')),
-            max_alt_gap=float(g('max_alt_gap')),
+            max_alt_gap=float(g('max_alt_gap')), arm_timeout=float(g('arm_timeout')),
             jaw_open=float(g('jaw_open')), jaw_close=float(g('jaw_close')))
 
         self.pub_jaw_left = self.create_publisher(Float64, '/hydroships/gripper_left/cmd', 10)
@@ -125,15 +135,17 @@ class GripperController(Node):
             stamp = self._now()
         ey_target = 0.0 if self._depth is None else qr_ey_target(
             self._depth, *self._ey_geom)
-        # alt_gap = jarak vertikal ROV di atas lantai QR (m). None sampai depth
-        # pertama tiba -> is_safe() tak menggerbang altitude sampai diketahui.
-        alt_gap = (None if self._depth is None
-                   else abs(self.qr_floor_z) - abs(self._depth))
         self.logic.update_offset(msg.point.x, msg.point.y, msg.point.z, stamp,
-                                 ey_target, alt_gap)
+                                 ey_target)
 
     def _on_depth(self, msg: Float64):
         self._depth = float(msg.data)
+        # alt_gap = jarak vertikal DASAR GRIPPER di atas lantai QR (m). Sengaja
+        # dihitung DI SINI, bukan menumpang _on_offset: di kedalaman grasp QR
+        # sudah tak terlihat sehingga qr_offset berhenti terbit — justru saat
+        # itulah gerbang fisik harus hidup. /hydroships/depth terbit terus.
+        self.logic.update_altitude(
+            abs(self.qr_floor_z) - abs(self._depth) - self.gripper_bottom_dz)
 
     def _apply_jaw(self):
         # Nilai sama untuk kedua jari: arah tutup dibedakan oleh tanda axis di URDF.
@@ -168,7 +180,34 @@ class GripperController(Node):
                                % (action['state'], action['reason'], trigger))
 
     def _on_cmd(self, msg: String):
-        action = self.logic.on_command(msg.data, self._now())
+        now = self._now()
+        # --- Instrumentasi diagnostik M5-D (DIAGNOSIS ONLY) -------------------
+        # Cetak status TIAP sub-kondisi gerbang PADA TICK KEPUTUSAN, sebelum
+        # on_command() mengubah state. Murni observability: tidak ada cabang
+        # keputusan yang bergantung pada blok ini. Prefiks GATEDBG supaya
+        # gampang di-grep dari log run.
+        if (msg.data or '').strip().lower() in ('close', 'tutup', 'grab',
+                                                'jepit', '1', 'true'):
+            d = self.logic.explain(now)
+            if not d.get('has_offset'):
+                self.get_logger().info(
+                    'GATEDBG close: BELUM ADA qr_offset sama sekali -> tolak')
+            else:
+                self.get_logger().info(
+                    'GATEDBG close: result=%s | x=%+.3f (ok=%s) y=%+.3f '
+                    'ey_target=%+.3f |y-ey|=%.3f (ok=%s) size=%.3f (ok=%s) '
+                    'alt_gap=%s (ok=%s) age=%.2fs (fresh=%s) arm_age=%s (armed=%s) '
+                    '| batas: max_offset=%.2f min_size=%.2f max_alt_gap=%.2f '
+                    'offset_timeout=%.1f arm_timeout=%.1f'
+                    % (d['result'], d['x'], d['ok_x'], d['y'], d['ey_target'],
+                       abs(d['y'] - d['ey_target']), d['ok_y'], d['z'], d['ok_size'],
+                       'n/a' if d['alt_gap'] is None else '%.3f' % d['alt_gap'],
+                       d['ok_alt'], d['age'], d['ok_fresh'],
+                       'n/a' if d['arm_age'] is None else '%.2fs' % d['arm_age'],
+                       d['ok_armed'], d['max_offset'], d['min_size'],
+                       d['max_alt_gap'], d['offset_timeout'], d['arm_timeout']))
+        # --- akhir instrumentasi ---------------------------------------------
+        action = self.logic.on_command(msg.data, now)
         if action is None:
             self.get_logger().warn('perintah gripper tak dikenal: %r' % msg.data)
             return

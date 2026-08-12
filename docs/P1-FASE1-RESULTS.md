@@ -64,7 +64,14 @@ tooling, melainkan karena blocker §4 yang baru terungkap.
 
 ---
 
-## 4. ⛔ BLOCKER BARU M5-D — ROV terjangkar begitu benar-benar mencengkeram
+## 4. M5-D — ROV terjangkar begitu benar-benar mencengkeram
+
+> **Status 2026-08-12:** Opsi 1 (fase `DESCEND`) DIPILIH & diimplementasi. Jalur
+> terjangkar **TERBUKTI tertutup runtime** (NAV_WALL konvergen dgn attach aktif).
+> Susulannya: gripper diturunkan di URDF (`gripper_base_joint` z → −0.13) karena
+> DESCEND saja hanya mengecilkan celah 0.60 → 0.19 m, plus latch hak attach karena
+> QR hilang dari frame di kedalaman grasp. Detail: CHANGELOG 2026-08-12 & STATUS M5.
+> Bagian di bawah dipertahankan sbg catatan diagnosis aslinya.
 
 Battery E1/E7/E13 (gate PASS 3/3, `spawn_seed` 1/7/13, jendela 620 s):
 
@@ -133,8 +140,8 @@ apa pun yang bisa ditransfer ke ROV asli.
 | Attach → ROV terjangkar → NAV_WALL ABORT | **VERIFIED** (3/3 + kontrol dalam-run E13) |
 | Jarak vertikal 0.60 m saat GRAB | **VERIFIED** (3/3 run) |
 | Mekanisme = DetachableJoint mengelas lintas celah | **INFERRED** — konsisten dgn semua pengukuran, belum dibuktikan langsung (mis. lewat `/tf` atau pose payload runtime) |
-| Asset QR adalah bidang VERTIKAL (`normal 0 1 0`) sedangkan `qr_ey_target` memodelkan QR mendatar | **INFERRED** — perlu verifikasi; ukuran-tampak terukur menyimpang dari prediksi (rasio 0.77× dan 2.17×) |
-| Siklus 4-hook × 3 seed | **BELUM** — diblokir M5-D |
+| ~~Asset QR adalah bidang VERTIKAL (`normal 0 1 0`)~~ | **KELIRU, dicoret 2026-08-12.** `payload_spawner.py` men-spawn model dgn `<pose>… 1.5708 0 0</pose>`; rotasi 90° pada sumbu x memutar `normal 0 1 0` menjadi menghadap **ATAS**. QR memang mendatar dan `qr_ey_target` memodelkannya dgn benar. Simpangan ukuran-tampak (0.77×/2.17×) perlu penjelasan lain, bukan orientasi asset. |
+| Siklus 4-hook × 3 seed | **BELUM** — DESCEND sudah menutup jalur terjangkar (runtime), attach visual-gated baru diperbaiki & belum di-run (lihat CHANGELOG 2026-08-12) |
 
 ## 6. Catatan kontaminasi
 
