@@ -231,9 +231,9 @@ disebutkan lain.
 | QR dapat dideteksi secara konsisten? | **OPEN** | Rate deteksi vs jarak/sudut/pencahayaan; berapa lama tanpa deteksi dalam run tipikal | `/hydroships/qr_result`, `/hydroships/qr_offset` (perlu direkam — `recorder.py` belum subscribe) |
 | Transform QR → frame ROV benar? | **OPEN** | Konsistensi tanda (`qr_servo_sign`) dan skala (`qr_servo_gain`) antara offset piksel dan pergerakan aktual ROV; tidak ada tf2 untuk divalidasi silang | Perbandingan `/hydroships/qr_offset` vs delta `/hydroships/odom` per tick |
 | Error relatif berkurang? | **OPEN** | Tren `dist`/`qr_off` sepanjang waktu dalam satu run | Log debug `APPROACH_QR dbg:` (L570-579) atau turunan dari topic di atas |
-| ROV konvergen ke acceptance region? | **FAIL** (docs/P0-2-4-RESULTS.md §4-5) | Apakah `dist < approach_tol` atau kondisi `centered` tercapai sebelum `t_scan` | Diukur: 5/17 run (29%) entered+held band dengan dwell, stopping rule §6 P0-2-4-SPEC.md terpenuhi |
-| Tidak oscillatory/divergent? | **PASS** (docs/P0-2-4-RESULTS.md §4) | Variansi/overshoot posisi & gaya `surge`/`sway` mendekati target | Diukur: 0/17 run diverged, overshoot=0 di seluruh run yang sempat masuk tolerance |
-| Selesai sebelum timeout? | **OPEN** | Distribusi waktu-ke-GRAB vs `t_scan`=45s across run | Log transisi + timestamp |
+| ROV konvergen ke acceptance region? | **FAIL** (docs/P0-2-4-RESULTS.md §4-5; dikonfirmasi bertahan setelah 4 kandidat perbaikan isolated diuji, docs/P0-2-5-CANDIDATE1/2/3/4-RESULTS.md) | Apakah `dist < approach_tol` atau kondisi `centered` tercapai sebelum `t_scan` | Diukur: 5/17 run (29%) entered+held band dengan dwell (baseline), stopping rule §6 P0-2-4-SPEC.md terpenuhi; tidak ada kandidat #1-3 yang menaikkan angka ini, kandidat #4 mengetatkan definisi (bukan perbaikan fisik, lihat catatan di §7) |
+| Tidak oscillatory/divergent? | **PASS** (docs/P0-2-4-RESULTS.md §4; bertahan di seluruh 4 kandidat P0-2.5, 0 run diverged di manapun) | Variansi/overshoot posisi & gaya `surge`/`sway` mendekati target | Diukur: 0/17 run diverged, overshoot=0 di seluruh run yang sempat masuk tolerance |
+| Selesai sebelum timeout? | **PASS** (docs/P0-2-5-CANDIDATE4-RESULTS.md §A) | Distribusi waktu-ke-GRAB vs `t_scan`=45s across run | Diukur: 0/17 run TIMEOUT di baseline maupun di battery Kandidat #4 (dwell 3-tick tidak mendorong run manapun melewati `t_scan`) |
 | Repeatable pada beberapa initial condition? | **OPEN** | Multi-run dengan initial pose/spawn payload bervariasi | Perlu rig baru (belum ada — `recorder.py`/`driver.py` P0-1 tidak untuk ini) |
 | FSM keluar `APPROACH_QR` dengan benar? | **OPEN** | Apakah exit selalu lewat jalur "QR-scored + centered" (bukan fallback XY-only, yang bisa lolos GRAB tanpa validasi persepsi) | Log `_wall_scored` state + jalur exit L590-601 vs L603-615 |
 
@@ -346,6 +346,46 @@ P0-2.4      CLOSED — Gate 4 FAIL     (docs/P0-2-4-SPEC.md desain, docs/P0-2-4-
                                      18 run/3 batch, 17 valid, 5/17 entered+held qr_center_tol
                                      band, stopping rule terpenuhi; 0/17 diverged; tidak ada
                                      rekomendasi engineering fix di dokumen manapun)
+P0-2.5      CLOSED — 4 kandidat diuji, TIDAK ADA yang membalik Gate 4 FAIL
+                                     (docs/P0-2-5-ENGINEERING-ANALYSIS.md desain/roadmap;
+                                     hasil per kandidat di bawah — semua isolated,
+                                     single-variable, diuji terhadap baseline P0-2.4 5/17)
+  Kandidat #1 qr_servo_range=0.6       REJECTED — rate turun 29.4%->21.7% (n=23), jitter naik
+                                     +30%/+17% (docs/P0-2-5-CANDIDATE1-RESULTS.md)
+  Kandidat #2 qr_offset_ema_alpha=0.3  REJECTED — jitter turun 75%/67% (mekanisme benar) TAPI
+                                     final_dist tak berubah (0.078m->0.077m), gagal guardrail
+                                     (docs/P0-2-5-CANDIDATE2-RESULTS.md)
+  Kandidat #3 approach_min_fmax_frac=0.15  REJECTED utk Gate 4 (5/17 tetap), TAPI final_dist
+                                     membaik 14-16% (0.078m->0.067m), 0 pelanggaran guardrail
+                                     (docs/P0-2-5-CANDIDATE3-RESULTS.md)
+  Kandidat #4 approach_dwell_ticks=3   TIMEOUT-neutral (0/17->0/17), final_dist membaik paling
+                                     besar (-33%, 0.078m->0.052m) — TAPI metrik Gate 4 sendiri
+                                     circular by design utk kandidat ini (mengetatkan definisi
+                                     sukses, bukan perbaikan fisik) — TIDAK diklaim
+                                     "menyelesaikan" konvergensi (docs/P0-2-5-CANDIDATE4-RESULTS.md)
+  Param default (semua 4 kandidat)     TIDAK BERUBAH — qr_servo_range=0.3,
+                                     approach_min_fmax_frac=0.05, qr_offset_ema_alpha=1.0,
+                                     approach_dwell_ticks=1 (perilaku lama persis)
+  Langkah berikutnya (per roadmap)     Eskalasi ke qr_detector.py/qr_logic.py (kualitas decode,
+                                     Mode 1: run dengan qr_decode_rate=0 total) — BELUM
+                                     dicoba, butuh review terpisah
+  qr_detector.py / qr_logic.py         TIDAK DIUBAH
+P0-2.6      DIAGNOSIS                (docs/P0-2-6-DIAGNOSTIC.md — audit pipeline persepsi,
+                                     evidence-only, TIDAK ADA kesimpulan qr_detector.py harus
+                                     ditulis ulang)
+  Baseline DSR (17 run P0-2.4)         10.7% keseluruhan (195/1829 tick), 26.0% di window
+                                     servo dist_raw<0.3 (188/724 tick)
+  Corner-only rate                    83.7% keseluruhan, 74.0% di window servo — corner
+                                     SELALU terdeteksi pada jarak dekat (dropout servo=0%)
+  Trace pipeline                      qr_logic.py:93-117 (robust_decode) meneruskan corner
+                                     dari kandidat preprocessing PERTAMA yg py punya titik,
+                                     TANPA validasi plausibilitas; qr_detector.py:136
+                                     menerbitkan qr_offset walau decode gagal — dikonfirmasi
+                                     via pembacaan kode, bukan kode diubah
+  Kandidat perbaikan persepsi          3 kandidat terisolasi DIFORMULASIKAN (§4), BELUM
+                                     disetujui/diimplementasi
+  qr_detector.py / qr_logic.py /       TIDAK DIUBAH
+    mission_fsm.py
 ```
 
 Detail P0-2.2: [`docs/P0-2-2-SPEC.md`](P0-2-2-SPEC.md) — spec eksperimen yang membedakan

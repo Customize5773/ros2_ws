@@ -55,11 +55,14 @@ def _to_gray(img):
 
 
 def _candidates(img):
-    """Hasilkan (varian_gambar, skala) untuk dicoba decode, dari yang paling
+    """Hasilkan (varian_gambar, skala, nama) untuk dicoba decode, dari yang paling
     murah/tak mengubah data (mentah) ke yang lebih agresif (CLAHE, threshold,
     upscale). `skala` = faktor perbesar relatif ke frame asli (utk kembalikan
-    koordinat sudut). Generator agar decode berhenti di kandidat pertama sukses."""
-    yield img, 1.0                                       # 1. mentah (paling ringan)
+    koordinat sudut). `nama` dipakai HANYA utk instrumentasi/logging (P0-2.6
+    kandidat #1 -- BELUM diimplementasi, ini cuma observability), tidak
+    memengaruhi urutan/logika decode itu sendiri. Generator agar decode
+    berhenti di kandidat pertama sukses."""
+    yield img, 1.0, 'mentah'                             # 1. mentah (paling ringan)
     if not CV2_OK:
         return
     gray = _to_gray(img)
@@ -69,28 +72,33 @@ def _candidates(img):
     clahe = cv2.createCLAHE(clipLimit=CLAHE_CLIP,
                             tileGridSize=(CLAHE_TILE, CLAHE_TILE))
     eq = clahe.apply(gray)
-    yield eq, 1.0
+    yield eq, 1.0, 'clahe'
     # 3. adaptive threshold di atas CLAHE (pisahkan modul QR dari lantai berfaset).
     # Coba TANPA denoise (jaga modul QR kecil) & DENGAN median-blur (lawan noise).
     th = cv2.adaptiveThreshold(eq, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
                                cv2.THRESH_BINARY, ADAPT_BLOCK, ADAPT_C)
-    yield th, 1.0
+    yield th, 1.0, 'adaptive_thresh'
     den = cv2.medianBlur(eq, 3)
     th_d = cv2.adaptiveThreshold(den, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
                                  cv2.THRESH_BINARY, ADAPT_BLOCK, ADAPT_C)
-    yield th_d, 1.0
     # 4. Otsu global threshold (bila iluminasi cukup seragam di area QR)
     _, oth = cv2.threshold(den, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    yield oth, 1.0
+    yield oth, 1.0, 'otsu'
     # 5. upscale varian ter-threshold (bantu saat QR kecil di frame)
     if UPSCALE > 1.0:
-        yield cv2.resize(th, None, fx=UPSCALE, fy=UPSCALE,
-                         interpolation=cv2.INTER_NEAREST), UPSCALE
-        yield cv2.resize(oth, None, fx=UPSCALE, fy=UPSCALE,
-                         interpolation=cv2.INTER_NEAREST), UPSCALE
+        yield (cv2.resize(th, None, fx=UPSCALE, fy=UPSCALE,
+                          interpolation=cv2.INTER_NEAREST), UPSCALE,
+               'adaptive_thresh_upscaled')
+        yield (cv2.resize(oth, None, fx=UPSCALE, fy=UPSCALE,
+                          interpolation=cv2.INTER_NEAREST), UPSCALE,
+               'otsu_upscaled')
+    # P0-2.8: demoted to last (was index 3) -- docs/P0-2-8-CANDIDATE-ORDERING-REVIEW.md.
+    # 0/32 decode successes across P0-2.6/P0-2.7 batteries while pre-empting best_pts
+    # on corner-only frames; demoted (not removed) since it never contributed a decode.
+    yield th_d, 1.0, 'adaptive_thresh_denoised'
 
 
-def robust_decode(img, detector):
+def robust_decode(img, detector, debug_info=None):
     """Coba decode QR dari `img` lewat beberapa pra-pemrosesan.
 
     Mengembalikan (data, pts):
@@ -99,11 +107,23 @@ def robust_decode(img, detector):
     Titik dikembalikan begitu QR TERDETEKSI walau decode gagal, agar visual
     servo tetap bisa memusatkan. Koordinat dari kandidat ter-upscale dibagi
     balik ke skala frame asli.
+
+    `debug_info` (opsional, P0-2.6 instrumentasi -- observability only, TIDAK
+    mengubah urutan/logika decode di atas): kalau diberi dict, diisi dengan
+    `winning_candidate_index`/`winning_candidate_name` (kandidat yang
+    berhasil decode, -1/None kalau tak ada satu pun), dan
+    `first_pts_candidate_index`/`first_pts_candidate_name` (kandidat PERTAMA
+    yang menghasilkan corner points, dipakai sbg `best_pts` fallback saat
+    decode gagal semua -- ini mekanisme corner-only yang diaudit
+    docs/P0-2-6-DIAGNOSTIC.md S2). Signature return TIDAK berubah supaya
+    caller lama (qr_detector.py, test_qr_logic.py) tetap jalan tanpa ubahan.
     """
     if img is None or detector is None:
         return '', None
     best_pts = None
-    for cand, s in _candidates(img):
+    first_pts_idx, first_pts_name = None, None
+    idx = -1
+    for idx, (cand, s, name) in enumerate(_candidates(img)):
         try:
             data, pts, _ = detector.detectAndDecode(cand)
         except Exception:
@@ -111,9 +131,22 @@ def robust_decode(img, detector):
         has_pts = pts is not None and len(pts) > 0
         if has_pts and best_pts is None:
             best_pts = np.asarray(pts, dtype=float).reshape(-1, 2) / s
+            first_pts_idx, first_pts_name = idx, name
         if data:
             p = np.asarray(pts, dtype=float).reshape(-1, 2) / s if has_pts else best_pts
+            if debug_info is not None:
+                debug_info['winning_candidate_index'] = idx
+                debug_info['winning_candidate_name'] = name
+                debug_info['first_pts_candidate_index'] = first_pts_idx
+                debug_info['first_pts_candidate_name'] = first_pts_name
+                debug_info['n_candidates_tried'] = idx + 1
             return data, p
+    if debug_info is not None:
+        debug_info['winning_candidate_index'] = -1
+        debug_info['winning_candidate_name'] = None
+        debug_info['first_pts_candidate_index'] = first_pts_idx
+        debug_info['first_pts_candidate_name'] = first_pts_name
+        debug_info['n_candidates_tried'] = idx + 1
     return '', best_pts
 
 
