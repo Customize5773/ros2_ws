@@ -150,6 +150,8 @@ di [P1-0 §10](P1-0-ARCHITECTURE-AUDIT.md); yang di bawah ini adalah tambahan.
 | **R-6** | `stabilizer` tanpa watchdog odom/manual-cmd | Odom mati → PID terus integrasi terhadap measurement beku; watchdog allocator **tidak menolong** karena stabilizer tetap publish 20 Hz |
 | **R-7** | Nol test level-node; `mission_fsm` 962 baris hanya diuji lewat 1 helper | Adopsi pola `GUI-ROV/autonomy/tests/sim_plant.py` |
 | **R-8** | Sim terlalu ideal: nol noise, latency, dropout | Tambah **hanya** yang punya test objective: noise MS5837, dropout kamera, latency tether |
+| **R-9** | `_st_grab` tak punya ack dari `gripper_controller`: skor `m2=15` & transisi ke `NAV_WALL` diberikan setelah `hold_settle_s` **tanpa menunggu konfirmasi `is_safe()`/attach** | FSM bisa melaporkan "GRAB terverifikasi (+15)" pada run di mana attach ditolak — persis yang terjadi pada run pra-perbaikan (STATUS M5). Sebelum ada ack, **kesuksesan misi tak boleh dibaca sebagai bukti grasp**. Diagnosis 3 run (2026-08-12) memberi angkanya; **implementasi ack menunggu keputusan pemilik** (butuh topic/latched status baru → melanggar batasan "tanpa topic baru" pada sesi diagnosis) |
+| **R-10** | Margin gerbang fisik attach tinggal **5–7 mm**: `alt_gap` terukur 0.073/0.074/0.075 m vs `max_alt_gap=0.08` (3/3 run) | Bukan kegagalan, tapi rapuh. Sebabnya kriteria keluar DESCEND `depth >= grab_depth - depth_tol` melepas pada ~0.66 m padahal `grab_depth=0.70` — `depth_tol=0.06` memakan hampir seluruh margin rancangan (celah rancangan 0.034 m). Opsi (belum diputuskan): toleransi keluar DESCEND yang lebih ketat, atau `max_alt_gap` dinaikkan sesuai `depth_tol`. **Jangan diubah tanpa run pembanding** |
 
 ---
 

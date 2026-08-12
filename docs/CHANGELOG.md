@@ -587,7 +587,36 @@ jadi **tak mungkin** ada deteksi segar saat `"close"` dikirim — sementara
   menjangkau QR, hull tak menabrak lantai, gerbang attach konsisten dgn `grab_depth`)
   — ubah satu file tanpa yang lain, test gagal. Plus 3 test latch di `test_gripper.py`.
   **101 test hijau.**
-- **[VERIFY]** Belum dijalankan runtime. Yang harus dibuktikan: log `attach (payload
-  dalam jangkauan)` muncul, dan **payload ikut terangkat** saat depth naik ke
-  `hook_depth` — NAV_WALL yang lancar TIDAK membuktikannya (payload sudah
-  ter-DetachableJoint sejak spawn, independen dari jalur gripper).
+- **[RESOLVED, 3/3 run]** Diverifikasi runtime pada sesi diagnosis di bawah:
+  `attach (payload dalam jangkauan)` muncul di ketiga run. **[VERIFY] tersisa:**
+  payload benar-benar terangkat (pose payload runtime belum diukur).
+
+---
+
+## 2026-08-12 (lanjutan) — Diagnosis gerbang attach (DIAGNOSIS ONLY)
+
+Instrumentasi `GATEDBG` (commit terpisah, non-fungsional: `GripperLogic.explain()`
++ satu baris log di `gripper_controller._on_cmd` dan `qr_detector._publish_offset`).
+Tanpa perubahan threshold, urutan FSM, kriteria transisi, atau topic. 3 run
+(`headless:=true`, payload di (0.40,0.04) / (−0.30,0.55) / (0.75,−0.45), spawn ROV
+acak). Log mentah: `~/m5d-diagnosis-logs/run{1,2,3}.log`.
+
+- **[RESOLVED] Root cause penolakan gerbang = dropout deteksi QR (kandidat c).**
+  Offset terakhir dari kamera bawah tiba **0.90 / 2.81 / 2.03 detik** sebelum tick
+  `"close"`; pada run2 `age=1.53 s` sudah melewati `offset_timeout=1.5` sehingga
+  `fresh=False` dan attach lolos **hanya lewat latch** (`armed=True`). Ini bukan
+  kebetulan timing melainkan konsekuensi geometri: di `grab_depth` kamera bawah
+  sejajar bidang QR. Gerbang lama (freshness wajib) memang tak bisa lolos.
+- **[MOOT] Kandidat (a) `alt_gap`** bukan penyebab: 0.073/0.074/0.075 ≤ 0.08 (3/3).
+  Tapi marginnya 5–7 mm → gap baru **R-10** di P1-OWNER-DECISIONS-AND-ROADMAP.
+- **[MOOT] Kandidat (b) `ey_target`** bukan penyebab: `|y−ey_target|` =
+  0.235/0.057/0.164 vs 0.30. Catatan: `ey_target` ter-clamp di `ey_target_max`
+  (−0.800) pada run1 & run3.
+- **[OPEN] Docstring `_st_grab` BASI (komentar, bukan logika).** Klaimnya "payload
+  sudah ter-DetachableJoint ke ROV sejak spawn ... attach praktis no-op" dibantah
+  log di 3/3 run: `auto-detach startup [pemicu: payload spawn terdeteksi]` terbit
+  **14.6 / 19.3 / 15.3 detik SEBELUM** `close`. Sengaja TIDAK diedit sesi ini —
+  redaksi diserahkan ke penulis repo.
+- **[OPEN] `_st_grab` tanpa ack** dari `gripper_controller` (skor `m2=15` &
+  transisi `NAV_WALL` tanpa konfirmasi attach) → item roadmap **R-9**, tidak
+  diimplementasikan sesi ini.
