@@ -648,3 +648,36 @@ Log: `ros2_ws.log` (sisi ROS) + `GUI-ROV.log` (sisi server, 2413 baris).
 - **[RESOLVED] Docstring `gui_bridge_logic.py` dibetulkan**: klaim telemetri
   punya field `ts` tidak sesuai `build_telemetry()` (tak pernah menyertakan
   `ts`) — diperbaiki jadi deskriptif.
+
+## 2026-08-13 (lanjutan) — R-9 ditutup + battery 4-hook ×3 seed (Fase 1)
+
+- **[RESOLVED] R-9**: topic ack `/hydroships/gripper/status` ternyata **sudah
+  ada & sudah di-subscribe** di `mission_fsm.py`, cuma disimpan tanpa dipakai
+  ("observability, tak memicu transisi"). Bukan pelanggaran batasan "tanpa
+  topic baru" dari sesi diagnosis 2026-08-12 — diff jadi kecil: `_to()`
+  me-reset `gripper_status=None` saat masuk `GRAB`; `_st_grab` kini menunggu
+  `'attached'` (skor m2=15, lanjut `NAV_WALL`) atau `'rejected'` (publish
+  ulang "close", gerbang bisa berubah tick berikutnya) sampai `T['grab']`
+  habis → `ABORT`. Docstring lama yang bilang "tak ada jalur ack" dihapus.
+  Ditambah baris tabel topic `/hydroships/gripper/status` di
+  `docs/ARCHITECTURE.md` (sebelumnya terimplementasi tapi tak terdaftar).
+  110/110 test pure-logic tetap hijau (tak ada `test_mission_fsm.py`,
+  sesuai pola repo saat ini — tak ditambah infra rclpy baru utk perubahan ini).
+- **Battery verifikasi runtime, 3 seed baru** (`spawn_seed:=3001/3002/3003`,
+  `headless:=true`, `tools/p0-experiments/run_mission_cycle.sh`, log di
+  `/tmp/p1-fase1-r9/R9-*.log`):
+  - **3001, 3003**: 4 hook penuh `DIVE→...→AUTO_RELEASE→DONE`,
+    `SKOR m1=15 m2=15 m3=15 m4=15 m5=40 TOTAL=100/100`.
+  - **3002**: GRAB hook pertama ditolak terus-menerus (`GATEDBG close
+    result=False`, `x=+0.799` tak pernah masuk `max_offset=0.30` selama
+    ~16 s, `armed=False`) → retry loop R-9 bekerja sesuai desain, lalu
+    **`GRAB timeout (tak ada ack attached)` → `ABORT` jujur**. Sebelum
+    perbaikan R-9, ini akan tetap mencatat skor m2=15 palsu (persis pola
+    lama di STATUS M5/M6).
+  - **[OPEN, dicatat R-11]** Root cause penolakan 3002 bukan bug R-9 — gerbang
+    justru bekerja benar. Kemungkinan presisi centering `APPROACH_QR`/`DESCEND`
+    untuk posisi spawn payload tertentu; belum didiagnosis, butuh run
+    berulang/data lebih banyak sebelum diubah.
+  - Fase 1 roadmap exit criteria ("4-hook ×3 seed berturut") jadi **2/3** —
+    bukan regresi, melainkan R-9 mengungkap kegagalan nyata yang sebelumnya
+    tersembunyi.
