@@ -273,12 +273,15 @@ class MissionFSM(Node):
             QoSProfile(depth=1, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL))
         self.create_subscription(Empty, '/hydroships/mission/start_autonomous',
                                   self._on_trigger, 10)
+        self.create_subscription(String, '/hydroships/gripper/status',
+                                  self._on_gripper_status, 10)
 
         # payload sudah nempel ke ROV sejak spawn (DetachableJoint).
         # Detach = publish Empty ke topic ini.
         self.pub_detach = self.create_publisher(Empty, '/hydroships/gripper/detach', 10)
         self._detach_sent = False
         self._hook_backoff_done = False
+        self.gripper_status = None   # ack terakhir dari gripper_controller (observability, tak memicu transisi)
 
         # State
         self.depth = None
@@ -447,6 +450,8 @@ class MissionFSM(Node):
 
     # ---- callbacks ----
     def _on_depth(self, msg): self.depth = msg.data
+
+    def _on_gripper_status(self, msg): self.gripper_status = msg.data
 
     def _on_odom(self, msg):
         self.yaw = yaw_from_quaternion(msg.pose.pose.orientation)

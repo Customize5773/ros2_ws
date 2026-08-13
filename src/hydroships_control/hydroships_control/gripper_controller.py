@@ -17,6 +17,7 @@ Kontrak topic (lihat docs/ARCHITECTURE.md — tak mengubah interface lama yg dip
     /hydroships/gripper_right/cmd (std_msgs/Float64, rad)              -> keluar (bridge->gz)
     /hydroships/gripper/attach    (std_msgs/Empty)                     -> keluar (bridge->gz)
     /hydroships/gripper/detach    (std_msgs/Empty)                     -> keluar (bridge->gz)
+    /hydroships/gripper/status    (std_msgs/String "attached"|"detached"|"rejected") -> keluar (ack ke mission_fsm/GUI)
 """
 
 import rclpy
@@ -43,8 +44,9 @@ class GripperController(Node):
         # jauh di atas lantai QR — DetachableJoint mengelas pada pose saat itu,
         # jadi attach dari ketinggian jelajah menjangkarkan ROV ke lantai.
         # Independen dari urutan FSM (mis. start_state:=GRAB saat testing manual).
-        # 0.08 dipilih thd celah rancangan 0.034 m di grab_depth=0.70 (mission_fsm).
-        p('max_alt_gap', 0.08)      # m jarak vertikal maks DASAR GRIPPER di atas lantai QR
+        # 0.12 dipilih thd celah rancangan 0.034 m di grab_depth=0.70 (mission_fsm),
+        # margin 45mm utk variasi spawn payload.
+        p('max_alt_gap', 0.12)      # m jarak vertikal maks DASAR GRIPPER di atas lantai QR
         # Dasar gripper relatif base_link: gripper_base_joint z=-0.13 + ½ tinggi
         # box 0.03 (hydroships.urdf.xacro).
         p('gripper_bottom_dz', 0.16)
@@ -90,6 +92,7 @@ class GripperController(Node):
         self.pub_jaw_right = self.create_publisher(Float64, '/hydroships/gripper_right/cmd', 10)
         self.pub_attach = self.create_publisher(Empty, '/hydroships/gripper/attach', 10)
         self.pub_detach = self.create_publisher(Empty, '/hydroships/gripper/detach', 10)
+        self.pub_status = self.create_publisher(String, '/hydroships/gripper/status', 10)
         self.create_subscription(String, '/hydroships/gripper/command', self._on_cmd, 10)
         self.create_subscription(PointStamped, '/hydroships/qr_offset', self._on_offset, 10)
         self.create_subscription(Float64, '/hydroships/depth', self._on_depth, 10)
@@ -214,8 +217,15 @@ class GripperController(Node):
         self._apply_jaw()
         if action['joint'] == 'attach':
             self.pub_attach.publish(Empty())
+            status = 'attached'
         elif action['joint'] == 'detach':
             self.pub_detach.publish(Empty())
+            status = 'detached'
+        elif self.logic.attached:
+            status = 'attached'      # close saat sudah ter-attach: no-op tapi tetap attached
+        else:
+            status = 'rejected' if action['state'] == 'closed' else 'detached'
+        self.pub_status.publish(String(data=status))
         self.get_logger().info('gripper %s: %s' % (action['state'], action['reason']))
 
 
