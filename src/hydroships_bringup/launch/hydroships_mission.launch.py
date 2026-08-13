@@ -36,7 +36,9 @@ def generate_launch_description():
     payload_y = LaunchConfiguration('payload_y')
     # Diteruskan ke stabilized -> sim.launch.py (spawn ROV acak dekat dinding / manual).
     rov_args = ('rov_random_spawn', 'rov_x', 'rov_y', 'rov_z',
-                'rov_wall_margin', 'rov_arena_half', 'spawn_seed')
+                'rov_wall_margin', 'rov_arena_half', 'spawn_seed',
+                'odom_noise', 'odom_pos_noise_std', 'odom_vel_noise_std',
+                'odom_heading_noise_std_deg', 'odom_noise_seed')
 
     # sim + allocator + stabilizer (M2). Teruskan qr_letter/payload_x/y (payload
     # spawner) + rov_* (spawn ROV) ke sim.launch.py lewat stabilized.
@@ -100,6 +102,15 @@ def generate_launch_description():
         DeclareLaunchArgument('rov_z', default_value='-0.5'),
         DeclareLaunchArgument('rov_wall_margin', default_value='0.5'),
         DeclareLaunchArgument('rov_arena_half', default_value='2.55'),
+        DeclareLaunchArgument('spawn_seed', default_value='',
+                              description='Isi utk fix seed pose spawn acak '
+                                          '(replay/debug); kosong = acak penuh tiap launch.'),
+        DeclareLaunchArgument('odom_noise', default_value='false',
+                              description='P2-B: true -> /hydroships/odom disuntik noise.'),
+        DeclareLaunchArgument('odom_pos_noise_std', default_value='0.03'),
+        DeclareLaunchArgument('odom_vel_noise_std', default_value='0.02'),
+        DeclareLaunchArgument('odom_heading_noise_std_deg', default_value='1.0'),
+        DeclareLaunchArgument('odom_noise_seed', default_value='0'),
         # Tuning kamera bawah: kedalaman scan menentukan lebar petak pandang
         # (h_cam = 0.714 - scan_depth), jadi menentukan pula seberapa besar QR di
         # frame DAN apakah offset gripper masih muat. Lihat komentar scan_depth

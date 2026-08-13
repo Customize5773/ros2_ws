@@ -41,6 +41,7 @@ setup(
             'hook_detector = hydroships_control.hook_detector:main',
             'gui_bridge = hydroships_control.gui_bridge:main',
             'attitude_estimator = hydroships_control.attitude_estimator:main',
+            'odom_injector = hydroships_control.odom_injector:main',
         ],
     },
 )

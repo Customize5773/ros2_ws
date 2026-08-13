@@ -145,6 +145,9 @@ def _launch_setup(context, *args, **kwargs):
     payload_x = LaunchConfiguration('payload_x').perform(context)
     payload_y = LaunchConfiguration('payload_y').perform(context)
 
+    # P2-B: opsional suntik noise ke odom (docs/ARCHITECTURE.md).
+    odom_noise = LaunchConfiguration('odom_noise').perform(context).strip().lower() == 'true'
+
     world_path = os.path.join(pkg_gazebo, 'worlds', world)
     world_name = _world_name(world_path)
     print('[sim.launch] world file "%s" -> world name "%s"' % (world, world_name))
@@ -232,6 +235,23 @@ def _launch_setup(context, *args, **kwargs):
         }],
     )
 
+    # P2-B: relay /hydroships/odom_raw (ground truth) -> /hydroships/odom,
+    # opsional +noise (odom_noise:=true). Selalu jalan (satu jalur kode, bukan
+    # cabang launch terpisah) -- default noise mati = passthrough identik.
+    odom_inj = Node(
+        package='hydroships_control',
+        executable='odom_injector',
+        output='screen',
+        parameters=[{
+            'use_sim_time': True,
+            'odom_noise': odom_noise,
+            'pos_noise_std': _f(context, 'odom_pos_noise_std', 0.03),
+            'vel_noise_std': _f(context, 'odom_vel_noise_std', 0.02),
+            'heading_noise_std_deg': _f(context, 'odom_heading_noise_std_deg', 1.0),
+            'noise_seed': int(_f(context, 'odom_noise_seed', 0.0)),
+        }],
+    )
+
     # Kedalaman (M3) diturunkan dari odom -> /hydroships/depth (Float64).
     depth_pub = Node(
         package='hydroships_control',
@@ -283,8 +303,8 @@ def _launch_setup(context, *args, **kwargs):
         }],
     )
 
-    return [gz_sim, bridge, rsp, spawn_check, spawn, depth_pub, qr, gripper,
-            hook, spawner]
+    return [gz_sim, bridge, rsp, spawn_check, spawn, odom_inj, depth_pub, qr,
+            gripper, hook, spawner]
 
 
 def generate_launch_description():
@@ -319,5 +339,16 @@ def generate_launch_description():
                               description='Posisi X payload (m); dipakai bila qr_letter di-set.'),
         DeclareLaunchArgument('payload_y', default_value='0.04',
                               description='Posisi Y payload (m); dipakai bila qr_letter di-set.'),
+        DeclareLaunchArgument('odom_noise', default_value='false',
+                              description='P2-B: true -> /hydroships/odom disuntik noise '
+                                          '(bukan ground truth langsung). false = passthrough.'),
+        DeclareLaunchArgument('odom_pos_noise_std', default_value='0.03',
+                              description='m, std white noise posisi odom (sigma 0.02-0.05).'),
+        DeclareLaunchArgument('odom_vel_noise_std', default_value='0.02',
+                              description='m/s, std white noise kecepatan odom (sigma 0.01-0.03).'),
+        DeclareLaunchArgument('odom_heading_noise_std_deg', default_value='1.0',
+                              description='deg/√s, std random-walk drift heading odom (0.5-2.0).'),
+        DeclareLaunchArgument('odom_noise_seed', default_value='0',
+                              description='0 = noise acak penuh; isi utk reproducible.'),
         OpaqueFunction(function=_launch_setup),
     ])

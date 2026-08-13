@@ -15,7 +15,10 @@
   direction: GZ_TO_ROS
 
 # ---- Odometry ROV (pose & twist) : Gazebo -> ROS ----
-- ros_topic_name: "/hydroships/odom"
+# P2-B: ground truth dibridge ke odom_raw, BUKAN /hydroships/odom langsung --
+# node odom_injector (hydroships_control) relay odom_raw -> odom, opsional
+# +noise (odom_noise:=true). Default (noise mati) = passthrough identik.
+- ros_topic_name: "/hydroships/odom_raw"
   gz_topic_name: "/model/hydroships/odometry"
   ros_type_name: "nav_msgs/msg/Odometry"
   gz_type_name: "gz.msgs.Odometry"
