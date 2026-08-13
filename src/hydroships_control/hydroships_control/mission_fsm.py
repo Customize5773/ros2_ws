@@ -362,6 +362,9 @@ class MissionFSM(Node):
         self._hold_since = None
         if s is St.APPROACH_HOOK:
             self._hook_backoff_done = False
+        if s is St.GRAB:
+            # R-9: status ack lama tak boleh terbawa ke siklus GRAB berikutnya.
+            self.gripper_status = None
         if s is St.APPROACH_QR:
             # Misi berulang per payload (AUTO_RELEASE -> DIVE -> APPROACH_QR):
             # tanpa reset, payload ke-2 dst langsung dianggap sudah ber-wall.
@@ -797,30 +800,29 @@ class MissionFSM(Node):
 
     def _st_grab(self):
         """Misi 2 (REMOTELY): kirim perintah "close" ke gripper_controller,
-        lalu verifikasi ROV diam sejenak di atas QR.
+        lalu tunggu ack /hydroships/gripper/status (R-9) sebelum menilai skor.
 
-        CATATAN PENTING soal apa yang dibuktikan state ini: di sim, payload
-        sudah ter-DetachableJoint ke ROV sejak spawn, jadi attach yang dipicu
-        di sini praktis no-op dan diam 2 detik BUKAN bukti cengkeraman
-        berhasil. Perintah "close" tetap dikirim supaya jalur perintah
-        FSM -> gripper_controller -> attach benar-benar dilatih dan bisa
-        divalidasi (sebelumnya `pub_grip` dideklarasikan tapi tak pernah
-        dipakai -- lihat docs/STATUS.md M5). gripper_controller sendiri yang
-        menilai keamanan lewat GripperLogic.is_safe() atas /hydroships/qr_offset;
-        FSM sengaja tidak menduplikasi gerbang itu. Tidak ada jalur ack balik,
-        jadi kriteria sukses GRAB tidak bisa menunggu konfirmasi attach."""
+        gripper_controller menilai keamanan lewat GripperLogic.is_safe() atas
+        /hydroships/qr_offset dan membalas 'attached' atau 'rejected' lewat
+        gripper/status; FSM sengaja tidak menduplikasi gerbang itu, hanya
+        menunggu hasilnya. 'rejected' mengulang perintah "close" (gerbang
+        visual bisa berubah tick berikutnya) sampai T['grab'] habis -> ABORT,
+        supaya kesuksesan misi tak lagi bisa dibaca sbg bukti attach padahal
+        gerbang menolaknya (lihat P1-OWNER-DECISIONS-AND-ROADMAP.md R-9)."""
         self._set_surge(0.0)
-        if self._hold_since is None:
+        if self.gripper_status == 'attached':
+            self.score['m2'] = 15
+            self.get_logger().info('GRAB terverifikasi (+15) -- ack attached')
+            self._to(St.NAV_WALL)
+            return
+        if self._hold_since is None or self.gripper_status == 'rejected':
             self._hold_since = self._now()
-            # Sekali per masuk GRAB (_to() mereset _hold_since), bukan tiap tick.
+            self.gripper_status = None
             self.pub_grip.publish(String(data='close'))
             self.get_logger().info('GRAB: perintah "close" -> gripper_controller')
-        if self._now() - self._hold_since >= self.hold_settle_s:
-            self.score['m2'] = 15
-            self.get_logger().info('GRAB terverifikasi (+15)')
-            self._to(St.NAV_WALL)
-        elif self._elapsed() > self.T['grab']:
-            self.get_logger().error('GRAB timeout'); self._to(St.ABORT)
+        if self._elapsed() > self.T['grab']:
+            self.get_logger().error('GRAB timeout (tak ada ack attached)')
+            self._to(St.ABORT)
 
     def _st_nav_wall(self):
         """Misi 3 (REMOTELY): navigasi holonomik ke wall sesuai QR."""

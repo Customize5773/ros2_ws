@@ -70,6 +70,7 @@ terverifikasi di sim; kamera/QR/kedalaman (M3), manipulator (M5), integrasi GUI 
 | `/hydroships/gripper_right/cmd` | `std_msgs/Float64` | gripper_controller → sim | 🧪 M5 (sudut jari kanan, nilai sama dgn kiri) |
 | `/hydroships/gripper/attach` | `std_msgs/Empty` | gripper_controller → sim | 🧪 M5 (trigger DetachableJoint attach) |
 | `/hydroships/gripper/detach` | `std_msgs/Empty` | gripper_controller → sim | 🧪 M5 (trigger DetachableJoint detach) |
+| `/hydroships/gripper/status` | `std_msgs/String` | gripper_controller → FSM/GUI | 🧪 M5 ("attached"/"detached"/"rejected"; `mission_fsm._st_grab` menunggu ack ini sejak R-9) |
 
 > **Catatan CameraInfo (intrinsics):** topik `camera_info` dijembatani dari Gazebo
 > (`bridge.yaml`) dan matriks K disimpan oleh `qr_detector`. **PENTING — bedakan dua hal:**
