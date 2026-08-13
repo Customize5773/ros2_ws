@@ -43,7 +43,7 @@ cd src/hydroships_control && python3 -m pytest test/test_pid.py -v
 python3 -m pytest test/test_pid.py::test_specific_case -v
 ```
 
-Sim launch scenarios (see `docs/HOW-TO-RUN.txt` for the full menu with all args):
+Sim launch scenarios (see `docs/HOW-TO-RUN.md` for the full menu with all args):
 
 ```bash
 ros2 launch hydroships_gazebo sim.launch.py world:=kki_arena.sdf          # sim only

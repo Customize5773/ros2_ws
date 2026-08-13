@@ -43,6 +43,33 @@ keputusan yang sudah dibatalkan/diganti) ada di [CHANGELOG.md](CHANGELOG.md).
 > keputusan pemilik proyek **"ArduSub tetap yang mixing"**, yang **membatalkan** Decision A
 > di `P1-1-ARCHITECTURE-DECISION.md` §6.
 
+> ## ✅ qr_detector `CLOSED` — crash "double free or corruption" (2026-08-13)
+>
+> Eksperimen 3-seed (spawn_seed 1001/1002/1003, mission FSM DIVE→WAIT_TRIGGER) menemukan
+> `qr_detector` mati **2/3 run** dengan `double free or corruption (out)` (SIGABRT native,
+> bukan exception Python), non-deterministik (t≈69–107 s). **Root cause**: environment
+> `~/.local` (pip user-install, dipakai interpreter `/usr/bin/python3` yang sebenarnya
+> menjalankan node — bukan `.venv` proyek) resolve ke **`opencv-python 5.0.0.93`**
+> (rilis pip terbaru & kurang teruji), bukan `python3-opencv` 4.5.4 (apt) yang
+> dideklarasikan di `package.xml`. `cv2.QRCodeDetector` dipanggil ~7×/frame (kandidat
+> mentah/clahe/threshold/upscale) selama ribuan frame — heap corruption baru memicu
+> crash belakangan, cocok dgn simptom offset absurd (`ex=-4.436 ey=-12.641 size=26.135`)
+> yang sempat teramati sesaat sebelum satu crash.
+>
+> **Percobaan downgrade ke apt 4.5.4 GAGAL** — build itu tidak ter-link **QUIRC**,
+> sama sekali tak bisa decode isi QR (`Library QUIRC is not linked`), mematikan fitur
+> inti misi. **Fix final**: pin `opencv-python==4.10.0.84` (matang, QUIRC aktif) di
+> `requirements.txt`, install ulang lewat `/usr/bin/python3 -m pip install --user`
+> (interpreter yang benar dipakai runtime node, bukan `.venv`). Hardening tambahan
+> (defense-in-depth, bukan akar masalah): `image_util.py` copy eksplisit
+> (`np.array(copy=True)`, bukan `ascontiguousarray` yg no-op saat sudah contiguous)
+> menutup celah zero-copy view atas `msg.data`; `qr_detector.py::_publish_offset`
+> menolak `size` offset di luar rentang wajar (0, 5.0] sebelum dipublikasikan.
+>
+> **Diverifikasi**: 0 crash dalam 4 run berturut (~10 menit qr_detector jalan
+> nonstop, seed 1001/1002/1003) pasca-fix, vs crash <2 menit sebelum fix. 101/101
+> unit test lolos.
+
 Legenda: ✅ jalan & terverifikasi di sim · 🧪 kode ada, verifikasi runtime tertunda/parsial
 · ⏳ direncanakan/menyusul · OPEN gap desain/hardware.
 

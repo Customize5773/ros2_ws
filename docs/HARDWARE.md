@@ -8,7 +8,7 @@
 
 ## 1. Kenapa dokumen ini ada
 
-Semua dokumentasi lain di `docs/` (ARCHITECTURE.md, HOW-TO-RUN.txt, STATUS.md, dst.)
+Semua dokumentasi lain di `docs/` (ARCHITECTURE.md, HOW-TO-RUN.md, STATUS.md, dst.)
 menjelaskan node ROS2 dan topic contract yang berjalan di atas **Gazebo Fortress**.
 Proposal tim (KKI 2026) mendeskripsikan ROV fisik dengan komponen nyata: Pixhawk
 PX4, Raspberry Pi 4B, 6× thruster (T100/T200 BlueRobotics), 2× kamera DWE ExploreHD,

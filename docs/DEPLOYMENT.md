@@ -1,7 +1,7 @@
 # Deployment Checklist — Hari-H Kontes
 
 Checklist operasional untuk mencegah human error di lapangan (Waduk PDAM Kota
-Bengkalis, misi kontes KKI 2026). Berbeda dari `docs/HOW-TO-RUN.txt` (panduan
+Bengkalis, misi kontes KKI 2026). Berbeda dari `docs/HOW-TO-RUN.md` (panduan
 teknis menjalankan sim di mesin dev) — dokumen ini adalah **urutan tindakan hari-H**
 dengan checkbox, ditulis untuk dibawa/dicetak dan dicentang langsung di lapangan.
 
@@ -62,7 +62,7 @@ menit eksekusi misi, 5 menit evakuasi/meninggalkan lokasi) — lihat panduan lom
       diacak panitia — lihat panduan lomba §4.7 gambar layout, posisi diacak tiap run).
 - [ ] Jalankan launch file misi: `ros2 launch hydroships_bringup hydroships_mission.launch.py`
       (atau varian GUI: `hydroships_gui.launch.py` sesuai keputusan tim — lihat
-      `docs/HOW-TO-RUN.txt` §3C/3D untuk argumen lengkap).
+      `docs/HOW-TO-RUN.md` §3C/3D untuk argumen lengkap).
 - [ ] Verifikasi state FSM awal = `IDLE` atau `DIVE` sesuai rencana (bukan sisa state
       dari run sebelumnya) — cek via `ros2 topic echo /hydroships/fsm_state` bila
       tersedia, atau log node `mission_fsm`.
