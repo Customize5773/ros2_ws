@@ -620,3 +620,31 @@ acak). Log mentah: `~/m5d-diagnosis-logs/run{1,2,3}.log`.
 - **[OPEN] `_st_grab` tanpa ack** dari `gripper_controller` (skor `m2=15` &
   transisi `NAV_WALL` tanpa konfirmasi attach) → item roadmap **R-9**, tidak
   diimplementasikan sesi ini.
+
+## 2026-08-13 — Live test pertama GUI-ROV ↔ gui_bridge (M7)
+
+Test manual end-to-end pertama dengan dashboard GUI-ROV asli (`server/server.js`
+lokal, `RPI_ADDR=127.0.0.1`) terhadap `hydroships_gui.launch.py` (headless).
+Log: `ros2_ws.log` (sisi ROS) + `GUI-ROV.log` (sisi server, 2413 baris).
+
+- **[RESOLVED] Round-trip arm/disarm, yaw, dan gripper open/close terbukti**
+  dengan dashboard asli (sebelumnya hanya klien UDP sintetis 2026-08-06).
+  Gripper: perintah dari GUI sampai ke `gripper_controller` dan gate jarak
+  bekerja benar (menolak attach saat payload di luar jangkauan, sesuai desain).
+- **[VERIFY tersisa]** Tombol **light** tidak sempat ditekan saat run ini (nol
+  command di log). Efek gerak sim dari surge/sway tak diverifikasi (perlu
+  echo `/hydroships/odom` di run berikutnya).
+- **[OPEN] Roll/pitch melonjak ±25-31° selama yaw ditahan lama**, redam pelan
+  setelah yaw berhenti. Kontrol saat run ini adalah keyboard (pulsa on/off
+  berulang), bukan stick kontinu — belum jelas apakah lonjakan ini karakter
+  fisik wajar dari pulsa berulang atau indikasi allocator/gain perlu ditinjau.
+  Perlu run pembanding dengan joystick asli.
+- **[OPEN] Telemetry rate terukur ~3 Hz** di beberapa jendela 1 detik, di
+  bawah `telem_hz=10` default (`gui_bridge.py:57`). Perlu profiling.
+- **[MOOT, bukan bug]** Command `pool_depth`/`controller` yang dikirim dashboard
+  diam-diam diabaikan `gui_bridge_logic.on_command()` (nama tak dikenal →
+  `{}`) — sesuai desain adapter saat ini, tapi berarti tombol/slider terkait
+  di dashboard tak berefek ke sim.
+- **[RESOLVED] Docstring `gui_bridge_logic.py` dibetulkan**: klaim telemetri
+  punya field `ts` tidak sesuai `build_telemetry()` (tak pernah menyertakan
+  `ts`) — diperbaiki jadi deskriptif.

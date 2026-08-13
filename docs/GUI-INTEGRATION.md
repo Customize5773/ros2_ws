@@ -5,8 +5,10 @@ kontrak topik ROS 2 hydroships (`docs/ARCHITECTURE.md`), lalu menjelaskan adapte
 yang dipakai untuk menjembatani keduanya **tanpa mengubah node inti** (stabilizer,
 mission_fsm, thruster_allocator).
 
-> Status: kode adapter & detektor hook **sudah dibuat** tetapi **BELUM diverifikasi
-> end-to-end dengan GUI live** — lihat [`STATUS.md`](STATUS.md). Gain/tanda masih estimasi.
+> Status: kode adapter & detektor hook **sudah diverifikasi end-to-end dengan
+> dashboard GUI-ROV asli (2026-08-13)** untuk arm/disarm, yaw, dan gripper —
+> lihat [`STATUS.md`](STATUS.md) untuk detail & item yang masih terbuka
+> (light, surge/sway, gain/tanda/offset kompas).
 
 ## 1. Temuan utama: GUI-ROV bukan ROS 2
 
@@ -80,9 +82,22 @@ wall) menggantikan gerak *timed*; **fallback timed** tetap ada bila deteksi tak 
 (aman). Teruji headless `test/test_hook_servo.py`.
 
 ## 4. Yang BELUM (VERIFY/OPEN)
-- Verifikasi end-to-end dgn GUI live (kirim joystick nyata → ROV sim bergerak;
-  telemetri muncul di dashboard). Belum dijalankan.
-- Kalibrasi gain persen→N, offset heading kompas, dan tanda sumbu.
+- **Live test 2026-08-13** (dashboard GUI-ROV asli, `server.js` lokal via
+  `RPI_ADDR=127.0.0.1`) membuktikan arm/disarm, yaw, dan gripper open/close
+  round-trip. **Belum** terverifikasi pada run itu: tombol **light** (tak ada
+  command terkirim), dan efek gerak sim dari surge/sway (command sampai ke
+  adapter, tapi pergerakan ROV tak dicek via `/hydroships/odom`).
+- Kalibrasi gain persen→N, offset heading kompas, dan tanda sumbu — masih OPEN;
+  ROV bergerak sesuai perintah tapi skala/tanda belum divalidasi terhadap
+  gerak yang diharapkan.
+- **[OPEN, ditemukan di run 2026-08-13]** Roll/pitch melonjak besar (±25-31°)
+  selama yaw ditahan lama lewat pulsa kontrol keyboard (bukan stick kontinu),
+  redam pelan setelah yaw berhenti. Belum jelas apakah ini karakter fisik wajar
+  dari pola pulsa keyboard atau indikasi allocator/gain perlu ditinjau — perlu
+  run pembanding dengan joystick asli.
+- **[OPEN, ditemukan di run 2026-08-13]** Telemetry rate terukur ~3 Hz di
+  beberapa jendela 1 detik, di bawah `telem_hz=10` default (`gui_bridge.py:57`)
+  — perlu profiling apakah ini beban headless atau isu di adapter/timer.
 - Tuning ambang deteksi hook di render kamera sim (nilai default = uji-meja).
 - Servo hook = PD holonomik IBVS (sway+surge+koreksi-depth, image-based tanpa kalibrasi);
   pose-based (solvePnP/PBVS) menyusul bila kalibrasi kamera fisik hook tersedia.

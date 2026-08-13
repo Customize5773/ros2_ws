@@ -14,7 +14,7 @@ Kontrak GUI-ROV (dari rov_agent.py / autonomy/rov_link.py):
       name == "stop"  -> failsafe (netral)
       name == "gripper" -> "open"/"close" (opsional; GUI pakai servo PWM)
   * Telemetri ROV->GUI : JSON {heading(deg), depth(m), roll, pitch, temp,
-      voltage, armed, light, mode, ts} via UDP.
+      voltage, armed, light, mode} via UDP (tanpa "ts" — lihat build_telemetry()).
 
 Terjemahan ke ROS hydroships (tanpa mengubah node inti):
   * axis persen -> wrench body di /hydroships/cmd_vel (Twist: linear=gaya N,
