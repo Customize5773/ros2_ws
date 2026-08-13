@@ -681,3 +681,106 @@ Log: `ros2_ws.log` (sisi ROS) + `GUI-ROV.log` (sisi server, 2413 baris).
   - Fase 1 roadmap exit criteria ("4-hook ×3 seed berturut") jadi **2/3** —
     bukan regresi, melainkan R-9 mengungkap kegagalan nyata yang sebelumnya
     tersembunyi.
+
+## 2026-08-14 — Instrumentasi verifikasi payload-terangkat & ketahanan grip (M5)
+
+- Menindaklanjuti gap `[OPEN]` di STATUS.md: "payload benar-benar terangkat
+  (pose runtime belum diukur)" & "sim tak memvalidasi cengkeraman/slip fisik
+  sama sekali".
+- **`payload_spawner.py`**: `PAYLOAD_SDF_TEMPLATE` kini membawa plugin gz-sim
+  `PosePublisher` (`publish_link_pose`/`publish_model_pose` aktif, 20 Hz) —
+  model `payload` menerbitkan pose live ke `/model/payload/pose`.
+- **`hydroships_gazebo/config/bridge.yaml`**: entry baru `GZ_TO_ROS`
+  `/model/payload/pose` (`gz.msgs.Pose`) → `/hydroships/payload_pose_live`
+  (`geometry_msgs/PoseStamped`). Terpisah dari `/hydroships/payload_pose` lama
+  (snapshot statis saat spawn, tetap dipakai APPROACH_QR/Gate-4, tak diubah).
+  **Dikonfirmasi runtime**: log `ros_gz_bridge: Creating GZ->ROS Bridge:
+  [/model/payload/pose ... -> .../payload_pose_live]` muncul saat sim jalan.
+- **Baru: `hydroships_gazebo/scripts/validate_grab_lift.py`**
+  (`ros2 run hydroships_gazebo validate_grab_lift`) — skrip pasif (bukan
+  pytest): setelah `gripper/status=='attached'`, bandingkan `payload_pose_live.z`
+  vs `/hydroships/odom.z` untuk membuktikan payload ikut naik; lalu kirim satu
+  gangguan gaya singkat via `/hydroships/cmd_vel` dan cek delta ROV↔payload
+  tetap konstan (proxi "tak slip" — grasp desain ini `DetachableJoint` weld
+  rigid, bukan gesekan, jadi kriteria relevan = joint tetap tersambung di
+  bawah gangguan). Cetak PASS/FAIL per kriteria, exit code sesuai.
+- **Belum tertutup**: build & bridge terverifikasi jalan, tapi belum ada
+  battery run lengkap (`DIVE`→attach→`HANG`) yang mencatat angka PASS/FAIL
+  aktual dari skrip ini — kedua gap di STATUS.md tetap **OPEN** sampai itu
+  dijalankan. `start_state:=NAV_WALL`/`GRAB` standalone tidak representatif
+  (butuh attach/posisi grasp sudah tercapai lebih dulu, bukan bug skrip ini).
+
+## 2026-08-14 — R-10 toleransi DESCEND lebih ketat; R-8 dropout kamera & latency tether (kode)
+
+Menindaklanjuti `P1-OWNER-DECISIONS-AND-ROADMAP.md` §5. Keputusan pemilik
+proyek untuk R-10 (opsi toleransi DESCEND, bukan naikkan `max_alt_gap`) dan
+lanjut R-8 (dropout kamera + latency tether; noise MS5837 sudah tertutup
+implisit oleh `odom_injector` karena `depth_publisher` baca dari
+`/hydroships/odom` pasca-injector, jadi tak perlu kode terpisah).
+
+- **R-10** (`mission_fsm.py`): param baru `descend_depth_tol` (default 0.02 m),
+  terpisah dari `depth_tol` (0.06 m, tetap dipakai APPROACH_QR agar itu tak
+  ikut berubah). Exit `_st_descend` kini `depth >= grab_depth -
+  descend_depth_tol` (dulu pakai `depth_tol` yang sama dgn APPROACH_QR,
+  memakan hampir seluruh celah rancangan 0.034 m -> margin `alt_gap` cuma
+  5-7mm dari `max_alt_gap=0.08`). **Belum diverifikasi runtime** — butuh
+  battery seed pembanding sebelum/sesudah sebelum R-10 ditutup (sesuai
+  instruksi eksplisit di roadmap doc: jangan tutup dari code review saja).
+- **R-8a — dropout kamera**: `bridge.yaml` image topic direname
+  `image_raw` -> `image_raw_gt` (ground truth dari Gazebo); node baru
+  `camera_dropout_injector` (+ pure logic `camera_dropout_logic.should_drop`)
+  relay `image_raw_gt` -> `image_raw`, opsional drop frame bernoulli
+  (`camera_dropout:=true`, default `false` = passthrough identik, pola sama
+  `odom_injector`). Frame yang di-drop **tidak diteruskan sama sekali**
+  (bukan republish frame lama) supaya freshness-check yang sudah ada
+  (`qr_max_age`, latch `armed` di `gripper_logic`) benar-benar teruji.
+  Diaktifkan lewat launch arg baru di `sim.launch.py`:
+  `camera_dropout`/`camera_drop_prob`/`camera_dropout_seed`.
+- **R-8b — latency tether**: `DelayLine` (antrian FIFO tunda-waktu, murni,
+  `now` diberikan pemanggil) ditambah ke `gui_bridge_logic.py`; `gui_bridge.py`
+  pakai dua instance (uplink cmd GUI->ROV, downlink telemetri ROV->GUI) via
+  param baru `tether_latency_ms` (default 0 = pass-through identik — delay 0
+  membuat item langsung "ready" saat push, jadi tak perlu percabangan
+  `if enabled` terpisah).
+- Test baru: `test_camera_dropout_logic.py` (3 test, cek rate drop vs
+  `drop_prob` dgn seed tetap) + `DelayLine` di `test_gui_bridge.py` (3 test:
+  passthrough delay-0, tunda sampai `release_at`, urutan FIFO). Full suite
+  `colcon test --packages-select hydroships_control`: **116/116 hijau**.
+- **Belum tertutup**: kode ada & lolos unit test, tapi **belum ada battery run**
+  dgn `camera_dropout:=true` / `tether_latency_ms>0` / `descend_depth_tol`
+  aktif — ketiga item tetap "runtime-unverified" di STATUS.md sampai itu
+  dijalankan.
+
+## 2026-08-14 — R-11 didiagnosis: akar penyebab TERBUKTI, direproduksi deterministik
+
+Diagnosis kegagalan seed 3002 dari battery R-9 (2026-08-13). Instrumentasi
+non-fungsional (`CONVERGEDBG`, satu baris log di `_st_approach_qr` tepat saat
+tick konvergen — debug print periodik lama sering melewatkan tick itu).
+
+- **[RESOLVED] Akar penyebab ditemukan.** `_st_approach_qr` (`mission_fsm.py`)
+  hanya mengevaluasi offset visual (`centered`) di dalam blok
+  `if self._wall_scored:`. `_wall_scored` cuma `True` bila **huruf QR
+  ter-decode** — tapi offset `ex/ey` (kontur) adalah jalur deteksi TERPISAH
+  dari decode huruf, dan decode huruf gagal **82–89%** run (P0-2.x,
+  `P1-OWNER-DECISIONS-AND-ROADMAP.md` §3). Setiap kali decode gagal,
+  `centered` tidak pernah dicek sama sekali — `converged_now` jatuh ke
+  `dist < approach_tol=0.06` (jarak world murni ke target ground-truth),
+  buta total terhadap offset citra. `DESCEND` lalu cuma dapat ~3-4 detik
+  servo pasif sebelum `depth_ok` memaksa `GRAB`, kerap tak cukup mengoreksi
+  offset besar, dan offset sering basi (`fresh=False`) di tengah turun.
+  **Bukan kebetulan 1 seed** — terikat langsung ke dropout decode QR yang
+  sudah lama terdokumentasi.
+- **Direproduksi deterministik**: payload dipin persis posisi run asli
+  (`qr_letter:=C payload_x:=0.34 payload_y:=-0.35 randomize_pos:=false
+  spawn_seed:=3002`, log `/tmp/r11-diag/R11-3002-pinned.log`) —
+  `CONVERGEDBG: centered=False dist=0.058 approach_tol=0.060 wall_scored=False
+  qr=- ex=+0.92 ey=+0.89` → GRAB ditolak (`x=+0.918 fresh=False`) →
+  `GRAB timeout` → `ABORT` jujur, sama seperti run asli.
+- **[OPEN] Belum diperbaiki — 3 opsi diajukan, menunggu keputusan pemilik**
+  (lihat R-11 di roadmap): (1) lepas cek `centered` dari gerbang
+  `_wall_scored` (evaluasi offset independen dari status decode huruf);
+  (2) beri `DESCEND` gerbang re-centering eksplisit sebelum exit, bukan
+  cuma `depth_ok`, dgn timeout sendiri; (3) kombinasi (1)+(2). Sengaja
+  tidak diimplementasikan sesi ini — sama pola dgn R-9/R-10.
+- 116/116 test tetap hijau (instrumentasi `CONVERGEDBG` non-fungsional,
+  tak mengubah threshold/urutan FSM).

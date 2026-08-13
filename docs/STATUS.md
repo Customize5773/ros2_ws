@@ -110,3 +110,35 @@ dirancang ulang), berikut **satu-satunya desain yang aktif sekarang**:
   adalah subsistem terpisah untuk mendeteksi hook arena (state `APPROACH_HOOK`).
 
 Detail keputusan & riwayat pembatalan: [CHANGELOG.md](CHANGELOG.md).
+
+### Instrumentasi verifikasi payload-terangkat & slip (2026-08-14)
+
+Menindaklanjuti dua gap yang tercatat di atas (**"Masih UNVERIFIED: payload benar-benar
+terangkat"** & **"TETAP OPEN juga: sim tak memvalidasi cengkeraman/slip fisik"**):
+
+- Model `payload` (`payload_spawner.py` `PAYLOAD_SDF_TEMPLATE`) sekarang membawa plugin
+  gz-sim `PosePublisher`, dibridge ke `/hydroships/payload_pose_live`
+  (`geometry_msgs/PoseStamped`, live dari Gazebo — beda dengan `/hydroships/payload_pose`
+  lama yang cuma snapshot posisi spawn). **Dikonfirmasi terbentuk saat sim jalan**
+  (`ros_gz_bridge: Creating GZ->ROS Bridge: [/model/payload/pose ... -> .../payload_pose_live]`).
+- Skrip `ros2 run hydroships_gazebo validate_grab_lift` (`src/hydroships_gazebo/scripts/validate_grab_lift.py`)
+  membandingkan `payload_pose_live.z` vs `/hydroships/odom.z` setelah `gripper/status=='attached'`
+  untuk membuktikan payload **ikut naik** (bukan cuma NAV_WALL sukses secara posisi ROV), lalu
+  mengirim satu gangguan gaya singkat via `/hydroships/cmd_vel` dan mengukur apakah delta
+  ROV↔payload tetap konstan (proxi "tak slip" — grasp di desain ini adalah `DetachableJoint`
+  weld rigid, bukan gesekan permukaan, jadi kriteria yang relevan adalah joint tetap
+  tersambung di bawah gangguan, bukan koefisien mu).
+- **Status saat commit ini: instrumentasi terpasang & di-build OK, TAPI belum ada run
+  penuh PASS/FAIL tercatat.** Percobaan `start_state:=NAV_WALL` langsung ABORT (state itu
+  butuh attach sudah terjadi lebih dulu — bukan bug skrip ini) dan `start_state:=GRAB`
+  standalone butuh ROV sudah di posisi grasp yang benar (gerbang `is_safe()` menolak bila
+  tidak). Jalur representatif adalah start dari `DIVE`/`APPROACH_QR` penuh (lihat
+  Verifikasi di bawah) — **belum dijalankan sampai selesai di sesi ini**, jadi kedua gap
+  tetap **OPEN** sampai ada battery run dengan angka PASS/FAIL nyata dari skrip ini.
+
+Cara reproduksi:
+```bash
+ros2 launch hydroships_bringup hydroships_mission.launch.py headless:=true
+# di terminal lain, setelah gripper attached (lihat log GRAB):
+ros2 run hydroships_gazebo validate_grab_lift
+```

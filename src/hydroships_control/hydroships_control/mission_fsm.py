@@ -82,6 +82,12 @@ class MissionFSM(Node):
         p('depth_bottom', 0.70)      # m kedalaman dasar
         p('depth_surface', 0.08)     # m ambang "di permukaan"
         p('depth_tol', 0.06)         # m toleransi kedalaman
+        # R-10 (P1-OWNER-DECISIONS-AND-ROADMAP.md): exit DESCEND terpisah dari
+        # depth_tol (dipakai APPROACH_QR) -- depth_tol=0.06 memakan hampir seluruh
+        # celah rancangan 0.034m antara dasar gripper & lantai QR, alt_gap jadi
+        # cuma 5-7mm dari max_alt_gap=0.08. Toleransi lebih ketat di sini turun
+        # ROV lebih dekat ke grab_depth sebenarnya sebelum trigger GRAB.
+        p('descend_depth_tol', 0.02)  # m toleransi kedalaman KHUSUS exit DESCEND
         p('hook_depth', 0.45)        # m kedalaman hook (lihat arena)
         p('yaw_tol_deg', 10.0)       # derajat toleransi alignment heading
         p('qr_max_age', 1.5)         # s umur maks deteksi QR agar dianggap segar
@@ -212,6 +218,7 @@ class MissionFSM(Node):
         self.depth_bottom = float(g('depth_bottom'))
         self.depth_surface = float(g('depth_surface'))
         self.depth_tol = float(g('depth_tol'))
+        self.descend_depth_tol = float(g('descend_depth_tol'))
         self.hook_depth = float(g('hook_depth'))
         self.yaw_tol = math.radians(float(g('yaw_tol_deg')))
         self.qr_max_age = float(g('qr_max_age'))
@@ -717,6 +724,16 @@ class MissionFSM(Node):
             self._converge_ticks = 0
 
         if self._converge_ticks >= self.approach_dwell_ticks:
+            # R-11 diagnosis (2026-08-14): APPROACH_QR dbg di atas di-gate
+            # tiap ~10s, sering melewatkan tick konvergen sesungguhnya --
+            # log sekali di sini persis saat exit, non-fungsional.
+            self.get_logger().info(
+                'CONVERGEDBG: centered=%s dist=%.3f approach_tol=%.3f wall_scored=%s '
+                'qr=%s ex=%s ey=%s'
+                % (centered, dist, self.approach_tol, self._wall_scored,
+                   self.qr_wall or '-',
+                   ('%+.2f' % self.qr_off[0]) if self.qr_off is not None else '--',
+                   ('%+.2f' % self.qr_off[1]) if self.qr_off is not None else '--'))
             if self._wall_scored:
                 self.get_logger().info(
                     'QR terpusat (%s) -> DESCEND (%s)'
@@ -783,7 +800,7 @@ class MissionFSM(Node):
             ty += body_dx * s + body_dy * c
         dist = self._goto_xy(tx, ty, min_fmax_frac=self.approach_min_fmax_frac)
 
-        depth_ok = self.depth is not None and self.depth >= grasp_depth - self.depth_tol
+        depth_ok = self.depth is not None and self.depth >= grasp_depth - self.descend_depth_tol
         if int(self._elapsed() * 2) % 20 == 0:
             self.get_logger().info(
                 'DESCEND dbg: depth=%.2f/%.2f dist=%.3f ey_target=%+.2f'
