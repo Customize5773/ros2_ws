@@ -176,6 +176,14 @@ class QRDetector(Node):
 
     def _publish_offset(self, pts, shape, frame_id):
         ex, ey, size = offset_from_points(pts, shape)
+        # Corner points garbage (mis. dari buffer/decode korup) menghasilkan
+        # size di luar rentang wajar (normal ~0.05-1.5) -> tolak sebelum
+        # dipublikasikan, jangan suapi gerbang gripper dgn data sampah.
+        if not (0.0 < size <= 5.0):
+            self.get_logger().warn(
+                'GATEDBG offset: DITOLAK size=%.3f di luar rentang wajar '
+                '(pts korup?) [%s]' % (size, frame_id))
+            return
         ps = PointStamped()
         ps.header.stamp = self.get_clock().now().to_msg()
         ps.header.frame_id = frame_id
