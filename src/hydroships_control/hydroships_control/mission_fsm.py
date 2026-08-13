@@ -87,6 +87,11 @@ class MissionFSM(Node):
         p('qr_max_age', 1.5)         # s umur maks deteksi QR agar dianggap segar
         p('payload_x', 0.4)          # m posisi payload/QR di dunia (x)
         p('payload_y', 0.0)          # m posisi payload/QR di dunia (y)
+        # P2-A: /hydroships/payload_pose adalah ground truth spawner -- di kontes
+        # nyata tak ada topic ini. Kalau tak kunjung tiba, jangan macet sampai
+        # t_dive habis lalu ABORT: fallback ke payload_x/y param + perlebar FOV
+        # kamera bawah (pola sama dgn recovery QR-hilang di APPROACH_QR).
+        p('t_payload_pose', 8.0)     # s tenggang tunggu payload_pose sblm fallback
         # [RESOLVED] QR detection: scan_depth 0.62 -> 0.46. Di 0.62 kamera bawah hanya
         # ~9cm di atas QR (world z=-0.893) -> QR 12cm MEMENUHI/melebihi frame, finder
         # bawah TER-CROP + gripper menutupi atas frame -> cv2.QRCodeDetector gagal
@@ -212,6 +217,7 @@ class MissionFSM(Node):
         self.qr_max_age = float(g('qr_max_age'))
         self.payload_x = float(g('payload_x'))
         self.payload_y = float(g('payload_y'))
+        self.t_payload_pose = float(g('t_payload_pose'))
         self.scan_depth = float(g('scan_depth'))
         self.grab_depth = float(g('grab_depth'))
         self.approach_kp = float(g('approach_kp'))
@@ -305,6 +311,7 @@ class MissionFSM(Node):
         self.hook_off = None      # (ex, ey, size)
         self.hook_time = 0.0
         self.payload_pose = None  # (x, y, z) dari /hydroships/payload_pose (spawner)
+        self._payload_pose_fallback = False  # P2-A: sudah fallback ke payload_x/y?
         self.wall = None
         self.done_hooks = set()
         self.score = {'m1': 0, 'm2': 0, 'm3': 0, 'm4': 0, 'm5': 0}
@@ -537,10 +544,24 @@ class MissionFSM(Node):
         if depth_ok and self.payload_pose is None and int(self._elapsed() * 2) % 20 == 0:
             self.get_logger().info(
                 'DIVE: kedalaman OK, menunggu /hydroships/payload_pose...')
-        if depth_ok and self.payload_pose is not None:
+        # P2-A: payload_pose (ground truth spawner) opsional -- di kontes nyata
+        # topic ini tak ada. Tenggang t_payload_pose (< t_dive) habis & masih
+        # belum tiba -> fallback ke payload_x/y param (sudah jadi nilai default
+        # sejak init) + perlebar FOV kamera bawah, lalu tetap lanjut (bukan ABORT).
+        if (depth_ok and self.payload_pose is None and not self._payload_pose_fallback
+                and self._elapsed() > self.t_payload_pose):
+            self._payload_pose_fallback = True
+            self.scan_depth += 0.10
+            self.get_logger().warn(
+                'DIVE: payload_pose tak kunjung tiba %.0fs -> fallback payload_x/y '
+                '(%.2f,%.2f), scan_depth -> %.2fm'
+                % (self.t_payload_pose, self.payload_x, self.payload_y, self.scan_depth))
+        if depth_ok and (self.payload_pose is not None or self._payload_pose_fallback):
             self._set_surge(0.0)
-            self.get_logger().info('Kedalaman scan tercapai (%.2fm), payload_pose siap'
-                                   % self.depth)
+            self.get_logger().info(
+                'Kedalaman scan tercapai (%.2fm), payload_pose %s'
+                % (self.depth, 'siap' if self.payload_pose is not None
+                   else 'fallback (payload_x/y param)'))
             self._to(St.APPROACH_QR)
         elif self._elapsed() > self.T['dive']:
             self.get_logger().error('DIVE timeout'); self._to(St.ABORT)
