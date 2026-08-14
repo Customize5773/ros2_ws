@@ -43,6 +43,7 @@ def generate_launch_description():
     gui_host = LaunchConfiguration('gui_host')
     cmd_port = LaunchConfiguration('cmd_port')
     telem_port = LaunchConfiguration('telem_port')
+    telem_hz = LaunchConfiguration('telem_hz')
 
     sim = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -69,6 +70,7 @@ def generate_launch_description():
             'cmd_port': ParameterValue(cmd_port, value_type=int),
             'telem_host': ParameterValue(gui_host, value_type=str),
             'telem_port': ParameterValue(telem_port, value_type=int),
+            'telem_hz': ParameterValue(telem_hz, value_type=float),
         }],
     )
 
@@ -81,6 +83,8 @@ def generate_launch_description():
                               description='UDP port dengar perintah GUI (UDP_CMD_PORT).'),
         DeclareLaunchArgument('telem_port', default_value='14551',
                               description='UDP port tujuan telemetri (server.js).'),
+        DeclareLaunchArgument('telem_hz', default_value='10.0',
+                              description='Frekuensi telemetri UDP berbasis wall clock.'),
         sim,
         allocator,
         gui_bridge,

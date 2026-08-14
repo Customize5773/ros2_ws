@@ -26,6 +26,7 @@ import socket
 import time
 
 import rclpy
+from rclpy.clock import Clock, ClockType
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
@@ -87,10 +88,15 @@ class GuiBridge(Node):
         self._rx.setblocking(False)
         self._tx = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-        self.create_timer(0.02, self._poll_cmd)                 # 50 Hz drain UDP
-        self.create_timer(0.02, self._drain_downlink)           # 50 Hz drain telemetri tertunda
+        wall_clock = Clock(clock_type=ClockType.STEADY_TIME)
+        self.create_timer(0.02, self._poll_cmd, clock=wall_clock)  # 50 Hz UDP
+        self.create_timer(0.02, self._drain_downlink, clock=wall_clock)
         hz = max(1.0, float(g('telem_hz')))
-        self.create_timer(1.0 / hz, self._send_telem)
+        # Telemetry is a wall-facing UDP contract. Do not pace it with Gazebo
+        # simulation time: a loaded/headless sim must not make the GUI appear
+        # to have a dead link.
+        self.create_timer(1.0 / hz, self._send_telem,
+                          clock=Clock(clock_type=ClockType.STEADY_TIME))
         self.get_logger().info(
             'gui_bridge siap — dengar UDP cmd :%d, telemetri -> %s:%d' % (
                 int(g('cmd_port')), self._telem_dest[0], self._telem_dest[1]))
