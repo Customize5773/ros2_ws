@@ -73,6 +73,14 @@ PAYLOAD_SDF_TEMPLATE = '''<?xml version="1.0"?>
         </material>
       </visual>
     </link>
+    <plugin filename="ignition-gazebo-pose-publisher-system"
+            name="ignition::gazebo::systems::PosePublisher">
+      <publish_link_pose>true</publish_link_pose>
+      <publish_model_pose>true</publish_model_pose>
+      <publish_nested_model_pose>false</publish_nested_model_pose>
+      <use_pose_vector_msg>false</use_pose_vector_msg>
+      <update_frequency>20</update_frequency>
+    </plugin>
   </model>
 </sdf>
 '''

@@ -148,6 +148,9 @@ def _launch_setup(context, *args, **kwargs):
     # P2-B: opsional suntik noise ke odom (docs/ARCHITECTURE.md).
     odom_noise = LaunchConfiguration('odom_noise').perform(context).strip().lower() == 'true'
 
+    # R-8: opsional suntik dropout frame kamera (docs/P1-OWNER-DECISIONS-AND-ROADMAP.md).
+    camera_dropout = LaunchConfiguration('camera_dropout').perform(context).strip().lower() == 'true'
+
     world_path = os.path.join(pkg_gazebo, 'worlds', world)
     world_name = _world_name(world_path)
     print('[sim.launch] world file "%s" -> world name "%s"' % (world, world_name))
@@ -252,6 +255,21 @@ def _launch_setup(context, *args, **kwargs):
         }],
     )
 
+    # R-8: relay /hydroships/camera_{front,bottom}/image_raw_gt (ground truth) ->
+    # image_raw, opsional drop frame (camera_dropout:=true). Sama pola dgn odom_inj:
+    # selalu jalan, default mati = passthrough identik.
+    camera_dropout_inj = Node(
+        package='hydroships_control',
+        executable='camera_dropout_injector',
+        output='screen',
+        parameters=[{
+            'use_sim_time': True,
+            'camera_dropout': camera_dropout,
+            'drop_prob': _f(context, 'camera_drop_prob', 0.05),
+            'dropout_seed': int(_f(context, 'camera_dropout_seed', 0.0)),
+        }],
+    )
+
     # Kedalaman (M3) diturunkan dari odom -> /hydroships/depth (Float64).
     depth_pub = Node(
         package='hydroships_control',
@@ -303,8 +321,8 @@ def _launch_setup(context, *args, **kwargs):
         }],
     )
 
-    return [gz_sim, bridge, rsp, spawn_check, spawn, odom_inj, depth_pub, qr,
-            gripper, hook, spawner]
+    return [gz_sim, bridge, rsp, spawn_check, spawn, odom_inj, camera_dropout_inj,
+            depth_pub, qr, gripper, hook, spawner]
 
 
 def generate_launch_description():
@@ -350,5 +368,12 @@ def generate_launch_description():
                               description='deg/√s, std random-walk drift heading odom (0.5-2.0).'),
         DeclareLaunchArgument('odom_noise_seed', default_value='0',
                               description='0 = noise acak penuh; isi utk reproducible.'),
+        DeclareLaunchArgument('camera_dropout', default_value='false',
+                              description='R-8: true -> frame kamera didrop acak '
+                                          '(simulasi dropout). false = passthrough.'),
+        DeclareLaunchArgument('camera_drop_prob', default_value='0.05',
+                              description='Peluang drop per frame kamera (0..1).'),
+        DeclareLaunchArgument('camera_dropout_seed', default_value='0',
+                              description='0 = dropout acak penuh; isi utk reproducible.'),
         OpaqueFunction(function=_launch_setup),
     ])

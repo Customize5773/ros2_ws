@@ -24,6 +24,17 @@
   gz_type_name: "gz.msgs.Odometry"
   direction: GZ_TO_ROS
 
+# ---- Pose live payload (ground truth) : Gazebo -> ROS ----
+# M5: dipakai untuk validasi runtime "payload benar-benar terangkat" & ketahanan
+# grip (validate_grab_lift.py). Model 'payload' punya plugin PosePublisher
+# (payload_spawner.py) yg menerbitkan /model/payload/pose. Beda dgn
+# /hydroships/payload_pose (snapshot statis saat spawn, dipakai APPROACH_QR).
+- ros_topic_name: "/hydroships/payload_pose_live"
+  gz_topic_name: "/model/payload/pose"
+  ros_type_name: "geometry_msgs/msg/PoseStamped"
+  gz_type_name: "gz.msgs.Pose"
+  direction: GZ_TO_ROS
+
 # ---- Sensor Milestone 3 (Gazebo -> ROS) ----
 # IMU (imu_link)
 - ros_topic_name: "/hydroships/imu"
@@ -32,15 +43,16 @@
   gz_type_name: "gz.msgs.IMU"
   direction: GZ_TO_ROS
 
-# Kamera depan (haluan)
-- ros_topic_name: "/hydroships/camera_front/image_raw"
+# Kamera depan (haluan). Nama topic "_gt" (ground truth) -- camera_dropout_injector
+# relay ke image_raw, opsional drop frame (R-8, docs/P1-OWNER-DECISIONS-AND-ROADMAP.md).
+- ros_topic_name: "/hydroships/camera_front/image_raw_gt"
   gz_topic_name: "/hydroships/camera_front/image"
   ros_type_name: "sensor_msgs/msg/Image"
   gz_type_name: "gz.msgs.Image"
   direction: GZ_TO_ROS
 
-# Kamera bawah (dasar kolam / QR)
-- ros_topic_name: "/hydroships/camera_bottom/image_raw"
+# Kamera bawah (dasar kolam / QR). Sama, lihat catatan camera_front di atas.
+- ros_topic_name: "/hydroships/camera_bottom/image_raw_gt"
   gz_topic_name: "/hydroships/camera_bottom/image"
   ros_type_name: "sensor_msgs/msg/Image"
   gz_type_name: "gz.msgs.Image"

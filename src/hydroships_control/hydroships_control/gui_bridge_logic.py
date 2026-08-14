@@ -26,6 +26,26 @@ CATATAN: gain & konvensi tanda adalah ESTIMASI; belum diverifikasi dgn GUI live.
 """
 
 import math
+from collections import deque
+
+
+class DelayLine:
+    """Antrian FIFO tunda-waktu (R-8: simulasi latency tether). Murni -- `now`
+    diberikan pemanggil (bukan time.time()) supaya testable headless. delay_s<=0
+    -> item langsung 'ready' saat push, pass-through identik ke perilaku lama."""
+
+    def __init__(self, delay_s=0.0):
+        self.delay_s = float(delay_s)
+        self._q = deque()
+
+    def push(self, item, now):
+        self._q.append((now + self.delay_s, item))
+
+    def pop_ready(self, now):
+        ready = []
+        while self._q and self._q[0][0] <= now:
+            ready.append(self._q.popleft()[1])
+        return ready
 
 
 def clamp(v, lo, hi):
