@@ -105,7 +105,13 @@ verifikasi — file/commit terkait.
   fisik). — `worlds/kki_arena.sdf`.
 - [ ] **Arah bow (haluan)** — cek `bow_yaw` di GUI (footprint ~persegi, tak bisa ditebak bbox). — `hydroships.urdf.xacro`.
 - [ ] **Kalibrasi kamera fisik ROV** (OPEN, gap hardware) — intrinsics sim ≠ kalibrasi
-  hardware; jangan pakai K sim untuk estimasi jarak riil sampai kalibrasi kamera fisik tersedia. — `qr_detector.py`.
+  hardware; jangan pakai K sim untuk estimasi jarak riil sampai kalibrasi kamera fisik tersedia.
+  Tooling & jalur muat sudah tersedia (`calib_file_bottom`/`calib_file_front` param,
+  `qr_logic.load_calibration_yaml` — baca `.yaml` ROS ATAU `.npz`, prosedur
+  `camera_calibration` di `docs/HARDWARE.md` §3). Kalibrasi mentah kamera DWE ExploreHD
+  SUDAH ADA (`dwe.npz` di root repo) tapi RMS reprojection 4.97 px terlalu kasar untuk
+  dipercaya, dan tidak jelas untuk kamera bottom atau front — lihat `docs/HARDWARE.md` §3
+  langkah 5 sebelum dipakai. — `qr_detector.py`.
 - [ ] **Data fisik ROV asli** — massa/inertia/koefisien hidrodinamika masih `[estimate]`
   (termasuk setelah revisi massa 33.6→8.3 kg di `aa2410d`/`00d4aaa`, lihat CHANGELOG
   2026-08-06); ukur ROV nyata, isi `rov_params.yaml`, ubah tag `[estimate]`→`[measured]`. — `src/hydroships_description/config/rov_params.yaml`, `scripts/estimate_mass_inertia.py`, commit `045d7c4`.

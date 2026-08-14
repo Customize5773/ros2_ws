@@ -795,11 +795,44 @@ tick konvergen — debug print periodik lama sering melewatkan tick itu).
   `CONVERGEDBG: centered=False dist=0.058 approach_tol=0.060 wall_scored=False
   qr=- ex=+0.92 ey=+0.89` → GRAB ditolak (`x=+0.918 fresh=False`) →
   `GRAB timeout` → `ABORT` jujur, sama seperti run asli.
-- **[OPEN] Belum diperbaiki — 3 opsi diajukan, menunggu keputusan pemilik**
-  (lihat R-11 di roadmap): (1) lepas cek `centered` dari gerbang
-  `_wall_scored` (evaluasi offset independen dari status decode huruf);
-  (2) beri `DESCEND` gerbang re-centering eksplisit sebelum exit, bukan
-  cuma `depth_ok`, dgn timeout sendiri; (3) kombinasi (1)+(2). Sengaja
-  tidak diimplementasikan sesi ini — sama pola dgn R-9/R-10.
-- 116/116 test tetap hijau (instrumentasi `CONVERGEDBG` non-fungsional,
-  tak mengubah threshold/urutan FSM).
+- **[RESOLVED] Opsi 3 (kombinasi) — 2026-08-15**
+  - **Opsi 1** (`mission_fsm.py` `_st_approach_qr`): `centered` (offset visual `ex/ey`)
+    dievaluasi INDEPENDENT dari `_wall_scored` — tidak lagi dihardcode `False` saat
+    decode huruf gagal. Huruf tetap dipakai utk `self.wall` + skor m1, tapi tidak lagi
+    syarat utk cek centering. qr_off (deteksi kontur) adalah jalur terpisah dari
+    decode huruf.
+  - **Opsi 2** (`mission_fsm.py` `_st_descend`): gerbang re-centering visual
+    sebelum DESCEND→GRAB. Jika `depth_ok` tapi offset QR segar dan belum terpusat,
+    beri waktu `descend_recenter_timeout` (default 5.0s) supaya servo memperbaiki.
+    Jika offset sudah stale (QR tak terlihat di grab_depth, normal), lanjaykan GRAB
+    segera — servo tidak bisa membantu pada data usang.
+  - Param baru: `descend_recenter_timeout` (default 5.0s). Instance var
+    `_descend_depth_ok_since` reset tiap entry DESCEND.
+  - 116/116 test tetap hijau (instrumentasi `CONVERGEDBG` non-fungsional,
+    tak mengubah threshold/urutan FSM).
+
+## 2026-08-15 — M3: presisi numerik qr_offset dicatat + jalur kalibrasi kamera fisik
+
+- **Presisi qr_offset dicatat (sub-gap #1 M3):** dijalankan battery
+  `run_approach_qr_battery.sh` (n=6, kki_arena, headless) + reduksi dengan
+  `tools/p0-experiments/reduce_qr_precision.py` (P0-2.3 Gate P2/P3, sudah ada
+  sebelumnya, tak pernah dijalankan sampai selesai). Per-run mean QR-estimate
+  error 0.229–1.112 m (lihat `docs/STATUS.md` M3 untuk angka lengkap per-run).
+  Ini estimasi posisi dari SINYAL QR SAJA (reprojection pinhole), bukan
+  gripper_err/akurasi controller — dua hal itu tetap dijaga terpisah sesuai
+  desain skrip.
+- **Jalur kalibrasi kamera fisik ditambahkan (sub-gap #2 M3):**
+  `qr_logic.load_calibration_yaml(path)` baca `.yaml` (`camera_calibration`
+  ROS) atau `.npz` (`cv2.calibrateCamera` via `np.savez`); `qr_detector.py`
+  dapat param baru `calib_file_bottom`/`calib_file_front` (kosong = perilaku
+  sim tak berubah). Prosedur kalibrasi checkerboard didokumentasikan di
+  `docs/HARDWARE.md` §3 — pakai `ros2 run camera_calibration cameracalibrator`
+  (paket ROS resmi), tak menulis solver kalibrasi sendiri.
+- **Ditemukan saat kerja ini:** `dwe.npz` (kalibrasi mentah kamera DWE
+  ExploreHD, sudah ada di root repo, untracked git) — `K`/`dist`/
+  `image_size=[1280,720]`/`rms=4.97px`. Sudah bisa dimuat lewat jalur baru di
+  atas, TAPI RMS 4.97px jauh di atas ambang wajar (<0.5px) dan file tak
+  menyatakan untuk kamera bottom atau front — **belum dianggap siap pakai**.
+  Kalibrasi ke kamera fisik tetap **OPEN** di `docs/STATUS.md`/
+  `docs/VERIFICATION-CHECKLIST.md` sampai direkalibrasi & divalidasi di ROV.
+- 9/9 test `test_qr_logic.py` hijau (2 test baru: loader `.yaml` & `.npz`).

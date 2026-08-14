@@ -49,6 +49,51 @@ untuk "misi lomba lengkap"):
    (mis. `qr_servo_gain`, `hook_kp_surge`, dst. di `gains.yaml`/param `mission_fsm`)
    kemungkinan besar perlu re-tuning karena FOV, distorsi lensa, dan pencahayaan
    bawah air asli berbeda drastis dari render Gazebo.
+
+   **Prosedur kalibrasi (jalur sudah disiapkan di kode, belum dites hardware):**
+   1. Jalankan driver kamera (`usb_cam` atau `v4l2_camera`, paket ROS2 standar)
+      publish ke topic yang sama seperti sim: `/hydroships/camera_bottom/image_raw`
+      dan `/hydroships/camera_front/image_raw`.
+   2. Kalibrasi tiap kamera dengan paket ROS resmi — **jangan tulis ulang**
+      `cv2.calibrateCamera` sendiri:
+
+      ```bash
+      sudo apt install ros-humble-camera-calibration
+      ros2 run camera_calibration cameracalibrator \
+          --size 8x6 --square 0.024 \
+          --ros-args -r image:=/hydroships/camera_bottom/image_raw
+      ```
+
+      (papan checkerboard 8x6 internal corner, kotak 24mm — sesuaikan ukuran papan
+      yang tersedia). Gerakkan papan sampai bar kalibrasi penuh, klik **CALIBRATE**
+      lalu **SAVE** — hasilnya file `ost.yaml` (per default di `/tmp/calibrationdata.tar.gz`,
+      ekstrak `ost.yaml`). Verifikasi reprojection error yang dilaporkan tool (idealnya < 0.5 px)
+      sebelum dipakai.
+   3. Ulangi untuk kamera front.
+   4. Muat hasilnya ke `qr_detector` lewat param (lihat `qr_logic.load_calibration_yaml`):
+
+      ```bash
+      ros2 run hydroships_control qr_detector --ros-args \
+          -p calib_file_bottom:=/path/ke/ost_bottom.yaml \
+          -p calib_file_front:=/path/ke/ost_front.yaml
+      ```
+
+      Kosong (default) = perilaku tak berubah, tetap pakai `camera_info` sim.
+      `load_calibration_yaml` juga menerima `.npz` (`K`/`dist`/`image_size`/`rms`
+      lewat `np.savez`, format hasil `cv2.calibrateCamera` langsung) selain `.yaml`.
+   5. **Status: kalibrasi mentah SUDAH ADA, belum divalidasi/dipakai** — `dwe.npz` di
+      root repo berisi hasil kalibrasi nyata kamera DWE ExploreHD (`K`, `dist` 5-koef,
+      `image_size=[1280,720]`, `rms=4.97 px`). RMS 4.97 px **jauh di atas ambang wajar
+      (idealnya < 0.5 px)** — indikasi kalibrasi ini kasar/kurang foto papan atau papan
+      kurang bervariasi sudut, BUKAN siap pakai langsung untuk presisi visual servo.
+      Sebelum dipakai: (a) load lewat `calib_file_bottom:=dwe.npz`, verifikasi
+      `fx/fy/cx/cy` masuk akal untuk 1280x720, (b) idealnya rekalibrasi dengan lebih
+      banyak sudut/jarak papan untuk turunkan RMS, (c) belum ada bukti file ini cocok
+      dengan kamera bottom vs front (nama generik `dwe.npz`, tidak per-kamera) — cek
+      dulu sebelum diasumsikan salah satu kamera tertentu. `dist` (distorsi lensa)
+      disimpan tapi **belum dipakai** di `qr_logic`/`qr_detector` (offset dihitung dari
+      corner piksel mentah, tanpa undistort) — gap terpisah, bukan blocking utk
+      memuat `K` saja.
 4. **Servo gripper driver** — blocking untuk `gripper_controller` menggerakkan
    aktuator fisik. Perlu keputusan desain: PWM langsung dari RPi (mis. via
    PCA9685 I2C) atau lewat Pixhawk AUX output.

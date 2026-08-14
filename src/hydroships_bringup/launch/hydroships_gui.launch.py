@@ -44,11 +44,20 @@ def generate_launch_description():
     cmd_port = LaunchConfiguration('cmd_port')
     telem_port = LaunchConfiguration('telem_port')
     telem_hz = LaunchConfiguration('telem_hz')
+    camera_dropout = LaunchConfiguration('camera_dropout')
+    camera_drop_prob = LaunchConfiguration('camera_drop_prob')
+    camera_dropout_seed = LaunchConfiguration('camera_dropout_seed')
+    tether_latency_ms = LaunchConfiguration('tether_latency_ms')
 
     sim = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             PathJoinSubstitution([pkg_gazebo, 'launch', 'sim.launch.py'])),
-        launch_arguments={'headless': headless, 'world': world}.items(),
+        launch_arguments={
+            'headless': headless, 'world': world,
+            'camera_dropout': camera_dropout,
+            'camera_drop_prob': camera_drop_prob,
+            'camera_dropout_seed': camera_dropout_seed,
+        }.items(),
     )
 
     allocator = Node(
@@ -71,6 +80,7 @@ def generate_launch_description():
             'telem_host': ParameterValue(gui_host, value_type=str),
             'telem_port': ParameterValue(telem_port, value_type=int),
             'telem_hz': ParameterValue(telem_hz, value_type=float),
+            'tether_latency_ms': ParameterValue(tether_latency_ms, value_type=float),
         }],
     )
 
@@ -85,6 +95,14 @@ def generate_launch_description():
                               description='UDP port tujuan telemetri (server.js).'),
         DeclareLaunchArgument('telem_hz', default_value='10.0',
                               description='Frekuensi telemetri UDP berbasis wall clock.'),
+        DeclareLaunchArgument('camera_dropout', default_value='false',
+                              description='R-8: aktifkan dropout frame kamera.'),
+        DeclareLaunchArgument('camera_drop_prob', default_value='0.05',
+                              description='R-8: peluang dropout per frame.'),
+        DeclareLaunchArgument('camera_dropout_seed', default_value='0',
+                              description='R-8: seed dropout kamera (0=random).'),
+        DeclareLaunchArgument('tether_latency_ms', default_value='0.0',
+                              description='R-8: latency uplink/downlink UDP dalam ms.'),
         sim,
         allocator,
         gui_bridge,
