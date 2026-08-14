@@ -682,33 +682,52 @@ Log: `ros2_ws.log` (sisi ROS) + `GUI-ROV.log` (sisi server, 2413 baris).
     bukan regresi, melainkan R-9 mengungkap kegagalan nyata yang sebelumnya
     tersembunyi.
 
-## 2026-08-14 — Instrumentasi verifikasi payload-terangkat & ketahanan grip (M5)
+## 2026-08-14 — Instrumentasi verifikasi payload-terangkat & ketahanan grip (M5) — CLOSED
 
 - Menindaklanjuti gap `[OPEN]` di STATUS.md: "payload benar-benar terangkat
   (pose runtime belum diukur)" & "sim tak memvalidasi cengkeraman/slip fisik
-  sama sekali".
-- **`payload_spawner.py`**: `PAYLOAD_SDF_TEMPLATE` kini membawa plugin gz-sim
-  `PosePublisher` (`publish_link_pose`/`publish_model_pose` aktif, 20 Hz) —
-  model `payload` menerbitkan pose live ke `/model/payload/pose`.
-- **`hydroships_gazebo/config/bridge.yaml`**: entry baru `GZ_TO_ROS`
-  `/model/payload/pose` (`gz.msgs.Pose`) → `/hydroships/payload_pose_live`
-  (`geometry_msgs/PoseStamped`). Terpisah dari `/hydroships/payload_pose` lama
-  (snapshot statis saat spawn, tetap dipakai APPROACH_QR/Gate-4, tak diubah).
-  **Dikonfirmasi runtime**: log `ros_gz_bridge: Creating GZ->ROS Bridge:
-  [/model/payload/pose ... -> .../payload_pose_live]` muncul saat sim jalan.
-- **Baru: `hydroships_gazebo/scripts/validate_grab_lift.py`**
-  (`ros2 run hydroships_gazebo validate_grab_lift`) — skrip pasif (bukan
-  pytest): setelah `gripper/status=='attached'`, bandingkan `payload_pose_live.z`
-  vs `/hydroships/odom.z` untuk membuktikan payload ikut naik; lalu kirim satu
-  gangguan gaya singkat via `/hydroships/cmd_vel` dan cek delta ROV↔payload
-  tetap konstan (proxi "tak slip" — grasp desain ini `DetachableJoint` weld
-  rigid, bukan gesekan, jadi kriteria relevan = joint tetap tersambung di
-  bawah gangguan). Cetak PASS/FAIL per kriteria, exit code sesuai.
-- **Belum tertutup**: build & bridge terverifikasi jalan, tapi belum ada
-  battery run lengkap (`DIVE`→attach→`HANG`) yang mencatat angka PASS/FAIL
-  aktual dari skrip ini — kedua gap di STATUS.md tetap **OPEN** sampai itu
-  dijalankan. `start_state:=NAV_WALL`/`GRAB` standalone tidak representatif
-  (butuh attach/posisi grasp sudah tercapai lebih dulu, bukan bug skrip ini).
+  sama sekali". **Hasil akhir: kedua gap CLOSED**, battery 3/3 seed PASS.
+- **Percobaan pertama KELIRU, dicatat sbg pelajaran:** memasang plugin gz-sim
+  `PosePublisher` langsung di model `payload` (`payload_spawner.py`
+  `PAYLOAD_SDF_TEMPLATE`), dibridge ke `/hydroships/payload_pose_live`
+  (`geometry_msgs/PoseStamped`). **Bug:** dengan `publish_link_pose=true`,
+  topik `/model/payload/pose` ternyata menerbitkan pose **link relatif ke
+  model** (selalu `(0,0,0)` — dikonfirmasi via `ign topic -e -t
+  /model/payload/pose` yang menunjukkan `position {}` kosong & `child_frame_id:
+  "payload::payload_link"`), bukan pose model relatif dunia. Mencoba
+  `publish_link_pose=false` + `publish_model_pose=true` saja juga gagal —
+  topik `/model/payload/pose` sama sekali tak punya publisher aktif
+  (`ign topic -i` → "No publishers"). Ini menghasilkan **battery pertama
+  FALSE FAIL 3/3** (seed 4001/4002/4003, drift terukur 0.115–0.122m — persis
+  sama dengan kenaikan `odom.z` milik ROV sendiri, karena `payload.z` yang
+  terbaca stuck di nilai konstan/nol, BUKAN bukti payload tertinggal secara
+  fisik).
+- **Perbaikan (akhir, dipakai):** hapus seluruh plugin `PosePublisher` custom
+  dari `payload_spawner.py` — tidak perlu. Pakai topik bawaan gz-sim
+  `/world/kki_arena/pose/info` (`gz.msgs.Pose_V`, diterbitkan otomatis oleh
+  scene broadcaster utk SEMUA entity, aktif tanpa plugin tambahan), dibridge
+  sbg `tf2_msgs/msg/TFMessage` ke `/hydroships/world_pose_tf`
+  (`hydroships_gazebo/config/bridge.yaml`). `validate_grab_lift.py` memfilter
+  transform dgn `child_frame_id == 'payload'` (Pose_V→PoseStamped/Pose polos
+  tak menyimpan nama entity, makanya perlu TFMessage). Dikonfirmasi via
+  `ign topic -e -t /world/kki_arena/pose/info` (setelah dibridge sbg TF)
+  menunjukkan translasi payload nonzero & berubah seiring waktu, berbeda dari
+  entity lokal (`payload_link`, `*_visual`) yang semuanya `(0,0,0)`.
+  `/hydroships/payload_pose` lama (snapshot statis, dipakai APPROACH_QR/Gate-4)
+  **tak diubah**.
+- **Bug kedua, di skrip validator sendiri:** `rclpy.shutdown()` dipanggil dari
+  dalam callback timer selagi `rclpy.spin(node)` berjalan membuat proses
+  menggantung (tak crash, tak keluar) & `print()` ke file redirect tak pernah
+  ter-flush — hasil PASS/FAIL "hilang" walau logika benar. Diperbaiki: loop
+  `rclpy.spin_once` manual + flag `done` node, dan `flush=True` di semua
+  `print()`.
+- **Battery final (seed 4001/4002/4003, `headless:=true`, disturbance 6N/1s
+  via `/hydroships/cmd_vel` sesaat setelah attach):** **3/3 PASS kedua
+  kriteria** — TERANGKAT: delta_z odom 0.138/0.138/0.145m, max drift
+  0.010/0.012/0.012m (tol 0.030m); TAK SLIP: delta pasca-gangguan
+  0.009/0.012/0.012m, `gripper/status` tetap `'attached'` di ketiga run.
+  Detail & tabel: [STATUS.md](STATUS.md) subsection "Payload-terangkat &
+  ketahanan grip".
 
 ## 2026-08-14 — R-10 toleransi DESCEND lebih ketat; R-8 dropout kamera & latency tether (kode)
 

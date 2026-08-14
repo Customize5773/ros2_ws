@@ -10,7 +10,8 @@ PASS/FAIL. Bukan pytest -- lihat docs/STATUS.md untuk hasil run.
 
 Kriteria:
   1. TERANGKAT   : setelah gripper_status=='attached', selama ROV naik
-                   (delta_z odom > lift_min_m), payload_pose_live.z ikut naik
+                   (delta_z odom > lift_min_m), pose payload (dari TF
+                   /hydroships/world_pose_tf, frame 'payload') ikut naik
                    dengan delta (odom.z - payload.z) tetap dlm toleransi.
   2. TAK SLIP    : delta ROV<->payload tetap ~konstan (dlm toleransi yg sama)
                    sesaat setelah gangguan gaya singkat dikirim, dan
@@ -21,9 +22,10 @@ import sys
 
 import rclpy
 from rclpy.node import Node
-from geometry_msgs.msg import PoseStamped, Twist
+from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 from std_msgs.msg import String
+from tf2_msgs.msg import TFMessage
 
 
 class GrabLiftValidator(Node):
@@ -57,8 +59,8 @@ class GrabLiftValidator(Node):
         self.done = False
 
         self.create_subscription(Odometry, '/hydroships/odom', self._on_odom, 10)
-        self.create_subscription(PoseStamped, '/hydroships/payload_pose_live',
-                                  self._on_payload, 10)
+        self.create_subscription(TFMessage, '/hydroships/world_pose_tf',
+                                  self._on_world_tf, 10)
         self.create_subscription(String, '/hydroships/gripper/status',
                                   self._on_status, 10)
         self.pub_cmd = self.create_publisher(Twist, '/hydroships/cmd_vel', 10)
@@ -72,8 +74,11 @@ class GrabLiftValidator(Node):
     def _on_odom(self, msg):
         self.odom_z = msg.pose.pose.position.z
 
-    def _on_payload(self, msg):
-        self.payload_z = msg.pose.position.z
+    def _on_world_tf(self, msg):
+        for t in msg.transforms:
+            if t.child_frame_id == 'payload':
+                self.payload_z = t.transform.translation.z
+                return
 
     def _on_status(self, msg):
         if msg.data == 'attached' and self.gripper_status != 'attached':
@@ -103,7 +108,7 @@ class GrabLiftValidator(Node):
         if elapsed >= self.timeout_s:
             self.get_logger().error('TIMEOUT: gripper tak pernah "attached" atau data tak lengkap.')
             self._report(lifted=False, no_slip=False, timed_out=True)
-            rclpy.shutdown()
+            self.done = True
 
     def _send_disturbance(self):
         self.disturb_sent = True
@@ -126,21 +131,23 @@ class GrabLiftValidator(Node):
                    and self.result_delta_after_disturb <= self.delta_tol)
         self._report(lifted=lifted, no_slip=no_slip, timed_out=False,
                      lift_delta_z=lift_delta_z)
-        rclpy.shutdown()
+        self.done = True
 
     def _report(self, lifted, no_slip, timed_out, lift_delta_z=None):
-        print('--- validate_grab_lift hasil ---')
+        print('--- validate_grab_lift hasil ---', flush=True)
         if timed_out:
-            print('TERANGKAT : FAIL (timeout)')
-            print('TAK SLIP  : FAIL (timeout)')
+            print('TERANGKAT : FAIL (timeout)', flush=True)
+            print('TAK SLIP  : FAIL (timeout)', flush=True)
         else:
             print('TERANGKAT : %s (delta_z odom=%.3fm, max drift delta=%.3fm, tol=%.3fm)'
-                  % ('PASS' if lifted else 'FAIL', lift_delta_z, self.max_delta_drift, self.delta_tol))
+                  % ('PASS' if lifted else 'FAIL', lift_delta_z, self.max_delta_drift, self.delta_tol),
+                  flush=True)
             print('TAK SLIP  : %s (delta setelah gangguan=%s, status=%s)'
                   % ('PASS' if no_slip else 'FAIL',
                      ('%.3fm' % self.result_delta_after_disturb)
                      if self.result_delta_after_disturb is not None else 'n/a',
-                     self.gripper_status))
+                     self.gripper_status),
+                  flush=True)
         self._exit_ok = bool(lifted and no_slip and not timed_out)
 
 
@@ -148,11 +155,14 @@ def main(args=None):
     rclpy.init(args=args)
     node = GrabLiftValidator()
     try:
-        rclpy.spin(node)
-    except (KeyboardInterrupt, SystemExit):
+        while rclpy.ok() and not node.done:
+            rclpy.spin_once(node, timeout_sec=0.1)
+    except KeyboardInterrupt:
         pass
     ok = getattr(node, '_exit_ok', False)
     node.destroy_node()
+    if rclpy.ok():
+        rclpy.shutdown()
     sys.exit(0 if ok else 1)
 
 
