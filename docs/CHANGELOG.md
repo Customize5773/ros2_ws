@@ -731,6 +731,15 @@ Log: `ros2_ws.log` (sisi ROS) + `GUI-ROV.log` (sisi server, 2413 baris).
 
 ## 2026-08-14 — R-10 toleransi DESCEND lebih ketat; R-8 dropout kamera & latency tether (kode)
 
+### R-8 runtime verification — 2026-08-15
+
+Smoke test host berhasil dengan `camera_dropout:=true`, `camera_drop_prob:=0.35`,
+`camera_dropout_seed:=123`, dan `tether_latency_ms:=250`. `camera_dropout_injector`
+aktif, frame kamera diterima oleh `qr_detector`/`hook_detector`, dan seluruh stack
+ROS-Gazebo berjalan sampai batas `timeout 30s`. Wiring latency terverifikasi melalui
+parameter launch dan unit test `DelayLine`; pengukuran timestamp UDP end-to-end
+untuk delay aktual 250 ms masih terbuka.
+
 Menindaklanjuti `P1-OWNER-DECISIONS-AND-ROADMAP.md` §5. Keputusan pemilik
 proyek untuk R-10 (opsi toleransi DESCEND, bukan naikkan `max_alt_gap`) dan
 lanjut R-8 (dropout kamera + latency tether; noise MS5837 sudah tertutup
@@ -836,3 +845,31 @@ tick konvergen — debug print periodik lama sering melewatkan tick itu).
   Kalibrasi ke kamera fisik tetap **OPEN** di `docs/STATUS.md`/
   `docs/VERIFICATION-CHECKLIST.md` sampai direkalibrasi & divalidasi di ROV.
 - 9/9 test `test_qr_logic.py` hijau (2 test baru: loader `.yaml` & `.npz`).
+
+## 2026-08-15 (lanjutan) — R-10 battery pembanding descend_depth_tol sebelum/sesudah
+
+Runtime verification R-10 (`P1-OWNER-DECISIONS-AND-ROADMAP.md` §5) — param
+`descend_depth_tol` ada sejak 2026-08-14 tapi eksplisit ditandai "belum
+diverifikasi runtime, jangan tutup dari code review saja".
+
+- Param `descend_depth_tol` dipaparkan lewat `hydroships_mission.launch.py`
+  (sebelumnya cuma param internal `mission_fsm`, tak bisa dioverride dari
+  `ros2 launch` — perlu utk battery pembanding).
+- Skrip baru `tools/p0-experiments/run_r10_descend_tol_battery.sh`: 3 seed
+  (`spawn_seed:=3001/3002/3003`, sama dgn battery R-9/R-11 sebelumnya —
+  kontinuitas, bukan seed baru tanpa alasan) masing-masing dijalankan DUA
+  kali — `descend_depth_tol:=0.06` (replikasi perilaku lama) vs `:=0.02`
+  (default baru) — lalu `alt_gap` pada `GATEDBG close` pertama dibandingkan.
+- **Hasil: arah efek sesuai hipotesis di 2/3 pasangan yang bisa
+  dibandingkan** (alt_gap mengecil dgn tol lebih ketat: seed 3001
+  0.033→-0.001, seed 3002 0.075→0.005), TAPI **BELUM ditutup** — detail
+  lengkap & caveat (nilai negatif edge-case di 3001, run "lama" 3002 gagal
+  krn latch bukan alt_gap, run "lama" 3003 inconclusive/no-GRAB-dlm-window,
+  dan `max_alt_gap` sudah berubah 0.08→0.12 di commit terpisah sehingga
+  framing margin R-10 asli sudah usang) dicatat di
+  `P1-OWNER-DECISIONS-AND-ROADMAP.md` R-10. Log mentah:
+  `/tmp/r10-descend-tol/R10-{before,after}-{3001,3002,3003}.log`.
+- Item berikutnya sebelum R-10 bisa ditutup: pahami kenapa 3001-baru
+  overshoot ke alt_gap negatif (kemungkinan arah tanda depth vs `grab_depth`
+  di `_st_descend` perlu dicek), dan tambah seed lagi untuk seed 3003-lama
+  yang inconclusive.
