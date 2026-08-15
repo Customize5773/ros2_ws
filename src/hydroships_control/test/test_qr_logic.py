@@ -9,7 +9,9 @@ OFFLINE (bukan pengganti run sim) — lihat PROBLEM.md item "QR belum terbaca".
 import numpy as np
 import pytest
 
-from hydroships_control.qr_logic import parse_wall, offset_from_points, robust_decode
+from hydroships_control.qr_logic import (
+    parse_wall, offset_from_points, robust_decode, load_calibration_yaml,
+)
 
 cv2 = pytest.importorskip("cv2")
 
@@ -103,6 +105,34 @@ def test_robust_returns_empty_on_blank():
     det = cv2.QRCodeDetector()
     data, pts = robust_decode(blank, det)
     assert data == ""
+
+
+def test_load_calibration_yaml(tmp_path):
+    # Skema output ros2 run camera_calibration cameracalibrator (ost.yaml).
+    p = tmp_path / "ost.yaml"
+    p.write_text(
+        "camera_matrix:\n"
+        "  rows: 3\n"
+        "  cols: 3\n"
+        "  data: [600.1, 0.0, 320.5, 0.0, 601.2, 240.5, 0.0, 0.0, 1.0]\n"
+    )
+    k = load_calibration_yaml(str(p))
+    assert k.shape == (3, 3)
+    assert abs(k[0, 0] - 600.1) < 1e-6
+    assert abs(k[1, 1] - 601.2) < 1e-6
+    assert abs(k[0, 2] - 320.5) < 1e-6
+    assert abs(k[1, 2] - 240.5) < 1e-6
+
+
+def test_load_calibration_npz(tmp_path):
+    # Skema dwe.npz (cv2.calibrateCamera disimpan via np.savez).
+    p = tmp_path / "cal.npz"
+    K = np.array([[608.8, 0.0, 604.8], [0.0, 619.7, 458.8], [0.0, 0.0, 1.0]])
+    np.savez(p, K=K, dist=np.zeros((1, 5)), image_size=[1280, 720], rms=4.97)
+    k = load_calibration_yaml(str(p))
+    assert k.shape == (3, 3)
+    assert abs(k[0, 0] - 608.8) < 1e-6
+    assert abs(k[1, 1] - 619.7) < 1e-6
 
 
 def test_robust_decodes_real_sim_frame():

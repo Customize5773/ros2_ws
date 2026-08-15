@@ -27,6 +27,11 @@ CATATAN INTRINSICS (Tugas M3/M6): K matrix dari `camera_info` DISIMPAN untuk
 konsumen visual-servo, TAPI intrinsics ini murni hasil kalkulasi Gazebo dari
 FOV/resolusi SDF sim — BUKAN kalibrasi kamera fisik ROV asli. JANGAN dipakai
 untuk estimasi jarak riil sampai kalibrasi hardware tersedia (lihat PROBLEM.md).
+
+Jalur kalibrasi hardware SUDAH tersedia (param `calib_file_bottom`/
+`calib_file_front`, lihat docs/HARDWARE.md untuk prosedur `camera_calibration`)
+tapi BELUM divalidasi dengan kamera fisik ROV asli — tetap OPEN sampai
+benar-benar dites dengan hardware (docs/STATUS.md M3).
 """
 
 import numpy as np
@@ -38,7 +43,9 @@ from sensor_msgs.msg import Image, CameraInfo
 from std_msgs.msg import String
 from geometry_msgs.msg import PointStamped
 
-from hydroships_control.qr_logic import robust_decode, parse_wall, offset_from_points
+from hydroships_control.qr_logic import (
+    robust_decode, parse_wall, offset_from_points, load_calibration_yaml,
+)
 from hydroships_control.image_util import image_msg_to_bgr
 
 
@@ -51,6 +58,11 @@ class QRDetector(Node):
                                ['/hydroships/camera_bottom/image_raw',
                                 '/hydroships/camera_front/image_raw'])
         self.declare_parameter('max_rate', 5.0)   # batas deteksi/detik (hemat CPU)
+        # M3: file kalibrasi kamera fisik (format ost.yaml, hasil `ros2 run
+        # camera_calibration cameracalibrator`, lihat docs/HARDWARE.md). Kosong
+        # (default) -> perilaku tak berubah, K tetap dari camera_info sim.
+        self.declare_parameter('calib_file_bottom', '')
+        self.declare_parameter('calib_file_front', '')
         topics = list(self.get_parameter('image_topics').value)
 
         self.pub = self.create_publisher(String, '/hydroships/qr_result', 10)
@@ -70,6 +82,22 @@ class QRDetector(Node):
         # visual-servo bisa memakainya, TAPI jangan untuk estimasi jarak riil sampai
         # kalibrasi hardware tersedia (lihat PROBLEM.md / docs/ARCHITECTURE.md).
         self.K = {}                # frame_id -> 3x3 K matrix (numpy) atau None
+        # M3: kalau file kalibrasi hardware diberi, muat & KUNCI frame itu supaya
+        # camera_info sim (subscription di bawah) tidak menimpanya (lihat
+        # _on_caminfo: hanya set K bila belum ada).
+        self._calib_locked = set()
+        for frame, path in (('camera_bottom_link', self.get_parameter('calib_file_bottom').value),
+                            ('camera_front_link', self.get_parameter('calib_file_front').value)):
+            if not path:
+                continue
+            try:
+                self.K[frame] = load_calibration_yaml(path)
+                self._calib_locked.add(frame)
+                self.get_logger().info(
+                    'kalibrasi HARDWARE dimuat utk %s dari %s' % (frame, path))
+            except Exception as e:
+                self.get_logger().error(
+                    'gagal muat kalibrasi %s dari %s: %s' % (frame, path, e))
         for info_topic, frame in (('/hydroships/camera_bottom/camera_info', 'camera_bottom_link'),
                                   ('/hydroships/camera_front/camera_info', 'camera_front_link')):
             self.create_subscription(
@@ -92,7 +120,9 @@ class QRDetector(Node):
 
     def _on_caminfo(self, msg: CameraInfo, frame):
         # K = [fx 0 cx; 0 fy cy; 0 0 1]. Simpan sekali (intrinsics statis di sim).
-        if self.K.get(frame) is not None:
+        # Frame dengan kalibrasi HARDWARE (calib_file_*) sudah terkunci -- jangan
+        # ditimpa camera_info sim.
+        if frame in self._calib_locked or self.K.get(frame) is not None:
             return
         k = np.asarray(msg.k, dtype=float).reshape(3, 3)
         self.K[frame] = k

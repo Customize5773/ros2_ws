@@ -88,6 +88,11 @@ class MissionFSM(Node):
         # cuma 5-7mm dari max_alt_gap=0.08. Toleransi lebih ketat di sini turun
         # ROV lebih dekat ke grab_depth sebenarnya sebelum trigger GRAB.
         p('descend_depth_tol', 0.02)  # m toleransi kedalaman KHUSUS exit DESCEND
+        # R-11 Opsi 2: saat depth_ok tercapai di DESCEND, beri waktu tambahan
+        # `descend_recenter_timeout` supaya servo visual memperbaiki offset
+        # QR sebelum GRAB — hanya bila qr_off masih segar (camera masih melihat
+        # QR). Jika stale (QR hilang, normal di grab_depth), lanjutkan GRAB.
+        p('descend_recenter_timeout', 5.0)
         p('hook_depth', 0.45)        # m kedalaman hook (lihat arena)
         p('yaw_tol_deg', 10.0)       # derajat toleransi alignment heading
         p('qr_max_age', 1.5)         # s umur maks deteksi QR agar dianggap segar
@@ -219,6 +224,7 @@ class MissionFSM(Node):
         self.depth_surface = float(g('depth_surface'))
         self.depth_tol = float(g('depth_tol'))
         self.descend_depth_tol = float(g('descend_depth_tol'))
+        self.descend_recenter_timeout = float(g('descend_recenter_timeout'))
         self.hook_depth = float(g('hook_depth'))
         self.yaw_tol = math.radians(float(g('yaw_tol_deg')))
         self.qr_max_age = float(g('qr_max_age'))
@@ -315,6 +321,7 @@ class MissionFSM(Node):
         self._approach_recovered = False   # RECOVERY depth-ascent sudah dipicu?
         self._wall_scored = False          # skor m1 sudah diberi (cegah spam log)
         self._converge_ticks = 0  # P0-2.5 Kandidat #4: dwell tick counter, direset tiap entry APPROACH_QR
+        self._descend_depth_ok_since = None  # R-11 Opsi 2: timer re-centering visual di DESCEND
         self.hook_off = None      # (ex, ey, size)
         self.hook_time = 0.0
         self.payload_pose = None  # (x, y, z) dari /hydroships/payload_pose (spawner)
@@ -385,6 +392,11 @@ class MissionFSM(Node):
             # (risiko yang diidentifikasi eksplisit di review hardening).
             self._qr_ex_filt = None
             self._qr_ey_filt = None
+        if s is St.DESCEND:
+            # R-11 Opsi 2: reset timer re-centering visual tiap masuk DESCEND
+            # supaya waktu tunggu dihitung dari entry state, bukan dari t_state
+            # APPROACH_QR sebelumnya.
+            self._descend_depth_ok_since = None
 
     def _set_depth(self, d_pos):
         m = Float64(); m.data = -abs(d_pos); self.pub_depth.publish(m)
@@ -699,16 +711,19 @@ class MissionFSM(Node):
                                    'pusatkan QR sebelum GRAB'
                                    % (self.qr_wall, self.wall))
 
-        if self._wall_scored:
-            # Dibandingkan terhadap ey_target (bukan 0) — kalau tetap terhadap 0,
-            # |ey| konvergen ke ~0.61 dan transisi GRAB tak pernah terpicu.
-            centered = (off_fresh
-                        and abs(self.qr_off[0]) < self.qr_center_tol
-                        and abs(self.qr_off[1] - ey_target) < self.qr_center_tol)
-            converged_now = centered or dist < self.approach_tol
-        else:
-            centered = False
-            converged_now = dist < self.approach_tol
+        # R-11 Opsi 1: centered dievaluasi INDEPENDENT dari _wall_scored.
+        # qr_off (dari /hydroships/qr_offset, deteksi kontur) adalah jalur
+        # terpisah dari decode huruf (/hydroships/qr_result) yang menggerbangkan
+        # _wall_scored. Decode huruf gagal 82-89% tapi corner tetap terdeteksi,
+        # jadi centered tetap harus dicek tiap tick — bukan dihardcode False
+        # saat _wall_scored False. Huruf tetap dipakai utk self.wall + skor m1
+        # (blok qr_seen di atas), tapi tak lagi syarat utk cek centering.
+        # Dibandingkan terhadap ey_target (bukan 0) — kalau tetap terhadap 0,
+        # |ey| konvergen ke ~0.61 dan transisi GRAB tak pernah terpicu.
+        centered = (off_fresh
+                    and abs(self.qr_off[0]) < self.qr_center_tol
+                    and abs(self.qr_off[1] - ey_target) < self.qr_center_tol)
+        converged_now = centered or dist < self.approach_tol
 
         # P0-2.5 Kandidat #4: syarat dwell N-tick sebelum transisi GRAB
         # benar2 dipicu -- BUKAN transisi pada tick tunggal begitu kondisi
@@ -741,7 +756,9 @@ class MissionFSM(Node):
                        self._gripper_align_txt()))
                 self._set_surge(0.0); self._to(St.DESCEND); return
             else:
-                # Fallback: QR tak pernah terbaca tapi ROV sudah di atas payload.
+                # Fallback: QR huruf tak pernah ter-decode (82-89% run) tapi
+                # ROV sudah konvergen — via centered (offset kontur segar) ATAU
+                # dist < approach_tol. Wall dipilih dari urutan wall_order.
                 if self._wall_idx >= len(self._wall_sequence):
                     self.get_logger().info('Semua wall selesai, misi tuntas.')
                     self._print_score(); self._to(St.DONE); return
@@ -749,9 +766,11 @@ class MissionFSM(Node):
                 self._wall_idx += 1
                 self.score['m1'] = 15
                 self._wall_scored = True
-                self.get_logger().info('Wall %s dipilih (+15) [urutan ke-%d] (%s)'
+                self.get_logger().info('QR tidak ter-decode, wall urutan %s '
+                                       'dipilih (+15) [urutan ke-%d] (%s) [%s]'
                                        % (self.wall, self._wall_idx,
-                                          self._gripper_align_txt()))
+                                          self._gripper_align_txt(),
+                                          'visual servo' if centered else 'jarak XY'))
                 self._set_surge(0.0); self._to(St.DESCEND); return
 
         if self._elapsed() > self.T['scan']:
@@ -801,17 +820,49 @@ class MissionFSM(Node):
         dist = self._goto_xy(tx, ty, min_fmax_frac=self.approach_min_fmax_frac)
 
         depth_ok = self.depth is not None and self.depth >= grasp_depth - self.descend_depth_tol
+        # R-11 Opsi 2: gerbang re-centering visual sebelum GRAB.
+        # depth_ok saja sering memaksa GRAB saat offset QR masih besar/basi
+        # (decode gagal 82-89%). Jika qr_off masih segar tapi belum terpusat,
+        # beri waktu servo memperbaiki. Jika sudah stale (QR hilang, normal di
+        # grab_depth), lanjaykan GRAB — servo tidak bisa membantu pada data usang.
+        centered = (off_fresh
+                    and abs(self.qr_off[0]) < self.qr_center_tol
+                    and abs(self.qr_off[1] - ey_target) < self.qr_center_tol)
         if int(self._elapsed() * 2) % 20 == 0:
             self.get_logger().info(
-                'DESCEND dbg: depth=%.2f/%.2f dist=%.3f ey_target=%+.2f'
+                'DESCEND dbg: depth=%.2f/%.2f dist=%.3f ey_target=%+.2f '
+                'centered=%s off_fresh=%d'
                 % (self.depth if self.depth is not None else -1.0,
-                   grasp_depth, dist, ey_target))
+                   grasp_depth, dist, ey_target, centered, int(off_fresh)))
 
         if depth_ok:
-            self._set_surge(0.0)
-            self.get_logger().info('DESCEND: kedalaman grasp tercapai (%.2fm) -> GRAB'
-                                   % self.depth)
-            self._to(St.GRAB)
+            if centered:
+                self._set_surge(0.0)
+                self.get_logger().info('DESCEND: kedalaman + visual terpusat -> GRAB')
+                self._to(St.GRAB)
+            elif off_fresh:
+                # QR terlihat tapi belum terpusat: beri waktu re-centering.
+                # Jangan zero surge — biarkan visual servo (_goto_xy di atas)
+                # terus mengoreksi XY.
+                if self._descend_depth_ok_since is None:
+                    self._descend_depth_ok_since = self._now()
+                elif self._now() - self._descend_depth_ok_since > self.descend_recenter_timeout:
+                    self._set_surge(0.0)
+                    self.get_logger().warn(
+                        'DESCEND: visual belum terpusat setelah %.1fs '
+                        '(ex=%+.2f ey=%+.2f), lanjutkan GRAB (fallback)'
+                        % (self.descend_recenter_timeout,
+                           self.qr_off[0], self.qr_off[1]))
+                    self._to(St.GRAB)
+                # else: masih dalam jeda re-centering, lanjutkan servo
+            else:
+                # qr_off stale (QR tak terlihat di grab_depth) — tidak bisa
+                # servo, langsung GRAB. Normal: kamera bawah sejajar bidang QR,
+                # latch "armed" gripper_logic tetap aktif.
+                self._set_surge(0.0)
+                self.get_logger().info(
+                    'DESCEND: kedalaman grasp tercapai, QR tak terlihat (stale) -> GRAB')
+                self._to(St.GRAB)
         elif self._elapsed() > self.T['descend']:
             self.get_logger().error('DESCEND timeout'); self._to(St.ABORT)
 

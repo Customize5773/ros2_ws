@@ -159,7 +159,8 @@ Node ini tidak punya file YAML sendiri — semua param dideklarasikan di kode
 (`mission_fsm.py`) dan sebagian di-override via launch argument (lihat §4 di atas).
 Daftar param lengkap (nama — default): `start_state='DIVE'`, `wall_order='random'`,
 `start_delay=3.0`, `start_wall=''`, `surge_force=25.0`, `depth_bottom=0.70`,
-`depth_surface=0.08`, `depth_tol=0.06`, `hook_depth=0.45`, `yaw_tol_deg=10.0`,
+ `depth_surface=0.08`, `depth_tol=0.06`, `descend_depth_tol=0.02`,
+ `descend_recenter_timeout=5.0`, `hook_depth=0.45`, `yaw_tol_deg=10.0`,
 `qr_max_age=1.5`, `payload_x=0.4`, `payload_y=0.0`, `scan_depth=0.30`,
 `approach_kp=90.0`, `approach_kd=140.0`, `approach_fmax=16.0`, `approach_tol=0.06`,
 `wall_dist=2.30`, `hook_dist=0.30`, `hook_lateral_offset=0.0`, `nav_tol=0.20`,

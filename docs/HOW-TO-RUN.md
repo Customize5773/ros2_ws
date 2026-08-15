@@ -163,8 +163,8 @@ GUI tim (Customize5773/GUI-ROV) memakai UDP-JSON/MAVLink, bukan ROS langsung
 Arahkan telemetri ke laptop GUI (server.js) & set port bila perlu:
 
 ```bash
-  ros2 launch hydroships_bringup hydroships_gui.launch.py \
-      gui_host:=192.168.2.1 cmd_port:=14550 telem_port:=14551
+ros2 launch hydroships_bringup hydroships_gui.launch.py \
+      gui_host:=192.168.2.1 cmd_port:=14550 telem_port:=14551 telem_hz:=10
 ```
 
 ### 3E. SIM + TELEOP KEYBOARD 6-DOF LANGSANG
@@ -502,4 +502,3 @@ Prasyarat di setiap terminal:
 cd ~/ros2_ws && colcon build && source install/setup.bash
 ros2 launch hydroships_bringup hydroships_mission.launch.py world:=kki_arena.sdf
 ```
-

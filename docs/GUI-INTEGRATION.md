@@ -95,9 +95,11 @@ wall) menggantikan gerak *timed*; **fallback timed** tetap ada bila deteksi tak 
   redam pelan setelah yaw berhenti. Belum jelas apakah ini karakter fisik wajar
   dari pola pulsa keyboard atau indikasi allocator/gain perlu ditinjau — perlu
   run pembanding dengan joystick asli.
-- **[OPEN, ditemukan di run 2026-08-13]** Telemetry rate terukur ~3 Hz di
-  beberapa jendela 1 detik, di bawah `telem_hz=10` default (`gui_bridge.py:57`)
-  — perlu profiling apakah ini beban headless atau isu di adapter/timer.
+- **[RESOLVED 2026-08-15]** Timer telemetri UDP dipacing steady/wall clock,
+  bukan ROS/Gazebo simulation clock. Ini mencegah beban headless membuat rate
+  GUI turun bersama real-time factor. Verifikasi rate: jalankan receiver UDP
+  pada port 14551 selama >=10 s dan hitung datagram per detik; target nominal
+  `telem_hz=10` (deviasi praktis mengikuti scheduler OS).
 - Tuning ambang deteksi hook di render kamera sim (nilai default = uji-meja).
 - Servo hook = PD holonomik IBVS (sway+surge+koreksi-depth, image-based tanpa kalibrasi);
   pose-based (solvePnP/PBVS) menyusul bila kalibrasi kamera fisik hook tersedia.

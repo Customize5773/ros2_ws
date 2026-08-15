@@ -731,6 +731,25 @@ Log: `ros2_ws.log` (sisi ROS) + `GUI-ROV.log` (sisi server, 2413 baris).
 
 ## 2026-08-14 — R-10 toleransi DESCEND lebih ketat; R-8 dropout kamera & latency tether (kode)
 
+### R-8 runtime verification — 2026-08-15
+
+Smoke test host berhasil dengan `camera_dropout:=true`, `camera_drop_prob:=0.35`,
+`camera_dropout_seed:=123`, dan `tether_latency_ms:=250`. `camera_dropout_injector`
+aktif, frame kamera diterima oleh `qr_detector`/`hook_detector`, dan seluruh stack
+ROS-Gazebo berjalan sampai batas `timeout 30s`. Wiring latency terverifikasi melalui
+parameter launch dan unit test `DelayLine`; pengukuran timestamp UDP end-to-end
+untuk delay aktual 250 ms masih terbuka.
+
+### R-8 UDP latency measurement — 2026-08-15
+
+Probe `tools/p0-experiments/measure_r8_udp_latency.py` mengirim 10 command
+`surge=37` setelah arm dan mencocokkan timestamp monotonic UDP dengan callback
+`/hydroships/cmd_vel` (`Fx=14.8 N`). Pada `tether_latency_ms:=250`, hasilnya
+10/10 teramati: min **253.7 ms**, median **278.2 ms**, max **315.6 ms**.
+Selama probe, 72 packet telemetry diterima di port 14551. Ini memvalidasi
+latency uplink; latency downlink belum dapat dihitung end-to-end karena payload
+telemetry belum membawa timestamp sumber.
+
 Menindaklanjuti `P1-OWNER-DECISIONS-AND-ROADMAP.md` §5. Keputusan pemilik
 proyek untuk R-10 (opsi toleransi DESCEND, bukan naikkan `max_alt_gap`) dan
 lanjut R-8 (dropout kamera + latency tether; noise MS5837 sudah tertutup
@@ -795,11 +814,128 @@ tick konvergen — debug print periodik lama sering melewatkan tick itu).
   `CONVERGEDBG: centered=False dist=0.058 approach_tol=0.060 wall_scored=False
   qr=- ex=+0.92 ey=+0.89` → GRAB ditolak (`x=+0.918 fresh=False`) →
   `GRAB timeout` → `ABORT` jujur, sama seperti run asli.
-- **[OPEN] Belum diperbaiki — 3 opsi diajukan, menunggu keputusan pemilik**
-  (lihat R-11 di roadmap): (1) lepas cek `centered` dari gerbang
-  `_wall_scored` (evaluasi offset independen dari status decode huruf);
-  (2) beri `DESCEND` gerbang re-centering eksplisit sebelum exit, bukan
-  cuma `depth_ok`, dgn timeout sendiri; (3) kombinasi (1)+(2). Sengaja
-  tidak diimplementasikan sesi ini — sama pola dgn R-9/R-10.
-- 116/116 test tetap hijau (instrumentasi `CONVERGEDBG` non-fungsional,
-  tak mengubah threshold/urutan FSM).
+- **[RESOLVED] Opsi 3 (kombinasi) — 2026-08-15**
+  - **Opsi 1** (`mission_fsm.py` `_st_approach_qr`): `centered` (offset visual `ex/ey`)
+    dievaluasi INDEPENDENT dari `_wall_scored` — tidak lagi dihardcode `False` saat
+    decode huruf gagal. Huruf tetap dipakai utk `self.wall` + skor m1, tapi tidak lagi
+    syarat utk cek centering. qr_off (deteksi kontur) adalah jalur terpisah dari
+    decode huruf.
+  - **Opsi 2** (`mission_fsm.py` `_st_descend`): gerbang re-centering visual
+    sebelum DESCEND→GRAB. Jika `depth_ok` tapi offset QR segar dan belum terpusat,
+    beri waktu `descend_recenter_timeout` (default 5.0s) supaya servo memperbaiki.
+    Jika offset sudah stale (QR tak terlihat di grab_depth, normal), lanjaykan GRAB
+    segera — servo tidak bisa membantu pada data usang.
+  - Param baru: `descend_recenter_timeout` (default 5.0s). Instance var
+    `_descend_depth_ok_since` reset tiap entry DESCEND.
+  - 116/116 test tetap hijau (instrumentasi `CONVERGEDBG` non-fungsional,
+    tak mengubah threshold/urutan FSM).
+
+## 2026-08-15 — M3: presisi numerik qr_offset dicatat + jalur kalibrasi kamera fisik
+
+- **Presisi qr_offset dicatat (sub-gap #1 M3):** dijalankan battery
+  `run_approach_qr_battery.sh` (n=6, kki_arena, headless) + reduksi dengan
+  `tools/p0-experiments/reduce_qr_precision.py` (P0-2.3 Gate P2/P3, sudah ada
+  sebelumnya, tak pernah dijalankan sampai selesai). Per-run mean QR-estimate
+  error 0.229–1.112 m (lihat `docs/STATUS.md` M3 untuk angka lengkap per-run).
+  Ini estimasi posisi dari SINYAL QR SAJA (reprojection pinhole), bukan
+  gripper_err/akurasi controller — dua hal itu tetap dijaga terpisah sesuai
+  desain skrip.
+- **Jalur kalibrasi kamera fisik ditambahkan (sub-gap #2 M3):**
+  `qr_logic.load_calibration_yaml(path)` baca `.yaml` (`camera_calibration`
+  ROS) atau `.npz` (`cv2.calibrateCamera` via `np.savez`); `qr_detector.py`
+  dapat param baru `calib_file_bottom`/`calib_file_front` (kosong = perilaku
+  sim tak berubah). Prosedur kalibrasi checkerboard didokumentasikan di
+  `docs/HARDWARE.md` §3 — pakai `ros2 run camera_calibration cameracalibrator`
+  (paket ROS resmi), tak menulis solver kalibrasi sendiri.
+- **Ditemukan saat kerja ini:** `dwe.npz` (kalibrasi mentah kamera DWE
+  ExploreHD, sudah ada di root repo, untracked git) — `K`/`dist`/
+  `image_size=[1280,720]`/`rms=4.97px`. Sudah bisa dimuat lewat jalur baru di
+  atas, TAPI RMS 4.97px jauh di atas ambang wajar (<0.5px) dan file tak
+  menyatakan untuk kamera bottom atau front — **belum dianggap siap pakai**.
+  Kalibrasi ke kamera fisik tetap **OPEN** di `docs/STATUS.md`/
+  `docs/VERIFICATION-CHECKLIST.md` sampai direkalibrasi & divalidasi di ROV.
+- 9/9 test `test_qr_logic.py` hijau (2 test baru: loader `.yaml` & `.npz`).
+
+## 2026-08-15 (lanjutan) — R-10 battery pembanding descend_depth_tol sebelum/sesudah
+
+Runtime verification R-10 (`P1-OWNER-DECISIONS-AND-ROADMAP.md` §5) — param
+`descend_depth_tol` ada sejak 2026-08-14 tapi eksplisit ditandai "belum
+diverifikasi runtime, jangan tutup dari code review saja".
+
+- Param `descend_depth_tol` dipaparkan lewat `hydroships_mission.launch.py`
+  (sebelumnya cuma param internal `mission_fsm`, tak bisa dioverride dari
+  `ros2 launch` — perlu utk battery pembanding).
+- Skrip baru `tools/p0-experiments/run_r10_descend_tol_battery.sh`: 3 seed
+  (`spawn_seed:=3001/3002/3003`, sama dgn battery R-9/R-11 sebelumnya —
+  kontinuitas, bukan seed baru tanpa alasan) masing-masing dijalankan DUA
+  kali — `descend_depth_tol:=0.06` (replikasi perilaku lama) vs `:=0.02`
+  (default baru) — lalu `alt_gap` pada `GATEDBG close` pertama dibandingkan.
+- **Hasil: arah efek sesuai hipotesis di 2/3 pasangan yang bisa
+  dibandingkan** (alt_gap mengecil dgn tol lebih ketat: seed 3001
+  0.033→-0.001, seed 3002 0.075→0.005), TAPI **BELUM ditutup** — detail
+  lengkap & caveat (nilai negatif edge-case di 3001, run "lama" 3002 gagal
+  krn latch bukan alt_gap, run "lama" 3003 inconclusive/no-GRAB-dlm-window,
+  dan `max_alt_gap` sudah berubah 0.08→0.12 di commit terpisah sehingga
+  framing margin R-10 asli sudah usang) dicatat di
+  `P1-OWNER-DECISIONS-AND-ROADMAP.md` R-10. Log mentah:
+  `/tmp/r10-descend-tol/R10-{before,after}-{3001,3002,3003}.log`.
+- Item berikutnya sebelum R-10 bisa ditutup: pahami kenapa 3001-baru
+  overshoot ke alt_gap negatif (kemungkinan arah tanda depth vs `grab_depth`
+  di `_st_descend` perlu dicek), dan tambah seed lagi untuk seed 3003-lama
+  yang inconclusive.
+
+## 2026-08-15 (lanjutan) — R-10 trajectory investigation (6 seed × 2 tol)
+
+Follow-up battery dengan trajectory capture (`recorder_qr.py` diperluas: `vz`
++ `gripper_status`, tools baru `run_r10_trajectory.sh`,
+`run_r10_trajectory_battery.sh`, `reduce_r10_trajectory.py`).
+
+- 12 run: seeds 3001–3006 × `descend_depth_tol` 0.06 (old) vs 0.02 (new),
+  duration 150s sim, recorder 10 Hz.
+- **R-10 DITUTUP:** `alt_gap` di GRAB selalu **0.010–0.047 m** (margin
+  0.065–0.110 m ke `max_alt_gap=0.12`). Tidak ada negatif, tidak ada depth
+  di bawah `grab_depth` yang menyebabkan masalah fisik.
+- Attach failures (`3002-after`, `3005-after`) disebabkan XY offset
+  > `max_offset` (R-11), bukan `alt_gap`. `3004-before` juga gagal attach
+  dengan alt_gap=0.035 — confirming failure mode is XY, not depth.
+- `descend_depth_tol=0.02` aman sebagai default. Perubahan ini tidak
+  memerlukan revert atau penambahan mitigasi.
+- Log & CSV: `/tmp/r10-trajectory/R10-{before,after}-{3001..3006}.{log,csv}`.
+
+## 2026-08-15 (lanjutan) — R-11 battery replay: pinned repro + 3 seed baru
+
+Runtime verification R-11 (`P1-OWNER-DECISIONS-AND-ROADMAP.md` §5) — fix Opsi
+3 (2026-08-15 lebih awal) ditandai "belum diverifikasi runtime, butuh replay
+`R11-3002-pinned` + seed lain".
+
+- Skrip baru `tools/p0-experiments/run_r11_replay_battery.sh`: replay
+  deterministik `qr_letter:=C payload_x:=0.34 payload_y:=-0.35
+  spawn_seed:=3002` (kondisi persis yang dulu memicu diagnosis R-11) + 3 seed
+  random-spawn baru (`spawn_seed:=4001/4002/4003`). Window 100s/run (worst-case
+  `t_dive+t_scan+t_descend+t_grab=90s` + buffer).
+- **Opsi 1 (centered independen dari wall_scored) TERKONFIRMASI runtime** di
+  ke-4 run: `CONVERGEDBG` menunjukkan `centered` selalu dievaluasi baik saat
+  `wall_scored=True` maupun `False` — inilah perbaikan inti R-11.
+- **4001, 4003: GRAB sukses bersih**, gerbang latch+alt_gap valid, tanpa
+  anomali. **4002: inconclusive** (window 100s sedikit kurang panjang untuk
+  kasus ini, masih di tengah decode-gagal-berulang saat window habis).
+- **3002-pinned-replay: temuan baru, di luar cakupan R-11 asli.** Replay
+  TIDAK mereproduksi kondisi asli persis — `qr_offset` tak pernah diterima
+  sama sekali sepanjang run (beda dari diagnosis asli yang punya offset besar
+  tapi tak terpusat). Lebih penting: ditemukan **anomali ack** —
+  `gripper_controller` log jelas menolak attach ("tutup TAPI payload di luar
+  jangkauan"), tapi 13ms kemudian `mission_fsm` menerima ack `'attached'` dan
+  lanjut ke `NAV_WALL`. Ditelusuri via pembacaan kode + REPL langsung
+  (`gripper_logic._do_close`/`is_safe()` mengonfirmasi reject deterministik
+  untuk skenario ini) — **tak ketemu jalur di kode yang bisa menghasilkan
+  'attached' di sini**, satu-satunya publisher `gripper/status` adalah
+  `gripper_controller._on_cmd` (single-threaded `rclpy.spin`, tak ada race
+  yang kelihatan). **Belum dijelaskan — dicatat sebagai item baru (kandidat
+  R-12) di `P1-OWNER-DECISIONS-AND-ROADMAP.md` R-11**, bukan ditutup sebagai
+  bagian dari fix R-11 sendiri.
+- **Kesimpulan:** mekanisme inti R-11 (Opsi 1+2) bekerja sesuai desain —
+  cukup untuk R-11 sendiri dianggap terverifikasi — tapi anomali ack yang
+  disingkap perlu investigasi terpisah sebelum battery Fase 1 berikutnya
+  dipercaya penuh (ack `gripper/status` tak selalu bisa dipercaya tanpa
+  silang-cek log mentah `gripper_controller`). Log mentah:
+  `/tmp/r11-replay/R11-{3002-pinned-replay,4001,4002,4003}.log`.

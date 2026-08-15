@@ -37,6 +37,7 @@ history-log
 run1_1.log
 run2_1.log
 run3_1.log
+graphify-out
 testrun1.1.log
 semua_output_TEST.log
 run1001_attach.log
@@ -61,3 +62,4 @@ run2008_fsm.log
 semua_output.log
 semua_output.log
 ros2_ws.log
+dwe.npz
