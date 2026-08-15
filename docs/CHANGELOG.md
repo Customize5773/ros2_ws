@@ -939,3 +939,34 @@ Runtime verification R-11 (`P1-OWNER-DECISIONS-AND-ROADMAP.md` §5) — fix Opsi
   dipercaya penuh (ack `gripper/status` tak selalu bisa dipercaya tanpa
   silang-cek log mentah `gripper_controller`). Log mentah:
   `/tmp/r11-replay/R11-{3002-pinned-replay,4001,4002,4003}.log`.
+
+## 2026-08-16 — R-10 & R-12 re-investigasi
+
+Dua temuan dari investigasi terpisah sebelumnya dinilai ulang; keduanya
+menurunkan tingkat kepercayaan status yang sudah tercatat, tanpa perubahan
+kode.
+
+- **R-10 (caveat pada status "DITUTUP 2026-08-15"):** re-run seed 3001
+  dengan kondisi identik (spawn/param sama seperti battery 6-seed × 2-tol
+  yang menutup R-10) menghasilkan `alt_gap` berbeda jauh antar run (-0.001 vs
+  +0.015/+0.018). Ini membuktikan variasi run-to-run yang nyata, bukan noise
+  pengukuran — `spawn_seed` hanya nge-seed pose spawn awal, bukan timing
+  fisika (kontak, integrasi solver, dsb). Klaim battery 6-seed "`alt_gap`
+  selalu 0.010–0.047 m, tidak ada negatif" tetap valid sebagai hasil 12 run
+  yang sudah dijalankan, tapi **tidak boleh dibaca sebagai jaminan
+  run-to-run stabil** untuk seed manapun — margin ke `max_alt_gap=0.12` bisa
+  jadi lebih tipis dari yang battery tunjukkan pada re-run berikutnya. Status
+  R-10 di `P1-OWNER-DECISIONS-AND-ROADMAP.md` tetap DITUTUP (root cause margin
+  5–7mm sudah stale) tapi kini dengan caveat ini ditambahkan ke sel
+  kesimpulan. Lihat catatan seed-3001 anomaly lama (battery
+  descend_depth_tol sebelum/sesudah) yang sudah pernah menyinggung isu serupa
+  sebelum battery 6-seed menimpanya tanpa rekonsiliasi eksplisit.
+- **R-12 (anomali ack `gripper_controller` vs `mission_fsm`, tidak
+  reproduksi):** re-run dengan `ros2 bag record` (log terurut per-topik,
+  bukan stdout interleaved antar-node) **tidak mereproduksi** anomali ack
+  yang dicatat di `R11-3002-pinned-replay` (13ms gap 'attached' vs 'rejected'
+  read dari log). Kemungkinan besar penyebab asli adalah salah baca log
+  stdout yang interleaved, bukan bug nyata di jalur publish/subscribe
+  `gripper/status`. Status R-12 diturunkan dari "temuan baru, belum
+  dijelaskan" ke **unconfirmed / tak reproduksi** di
+  `P1-OWNER-DECISIONS-AND-ROADMAP.md` (baris R-11) dan `docs/STATUS.md`.
