@@ -59,6 +59,8 @@ def generate_launch_description():
                       'start_wall': start_wall,
                       'scan_depth': ParameterValue(LaunchConfiguration('scan_depth'),
                                                    value_type=float),
+                      'descend_depth_tol': ParameterValue(
+                          LaunchConfiguration('descend_depth_tol'), value_type=float),
                       'cam_gripper_dx': ParameterValue(
                           LaunchConfiguration('cam_gripper_dx'), value_type=float),
                       'hook_size_stop': ParameterValue(
@@ -123,6 +125,13 @@ def generate_launch_description():
         DeclareLaunchArgument('cam_gripper_dx', default_value='0.16',
                               description='Jarak gripper di depan kamera bawah (m). '
                                           '0.0 = perilaku lama (tanpa koreksi).'),
+        # R-10 (P1-OWNER-DECISIONS-AND-ROADMAP.md): toleransi exit DESCEND. Default
+        # 0.02 = perilaku BARU (celah alt_gap lebih besar). 0.06 = perilaku LAMA
+        # (dulu exit DESCEND pakai depth_tol yang sama dgn APPROACH_QR) -- dipakai
+        # utk battery pembanding sebelum/sesudah.
+        DeclareLaunchArgument('descend_depth_tol', default_value='0.02',
+                              description='Toleransi kedalaman (m) exit DESCEND->GRAB. '
+                                          '0.06 = replikasi perilaku lama (R-10 pembanding).'),
         # Tuning APPROACH_HOOK (visual servo hook lewat kamera depan). Naikkan
         # hook_size_stop = berhenti lebih dekat ke hook; turunkan hook_center_tol
         # = tuntut pemusatan lebih ketat (butuh deteksi lebih stabil).

@@ -49,6 +49,13 @@ verifikasi — file/commit terkait.
   no-op karena tak ada yang di-detach. **Perbaikan diperlukan**: tambahkan publish "close"
   (mis. via `self.pub_grip`) di `_st_grab` sebelum/saat transisi ke `NAV_WALL`, gated pada
   `qr_offset` aman sesuai desain asli commit `fd06b0a`. — `mission_fsm.py:221,606-618`, `gripper_controller.py:56-129`.
+- [x] **`descend_depth_tol` aman & margin `alt_gap` cukup** — TERBUKTI 2026-08-15:
+  battery trajectory 6 seed × 2 tol (`run_r10_trajectory_battery.sh`) dengan
+  `recorder_qr.py` + `reduce_r10_trajectory.py`. `alt_gap` di GRAB: 0.010–0.047 m
+  (margin 0.065–0.110 m ke `max_alt_gap=0.12`). Tidak ada negatif, tidak ada
+  attach failure karena depth/alt_gap. Attach failures disebabkan XY offset
+  > `max_offset` (R-11). `descend_depth_tol=0.02` dipakai sebagai default. —
+  `mission_fsm.py`, `gripper_logic.py`, `tools/p0-experiments/`.
 - [ ] **Tuning ambang jarak-aman & massa payload** — `max_offset=0.30`, `min_size=0.12`,
   massa payload 0.3 kg; setel agar attach terpicu tepat & payload tak melayang/menembus air.
   (Blocked oleh item di atas — tak ada attach untuk ditala.) — `gripper_controller.py` params.
@@ -105,7 +112,13 @@ verifikasi — file/commit terkait.
   fisik). — `worlds/kki_arena.sdf`.
 - [ ] **Arah bow (haluan)** — cek `bow_yaw` di GUI (footprint ~persegi, tak bisa ditebak bbox). — `hydroships.urdf.xacro`.
 - [ ] **Kalibrasi kamera fisik ROV** (OPEN, gap hardware) — intrinsics sim ≠ kalibrasi
-  hardware; jangan pakai K sim untuk estimasi jarak riil sampai kalibrasi kamera fisik tersedia. — `qr_detector.py`.
+  hardware; jangan pakai K sim untuk estimasi jarak riil sampai kalibrasi kamera fisik tersedia.
+  Tooling & jalur muat sudah tersedia (`calib_file_bottom`/`calib_file_front` param,
+  `qr_logic.load_calibration_yaml` — baca `.yaml` ROS ATAU `.npz`, prosedur
+  `camera_calibration` di `docs/HARDWARE.md` §3). Kalibrasi mentah kamera DWE ExploreHD
+  SUDAH ADA (`dwe.npz` di root repo) tapi RMS reprojection 4.97 px terlalu kasar untuk
+  dipercaya, dan tidak jelas untuk kamera bottom atau front — lihat `docs/HARDWARE.md` §3
+  langkah 5 sebelum dipakai. — `qr_detector.py`.
 - [ ] **Data fisik ROV asli** — massa/inertia/koefisien hidrodinamika masih `[estimate]`
   (termasuk setelah revisi massa 33.6→8.3 kg di `aa2410d`/`00d4aaa`, lihat CHANGELOG
   2026-08-06); ukur ROV nyata, isi `rov_params.yaml`, ubah tag `[estimate]`→`[measured]`. — `src/hydroships_description/config/rov_params.yaml`, `scripts/estimate_mass_inertia.py`, commit `045d7c4`.

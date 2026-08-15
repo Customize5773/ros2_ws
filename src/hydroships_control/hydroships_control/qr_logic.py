@@ -20,6 +20,7 @@ saat modul QR mendekati batas resolusi decoder.
 import re
 
 import numpy as np
+import yaml
 
 try:
     import cv2
@@ -190,3 +191,29 @@ def qr_ey_target(depth, cam_gripper_dx, qr_floor_z, cam_bottom_dz,
     half_h = max(1e-3, h_cam * vfov_half_tan)
     ey = -cam_gripper_dx / half_h
     return max(-ey_max, min(ey_max, ey))
+
+
+def load_calibration_yaml(path):
+    """Baca file kalibrasi kamera fisik & kembalikan K sebagai ndarray 3x3.
+
+    Dua format didukung (dipilih dari ekstensi file), keduanya OUTPUT tool
+    kalibrasi yang sudah ada -- tidak menulis parser/solver kalibrasi sendiri:
+      * `.yaml`/`.yml` -- format `camera_calibration` ROS (`ost.yaml`, key
+        `camera_matrix: {rows, cols, data}`), dihasilkan
+        `ros2 run camera_calibration cameracalibrator`.
+      * `.npz` -- hasil `cv2.calibrateCamera` disimpan lewat `np.savez`
+        (key `K`, plus `dist`/`image_size`/`rms` yang diabaikan di sini --
+        lihat `dwe.npz` di root repo, kalibrasi nyata kamera DWE ExploreHD,
+        RMS reprojection tercatat di file itu sendiri).
+
+    Dipisah dari `qr_detector.py` supaya testable headless (M3: kalibrasi
+    kamera fisik, lihat docs/HARDWARE.md).
+    """
+    if path.endswith('.npz'):
+        d = np.load(path)
+        return np.asarray(d['K'], dtype=float).reshape(3, 3)
+    with open(path) as f:
+        doc = yaml.safe_load(f)
+    m = doc['camera_matrix']
+    k = np.asarray(m['data'], dtype=float).reshape(m['rows'], m['cols'])
+    return k
