@@ -90,25 +90,27 @@ wall) menggantikan gerak *timed*; **fallback timed** tetap ada bila deteksi tak 
 - Kalibrasi gain persen→N, offset heading kompas, dan tanda sumbu — masih OPEN;
   ROV bergerak sesuai perintah tapi skala/tanda belum divalidasi terhadap
   gerak yang diharapkan.
-- **[OPEN, ditemukan di run 2026-08-13]** Roll/pitch melonjak besar (±25-31°)
-  selama yaw ditahan lama lewat pulsa kontrol keyboard (bukan stick kontinu),
-  redam pelan setelah yaw berhenti. Belum jelas apakah ini karakter fisik wajar
-  dari pola pulsa keyboard atau indikasi allocator/gain perlu ditinjau — perlu
-  run pembanding dengan joystick asli. **Tooling tersedia sejak 2026-08-16**:
-  `tools/p2-gui-probe.py` (probe UDP sintetis ke `gui_bridge`, mode
-  `sustained`/`step`/`pulsed`/`multi`/`yaw_ramp` per sumbu) untuk mereproduksi
-  pola pulsa yaw secara terkontrol tanpa keyboard fisik — belum dijalankan,
-  belum ada hasil dicatat.
-- **[RESOLVED 2026-08-15]** Timer telemetri UDP dipacing steady/wall clock,
-  bukan ROS/Gazebo simulation clock. Ini mencegah beban headless membuat rate
-  GUI turun bersama real-time factor. Verifikasi rate: jalankan receiver UDP
-  pada port 14551 selama >=10 s dan hitung datagram per detik; target nominal
-  `telem_hz=10` (deviasi praktis mengikuti scheduler OS). Live test 2026-08-13
-  masih mengukur ~3 Hz aktual vs target 10 Hz — profil terukur (bukan
-  perkiraan) sekarang bisa diambil dengan `tools/p2-gui-telem-profile.py`
-  (receiver UDP port 14551 + statistik rate), ditambahkan 2026-08-16, belum
-  dijalankan ulang pasca-fix pacing 2026-08-15 untuk konfirmasi apakah gap
-  3Hz-vs-10Hz masih ada.
+- **[🧪 2026-08-16, kemungkinan besar RESOLVED tapi belum definitif]** Roll/pitch
+  melonjak besar (±25-31°) yang tercatat di run 2026-08-13 **tidak mereproduksi**
+  dengan probe UDP sintetis (`tools/p2-gui-probe.py`/`p2-experiment.py`, mode
+  `sustained` & `pulsed`, yaw 100%, `ROS_DOMAIN_ID=77` terisolasi) di atas kode
+  saat ini — peak roll/pitch terukur cuma **0.48°/0.37°**, dua orde besaran di
+  bawah klaim asli. Kandidat penjelasan: spike lama kemungkinan efek turunan dari
+  bug **thrust drop-out** (watchdog `thruster_allocator` 0.5s menolkan thrust
+  tiap kali `gui_bridge` berhenti republish, lihat `P2-GUI-INVESTIGATION.md`
+  §1) yang sudah di-fix commit `853f7ff` — GUI asli kirim datagram per keypress
+  jadi rentan drop-out berulang, beda dari wrench kontinu yang dipakai probe di
+  sini. Belum dikonfirmasi dgn dashboard GUI-ROV asli/keyboard fisik pasca-fix
+  — jangan tandai RESOLVED penuh sampai itu dilakukan. Detail eksperimen &
+  angka lengkap: `P2-GUI-INVESTIGATION.md` §4.
+- **[RESOLVED 2026-08-15, dikonfirmasi ulang 2026-08-16]** Timer telemetri UDP
+  dipacing steady/wall clock, bukan ROS/Gazebo simulation clock. Ini mencegah
+  beban headless membuat rate GUI turun bersama real-time factor. Live test
+  2026-08-13 sempat mengukur ~3 Hz aktual vs target 10 Hz (sebelum fix).
+  Profil ulang 2026-08-16 (`tools/p2-gui-telem-profile.py`, port 14551, 15s,
+  paralel dengan eksperimen roll/pitch di atas): **10.07 Hz efektif, 151
+  paket, interval median 99.99ms, 93.8% window 1-detik tepat 10 paket** — gap
+  3Hz-vs-10Hz **tidak lagi terlihat**, fix pacing terkonfirmasi bekerja.
 - Tuning ambang deteksi hook di render kamera sim (nilai default = uji-meja).
 - Servo hook = PD holonomik IBVS (sway+surge+koreksi-depth, image-based tanpa kalibrasi);
   pose-based (solvePnP/PBVS) menyusul bila kalibrasi kamera fisik hook tersedia.

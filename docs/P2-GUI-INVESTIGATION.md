@@ -94,12 +94,67 @@ dicatat supaya tidak terulang:
    `ROS_DOMAIN_ID` terpisah (dipakai `77` di sesi ini) supaya tidak pernah
    bertabrakan dengan eksperimen lain yang mungkin berjalan bersamaan.
 
+## 4. M7 — roll/pitch spike re-test pasca-fix thrust drop-out
+
+Klaim awal STATUS.md/CHANGELOG 2026-08-13 ("roll/pitch spike ±25–31° saat yaw
+sustained") diuji ulang di atas kode **setelah** fix thrust drop-out (§1) dan
+steady-clock (§2) sudah masuk — spike lama mungkin cuma gejala turunan dari
+thrust yang jatuh-bangun tiap 0.5s (watchdog re-trigger), bukan defisiensi
+stabilisasi murni.
+
+**Setup**: `hydroships_gui.launch.py headless:=true spawn_seed:=5001`,
+`ROS_DOMAIN_ID=77` (terpisah dari domain lain, ikuti catatan insiden §"Catatan
+proses" di atas). `tools/p2-experiment.py` (`--mode sustained/pulsed`) sekaligus
+merekam `/hydroships/odom` (roll/pitch/yaw, 100Hz) — script recorder terpisah
+tidak dibuat karena `p2-experiment.py` sudah menggabungkan fungsi itu.
+
+- **H1 test — sustained yaw 100% selama 10s**: peak roll **0.48°**, peak pitch
+  **0.37°** (t≈3.5-4s, langsung setelah cmd_mz naik ke 12 N·m). Setelah cmd
+  kembali 0 di t=13s, roll/pitch meluruh ke pita ±0.1-0.3° dalam beberapa detik.
+  **Tidak mereproduksi spike ±25-31°** — dua orde besaran lebih kecil.
+- **H2 test — pulsed yaw 100%, 0.5s on/off × 10 siklus**: peak roll **0.48°**,
+  peak pitch **0.37°** — identik dengan kasus sustained, tidak ada eksitasi
+  tambahan dari pola pulsa.
+- **Telemetri selama eksperimen** (`p2-gui-telem-profile.py`, port 14551,
+  15s window paralel dengan sustained-yaw run): **151 paket, 10.07 Hz efektif**,
+  interval median 99.99ms, stdev 1.64ms, 15/16 window 1-detik tepat 10
+  paket (window ke-16 terpotong akhir durasi) — **93.8% window memenuhi
+  target**, jauh di atas kriteria akseptansi (≥9 Hz median, tak ada window
+  <5 Hz). Konsisten dengan hasil §2, mengonfirmasi ulang steady-clock fix
+  stabil di run terpisah.
+
+**Kesimpulan**: spike ±25-31° yang tercatat 2026-08-13 **tidak reproduksi**
+dengan probe sintetis terkontrol (baik sustained maupun pulsed) di atas kode
+saat ini. Kandidat penjelasan (belum diverifikasi, urutan probabilitas):
+1. Spike lama adalah efek turunan dari **thrust drop-out watchdog** (§1,
+   sudah di-fix commit `853f7ff`) — GUI asli (bukan probe UDP) mengirim
+   datagram per keypress, jadi thrust jatuh-bangun tiap 0.5s menghasilkan
+   step transient berulang yang beda karakter dari wrench kontinu `p2-experiment.py`;
+   H1/H2 di sini sama-sama sudah pasca-fix jadi tak bisa membedakan.
+2. Spike direkam dari GUI dashboard asli (browser/keyboard nyata, latensi
+   jaringan, kemungkinan multi-axis simultan) — bukan single-axis sintetis;
+   kombinasi surge+yaw atau noise input manusia belum diuji di sini.
+3. `spawn_seed`/kondisi arena berbeda saat observasi asli (mis. dekat
+   dinding, collision-induced torque) — perlu dicek apakah observasi asli
+   punya konteks posisi ROV yang dicatat.
+
+**Belum ditutup sebagai non-issue** — perlu re-test dengan GUI dashboard
+asli atau data mentah observasi 2026-08-13 (kalau ada log/video) untuk
+konfirmasi apakah fix thrust drop-out sudah cukup, sebelum STATUS.md
+menandai OPEN issue ini sebagai RESOLVED.
+
 ## Status ringkas
 
 - ✅ Task 1 — root cause + fix thrust drop-out GUI: **selesai, terverifikasi**.
-- ✅ Task 2 — profil telemetri: **selesai**, steady-clock fix terkonfirmasi bekerja.
+- ✅ Task 2 — profil telemetri: **selesai**, steady-clock fix terkonfirmasi bekerja
+  (dikonfirmasi ulang di §4, 10.07 Hz, 93.8% window on-target).
 - 🧪 Task 3 — gain aljabar terverifikasi benar; karakterisasi respons fisik
   surge/sway terganggu tabrakan dinding, heave terganggu noise floor — **perlu
   run susulan** dengan parameter arena/noise disesuaikan sebelum dianggap
   lengkap.
+- 🧪 M7 — roll/pitch spike **tidak reproduksi** dengan probe sintetis
+  (sustained & pulsed yaw, peak <0.5°) pasca-fix §1 — **kemungkinan besar
+  sudah resolved sebagai efek samping fix thrust drop-out**, tapi belum
+  dikonfirmasi definitif (lihat §4 kandidat penjelasan) karena observasi asli
+  pakai GUI dashboard nyata, bukan probe sintetis.
 - Belum dikerjakan: lint/typecheck penuh repo, entri CHANGELOG.
