@@ -39,7 +39,7 @@ from geometry_msgs.msg import Twist, PointStamped
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64, String, Empty
 
-from hydroships_control.hook_logic import HookServoGains, hook_servo
+from hydroships_control.hook_logic import HookServoGains, hook_servo, update_dwell
 # qr_ey_target dipindah ke qr_logic (modul murni) supaya gripper_controller
 # memakai geometri yang SAMA PERSIS untuk gerbang attach-nya — sebelumnya FSM
 # membidik ey_target~-0.52 sementara GripperLogic.is_safe() menuntut |ey|<=0.30,
@@ -154,6 +154,7 @@ class MissionFSM(Node):
         # /hydroships/hook_offset). Default sama dgn hook_logic.HookServoGains —
         # di sini hanya diekspos sebagai parameter ROS supaya bisa di-tune runtime.
         p('hook_max_age', 1.0)       # s umur maks deteksi hook agar dianggap segar
+        p('hook_settle_grace_s', 0.4)  # s toleransi tick buruk sblm dwell APPROACH_HOOK direset
         p('hook_kp_surge', 40.0)     # N per satuan error ukuran-tampak
         p('hook_kd_surge', 30.0)     # N/(m/s) redaman surge
         p('hook_kp_sway', 45.0)      # N per satuan offset-x ternormalisasi
@@ -258,6 +259,7 @@ class MissionFSM(Node):
         self.cam_vfov_half_tan = float(g('cam_vfov_half_tan'))
         self.ey_target_max = float(g('ey_target_max'))
         self.hook_max_age = float(g('hook_max_age'))
+        self.hook_settle_grace_s = float(g('hook_settle_grace_s'))
         self.hook_gains = HookServoGains(
             kp_surge=float(g('hook_kp_surge')), kd_surge=float(g('hook_kd_surge')),
             kp_sway=float(g('hook_kp_sway')), kd_sway=float(g('hook_kd_sway')),
@@ -332,6 +334,7 @@ class MissionFSM(Node):
         self.state = St.IDLE
         self.t_state = self._now()
         self._hold_since = None
+        self._hook_bad_since = None
         self._locked_yaw = None
         self._trigger_received = False
         try:
@@ -376,6 +379,7 @@ class MissionFSM(Node):
         self._hold_since = None
         if s is St.APPROACH_HOOK:
             self._hook_backoff_done = False
+            self._hook_bad_since = None
         if s is St.GRAB:
             # R-9: status ack lama tak boleh terbawa ke siklus GRAB berikutnya.
             self.gripper_status = None
@@ -1021,35 +1025,33 @@ class MissionFSM(Node):
             self._set_depth(cmd.target_depth)
             # Sudah dekat tapi belum terpusat: stop maju, koreksi lateral saja.
             self._set_surge(0.0 if cmd.near else cmd.surge, cmd.sway)
-            if cmd.near and cmd.aligned:
-                if self._hold_since is None:
-                    self._hold_since = self._now()
-                if self._now() - self._hold_since >= self.hold_settle_s:
-                    self._set_surge(0.0, 0.0)
-                    self.get_logger().info(
-                        'APPROACH_HOOK: hook terpusat (ex %.2f ey %.2f size %.2f) -> AUTO_RELEASE'
-                        % off)
-                    self._to(St.AUTO_RELEASE)
-                    return
-            else:
-                self._hold_since = None
+            dwell = update_dwell(cmd.near and cmd.aligned, self._now(),
+                                  self._hold_since, self._hook_bad_since,
+                                  self.hold_settle_s, self.hook_settle_grace_s)
+            self._hold_since, self._hook_bad_since = dwell.hold_since, dwell.bad_since
+            if dwell.done:
+                self._set_surge(0.0, 0.0)
+                self.get_logger().info(
+                    'APPROACH_HOOK: hook terpusat (ex %.2f ey %.2f size %.2f) -> AUTO_RELEASE'
+                    % off)
+                self._to(St.AUTO_RELEASE)
+                return
         else:
             # Fallback open-loop: target odometri, sama seperti AUTO_RELEASE lama.
             self._set_depth(self.hook_depth)
             tx, ty = self._hook_xy(self.wall)
             dist = self._goto_xy(tx, ty, fmax=self.nav_fmax)
-            if dist < self.nav_tol:
-                if self._hold_since is None:
-                    self._hold_since = self._now()
-                if self._now() - self._hold_since >= self.hold_settle_s:
-                    self._set_surge(0.0, 0.0)
-                    self.get_logger().warn(
-                        'APPROACH_HOOK: tak ada deteksi hook, pakai target odometri '
-                        '(dist %.2fm) -> AUTO_RELEASE' % dist)
-                    self._to(St.AUTO_RELEASE)
-                    return
-            else:
-                self._hold_since = None
+            dwell = update_dwell(dist < self.nav_tol, self._now(),
+                                  self._hold_since, self._hook_bad_since,
+                                  self.hold_settle_s, self.hook_settle_grace_s)
+            self._hold_since, self._hook_bad_since = dwell.hold_since, dwell.bad_since
+            if dwell.done:
+                self._set_surge(0.0, 0.0)
+                self.get_logger().warn(
+                    'APPROACH_HOOK: tak ada deteksi hook, pakai target odometri '
+                    '(dist %.2fm) -> AUTO_RELEASE' % dist)
+                self._to(St.AUTO_RELEASE)
+                return
 
         if int(self._elapsed() * 2) % 20 == 0:
             self.get_logger().info(

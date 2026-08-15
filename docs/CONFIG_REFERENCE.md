@@ -134,6 +134,7 @@ Semua arg `hydroships_stabilized.launch.py`, plus:
 | `hook_size_stop` | `0.35` | Ambang ukuran hook (ternormalisasi) untuk berhenti approach |
 | `hook_center_tol` | `0.15` | Toleransi pemusatan visual servo hook |
 | `hook_max_age` | `1.0` | Umur maksimum (detik) deteksi hook sebelum fallback ke target odometri |
+| `hook_settle_grace_s` | `0.4` | Toleransi (detik) tick "belum near&aligned" sblm dwell APPROACH_HOOK direset — cegah osilasi deteksi membatalkan dwell 2s |
 | `t_approach` | `25.0` | Timeout (detik) state `APPROACH_HOOK` |
 
 ### `src/hydroships_bringup/launch/hydroships_gui.launch.py` (M7, GUI bridge)
@@ -166,7 +167,7 @@ Daftar param lengkap (nama — default): `start_state='DIVE'`, `wall_order='rand
 `wall_dist=2.30`, `hook_dist=0.30`, `hook_lateral_offset=0.0`, `nav_tol=0.20`,
 `nav_fmax=22.0`, `hold_settle_s=2.0`, `t_dive=20.0`, `t_scan=45.0`, `t_grab=10.0`,
 `t_nav=30.0`, `t_hang=20.0`, `t_surface=20.0`, `t_wait_trigger=600.0`,
-`t_release=30.0`, `t_approach=25.0`, `hook_max_age=1.0`, `hook_kp_surge=40.0`,
+`t_release=30.0`, `t_approach=25.0`, `hook_max_age=1.0`, `hook_settle_grace_s=0.4`, `hook_kp_surge=40.0`,
 `hook_kd_surge=30.0`, `hook_kp_sway=45.0`, `hook_kd_sway=30.0`, `hook_kp_depth=0.25`,
 `hook_size_stop=0.35`, `hook_center_tol=0.15`, `hook_fmax=16.0`,
 `hook_depth_range=0.20`, `t_nav_qr=30.0`, `qr_center_tol=0.12`, `qr_servo_gain=0.15`,

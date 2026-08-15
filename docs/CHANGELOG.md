@@ -970,3 +970,42 @@ kode.
   `gripper/status`. Status R-12 diturunkan dari "temuan baru, belum
   dijelaskan" ke **unconfirmed / tak reproduksi** di
   `P1-OWNER-DECISIONS-AND-ROADMAP.md` (baris R-11) dan `docs/STATUS.md`.
+
+## 2026-08-16 (lanjutan) — P1 reliability: APPROACH_HOOK dwell debounce + R-10 seed-variance battery n=15
+
+Dua item P1 reliability dari caveat sesi sebelumnya ditindaklanjuti.
+
+- **APPROACH_HOOK dwell debounce (kode):** akar penyebab "keluar lewat
+  fallback timeout, bukan konvergensi asli" (dicatat STATUS.md M6) BUKAN
+  bug wiring — `hook_servo()`/topic/frame_id semua benar. Penyebabnya
+  `_st_approach_hook` me-reset timer dwell 2s (`_hold_since = None`) pada
+  **satu tick manapun** yang gagal `near and aligned`, sementara deteksi
+  hook diketahui berosilasi (`ex`/`size`), jadi dwell nyaris tak pernah
+  bertahan 2s utuh. Fix: helper murni baru `hook_logic.update_dwell()`
+  (dwell + debounce — tick buruk tak langsung reset, baru reset kalau
+  bertahan >= `hook_settle_grace_s`, param baru default 0.4s) dipakai di
+  kedua cabang `_st_approach_hook` (servo visual & fallback odometri).
+  Test baru `test_dwell_*` (3 test) di `test_hook_servo.py`. Gain/threshold
+  `hook_servo` (`size_stop`, `center_tol`, dll) **sengaja tidak disentuh**
+  — itu problem tuning kamera nyata, bukan bug logika dwell. Full suite
+  **127/127 hijau**. Belum ada battery runtime yang mengonfirmasi
+  APPROACH_HOOK sekarang keluar via konvergensi asli alih-alih timeout
+  (langkah verifikasi berikutnya: `start_state:=APPROACH_HOOK` beberapa
+  run, cek log `hook terpusat (...) -> AUTO_RELEASE` vs `timeout -> lanjut`).
+- **R-10 seed-variance battery n=15** (`run_r10_seed_variance_battery.sh`,
+  seed 3001 tetap, `descend_depth_tol=0.02` tetap, `duration=60s`):
+  14/15 run mencapai GRAB (1 run ABORT sebelum DESCEND, sebab lain di luar
+  scope R-10). `alt_gap_at_grab` di 14 run tsb: **min 0.007, max 0.052,
+  median 0.043** — SEMUA POSITIF, tidak ada yang mereproduksi nilai
+  -0.001 dari anomali seed-3001 sebelumnya. Rentang 0.007–0.052 (spread
+  45mm) mengonfirmasi variasi run-to-run yang nyata (bukan nol), sesuai
+  klaim caveat 2026-08-16 sebelumnya, tapi pada n=14 baru ini margin
+  terburuk ke `max_alt_gap=0.12` masih 0.113 m — belum ada bukti margin
+  benar-benar tergerus ke negatif pada sampel yang lebih besar ini.
+  Gabungan seluruh observasi sampai saat ini (12 run battery 6-seed×2-tol
+  ditambah 14 run battery ini, total 26 titik data GRAB pada param mirip):
+  **1/27**
+  observasi (termasuk anomali re-run lama di luar battery formal) pernah
+  negatif. Kesimpulan: caveat run-to-run variance **tetap valid dan
+  dipertahankan** (bukan jaminan stabil), tapi tak ada bukti baru bahwa
+  ini sering terjadi pada n yang lebih besar — R-10 tetap DITUTUP.

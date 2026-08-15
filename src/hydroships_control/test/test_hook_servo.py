@@ -7,7 +7,7 @@ dan flag aligned/near. Ikuti pola test_pid.py / test_allocation.py.
 import math
 
 from hydroships_control.hook_logic import (
-    HookServoGains, hook_servo, normalize_hook_offset)
+    HookServoGains, hook_servo, normalize_hook_offset, update_dwell)
 
 
 G = HookServoGains()   # gain default
@@ -82,6 +82,36 @@ def test_convergence_reduces_error_over_iterations():
         # bila sway>0). sway = -kp*ex, jadi pos berkurang menuju 0.
         pos += 0.002 * cmd.sway
     assert abs(pos) < abs(ex)         # error mengecil (konvergen)
+
+
+def test_dwell_completes_after_continuous_ok():
+    hold, bad = None, None
+    done = False
+    t = 0.0
+    while not done:
+        t += 0.1
+        d = update_dwell(True, t, hold, bad, settle_s=2.0, grace_s=0.4)
+        hold, bad, done = d.hold_since, d.bad_since, d.done
+    assert math.isclose(t, 2.1, abs_tol=1e-9)   # settle_s + one tick to detect
+
+
+def test_dwell_survives_single_blip_under_grace():
+    # ok selama 1.0s, satu tick buruk (0.1s < grace_s=0.4), lalu ok lagi ->
+    # progres TIDAK hangus, dwell tetap selesai sekitar t=2.1 bukan restart dari 0.
+    hold = update_dwell(True, 1.0, None, None, settle_s=2.0, grace_s=0.4).hold_since
+    d = update_dwell(False, 1.1, hold, None, settle_s=2.0, grace_s=0.4)
+    assert d.hold_since == hold             # belum direset, blip < grace_s
+    d2 = update_dwell(True, 1.2, d.hold_since, d.bad_since, settle_s=2.0, grace_s=0.4)
+    assert d2.hold_since == hold            # progres awal (t=1.0) masih dipakai
+    assert not d2.done
+
+
+def test_dwell_resets_after_bad_persists_past_grace():
+    hold = update_dwell(True, 1.0, None, None, settle_s=2.0, grace_s=0.4).hold_since
+    d = update_dwell(False, 1.5, hold, None, settle_s=2.0, grace_s=0.4)   # bad mulai t=1.5
+    d2 = update_dwell(False, 2.0, d.hold_since, d.bad_since, settle_s=2.0, grace_s=0.4)  # 0.5s > grace_s
+    assert d2.hold_since is None
+    assert not d2.done
 
 
 def test_offset_helper_consistent_with_servo_input():
