@@ -94,12 +94,21 @@ wall) menggantikan gerak *timed*; **fallback timed** tetap ada bila deteksi tak 
   selama yaw ditahan lama lewat pulsa kontrol keyboard (bukan stick kontinu),
   redam pelan setelah yaw berhenti. Belum jelas apakah ini karakter fisik wajar
   dari pola pulsa keyboard atau indikasi allocator/gain perlu ditinjau — perlu
-  run pembanding dengan joystick asli.
+  run pembanding dengan joystick asli. **Tooling tersedia sejak 2026-08-16**:
+  `tools/p2-gui-probe.py` (probe UDP sintetis ke `gui_bridge`, mode
+  `sustained`/`step`/`pulsed`/`multi`/`yaw_ramp` per sumbu) untuk mereproduksi
+  pola pulsa yaw secara terkontrol tanpa keyboard fisik — belum dijalankan,
+  belum ada hasil dicatat.
 - **[RESOLVED 2026-08-15]** Timer telemetri UDP dipacing steady/wall clock,
   bukan ROS/Gazebo simulation clock. Ini mencegah beban headless membuat rate
   GUI turun bersama real-time factor. Verifikasi rate: jalankan receiver UDP
   pada port 14551 selama >=10 s dan hitung datagram per detik; target nominal
-  `telem_hz=10` (deviasi praktis mengikuti scheduler OS).
+  `telem_hz=10` (deviasi praktis mengikuti scheduler OS). Live test 2026-08-13
+  masih mengukur ~3 Hz aktual vs target 10 Hz — profil terukur (bukan
+  perkiraan) sekarang bisa diambil dengan `tools/p2-gui-telem-profile.py`
+  (receiver UDP port 14551 + statistik rate), ditambahkan 2026-08-16, belum
+  dijalankan ulang pasca-fix pacing 2026-08-15 untuk konfirmasi apakah gap
+  3Hz-vs-10Hz masih ada.
 - Tuning ambang deteksi hook di render kamera sim (nilai default = uji-meja).
 - Servo hook = PD holonomik IBVS (sway+surge+koreksi-depth, image-based tanpa kalibrasi);
   pose-based (solvePnP/PBVS) menyusul bila kalibrasi kamera fisik hook tersedia.

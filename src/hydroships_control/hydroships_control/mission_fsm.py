@@ -93,6 +93,13 @@ class MissionFSM(Node):
         # QR sebelum GRAB — hanya bila qr_off masih segar (camera masih melihat
         # QR). Jika stale (QR hilang, normal di grab_depth), lanjutkan GRAB.
         p('descend_recenter_timeout', 5.0)
+        # R-10: depth_ok single-tick tanpa syarat kecepatan bisa memicu GRAB
+        # saat ROV masih turun (overshoot) -- alt_gap yang dibaca gripper_controller
+        # belakangan jadi lebih dalam dari sample exit DESCEND, kadang negatif
+        # (celah rancangan cuma 5-7mm). Wajibkan depth_ok bertahan `descend_settle_dwell`
+        # detik dulu (reset bila sempat keluar toleransi lagi) supaya kecepatan turun
+        # sempat mereda sebelum GRAB dipicu.
+        p('descend_settle_dwell', 0.3)
         p('hook_depth', 0.45)        # m kedalaman hook (lihat arena)
         p('yaw_tol_deg', 10.0)       # derajat toleransi alignment heading
         p('qr_max_age', 1.5)         # s umur maks deteksi QR agar dianggap segar
@@ -226,6 +233,7 @@ class MissionFSM(Node):
         self.depth_tol = float(g('depth_tol'))
         self.descend_depth_tol = float(g('descend_depth_tol'))
         self.descend_recenter_timeout = float(g('descend_recenter_timeout'))
+        self.descend_settle_dwell = float(g('descend_settle_dwell'))
         self.hook_depth = float(g('hook_depth'))
         self.yaw_tol = math.radians(float(g('yaw_tol_deg')))
         self.qr_max_age = float(g('qr_max_age'))
@@ -324,6 +332,7 @@ class MissionFSM(Node):
         self._wall_scored = False          # skor m1 sudah diberi (cegah spam log)
         self._converge_ticks = 0  # P0-2.5 Kandidat #4: dwell tick counter, direset tiap entry APPROACH_QR
         self._descend_depth_ok_since = None  # R-11 Opsi 2: timer re-centering visual di DESCEND
+        self._descend_depth_settle_since = None  # R-10: timer dwell depth_ok sebelum GRAB
         self.hook_off = None      # (ex, ey, size)
         self.hook_time = 0.0
         self.payload_pose = None  # (x, y, z) dari /hydroships/payload_pose (spawner)
@@ -401,6 +410,7 @@ class MissionFSM(Node):
             # supaya waktu tunggu dihitung dari entry state, bukan dari t_state
             # APPROACH_QR sebelumnya.
             self._descend_depth_ok_since = None
+            self._descend_depth_settle_since = None
 
     def _set_depth(self, d_pos):
         m = Float64(); m.data = -abs(d_pos); self.pub_depth.publish(m)
@@ -824,6 +834,17 @@ class MissionFSM(Node):
         dist = self._goto_xy(tx, ty, min_fmax_frac=self.approach_min_fmax_frac)
 
         depth_ok = self.depth is not None and self.depth >= grasp_depth - self.descend_depth_tol
+        # R-10: depth_ok mentah cuma cek posisi sesaat -- ROV bisa masih turun
+        # (overshoot) tepat saat memasuki toleransi. Wajibkan bertahan
+        # `descend_settle_dwell` detik dulu supaya kecepatan turun sempat mereda
+        # sebelum GRAB dipicu (lihat P1-OWNER-DECISIONS-AND-ROADMAP.md R-10).
+        if not depth_ok:
+            self._descend_depth_settle_since = None
+        elif self._descend_depth_settle_since is None:
+            self._descend_depth_settle_since = self._now()
+        depth_settled = (depth_ok and self._descend_depth_settle_since is not None
+                          and self._now() - self._descend_depth_settle_since
+                              >= self.descend_settle_dwell)
         # R-11 Opsi 2: gerbang re-centering visual sebelum GRAB.
         # depth_ok saja sering memaksa GRAB saat offset QR masih besar/basi
         # (decode gagal 82-89%). Jika qr_off masih segar tapi belum terpusat,
@@ -839,7 +860,7 @@ class MissionFSM(Node):
                 % (self.depth if self.depth is not None else -1.0,
                    grasp_depth, dist, ey_target, centered, int(off_fresh)))
 
-        if depth_ok:
+        if depth_settled:
             if centered:
                 self._set_surge(0.0)
                 self.get_logger().info('DESCEND: kedalaman + visual terpusat -> GRAB')
