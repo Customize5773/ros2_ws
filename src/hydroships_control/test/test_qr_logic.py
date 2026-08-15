@@ -11,6 +11,7 @@ import pytest
 
 from hydroships_control.qr_logic import (
     parse_wall, offset_from_points, robust_decode, load_calibration_yaml,
+    undistort_image,
 )
 
 cv2 = pytest.importorskip("cv2")
@@ -116,12 +117,17 @@ def test_load_calibration_yaml(tmp_path):
         "  cols: 3\n"
         "  data: [600.1, 0.0, 320.5, 0.0, 601.2, 240.5, 0.0, 0.0, 1.0]\n"
     )
-    k = load_calibration_yaml(str(p))
+    cal = load_calibration_yaml(str(p))
+    assert 'K' in cal and 'dist' in cal and 'image_size' in cal and 'rms' in cal
+    k = cal['K']
     assert k.shape == (3, 3)
     assert abs(k[0, 0] - 600.1) < 1e-6
     assert abs(k[1, 1] - 601.2) < 1e-6
     assert abs(k[0, 2] - 320.5) < 1e-6
     assert abs(k[1, 2] - 240.5) < 1e-6
+    assert cal['dist'] is None
+    assert cal['image_size'] is None
+    assert cal['rms'] is None
 
 
 def test_load_calibration_npz(tmp_path):
@@ -129,10 +135,31 @@ def test_load_calibration_npz(tmp_path):
     p = tmp_path / "cal.npz"
     K = np.array([[608.8, 0.0, 604.8], [0.0, 619.7, 458.8], [0.0, 0.0, 1.0]])
     np.savez(p, K=K, dist=np.zeros((1, 5)), image_size=[1280, 720], rms=4.97)
-    k = load_calibration_yaml(str(p))
+    cal = load_calibration_yaml(str(p))
+    assert 'K' in cal and 'dist' in cal and 'image_size' in cal and 'rms' in cal
+    k = cal['K']
     assert k.shape == (3, 3)
     assert abs(k[0, 0] - 608.8) < 1e-6
     assert abs(k[1, 1] - 619.7) < 1e-6
+    assert cal['image_size'] == (1280, 720)
+    assert abs(cal['rms'] - 4.97) < 1e-6
+    assert cal['dist'] is not None and cal['dist'].shape == (5,)
+
+
+def test_undistort_image_passthrough_no_dist():
+    img = np.full((120, 160, 3), 128, dtype=np.uint8)
+    K = np.eye(3)
+    out = undistort_image(img, K, None)
+    assert out is img
+
+
+def test_undistort_image_applies_cv2_undistort():
+    img = np.full((120, 160, 3), 128, dtype=np.uint8)
+    K = np.array([[100.0, 0.0, 80.0], [0.0, 100.0, 60.0], [0.0, 0.0, 1.0]])
+    dist = np.array([0.1, -0.05, 0.0, 0.0, 0.0])
+    out = undistort_image(img, K, dist)
+    assert out.shape == img.shape
+    assert out.dtype == img.dtype
 
 
 def test_robust_decodes_real_sim_frame():

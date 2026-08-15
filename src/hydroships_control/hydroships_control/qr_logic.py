@@ -194,26 +194,54 @@ def qr_ey_target(depth, cam_gripper_dx, qr_floor_z, cam_bottom_dz,
 
 
 def load_calibration_yaml(path):
-    """Baca file kalibrasi kamera fisik & kembalikan K sebagai ndarray 3x3.
+    """Baca file kalibrasi kamera fisik & kembalikan dict:
+    {
+        'K': ndarray 3x3,
+        'dist': ndarray (5,) atau None,
+        'image_size': tuple (w, h) atau None,
+        'rms': float atau None,
+    }
 
-    Dua format didukung (dipilih dari ekstensi file), keduanya OUTPUT tool
-    kalibrasi yang sudah ada -- tidak menulis parser/solver kalibrasi sendiri:
+    Dua format didukung (dipilih dari ekstensi file):
       * `.yaml`/`.yml` -- format `camera_calibration` ROS (`ost.yaml`, key
         `camera_matrix: {rows, cols, data}`), dihasilkan
         `ros2 run camera_calibration cameracalibrator`.
       * `.npz` -- hasil `cv2.calibrateCamera` disimpan lewat `np.savez`
-        (key `K`, plus `dist`/`image_size`/`rms` yang diabaikan di sini --
-        lihat `dwe.npz` di root repo, kalibrasi nyata kamera DWE ExploreHD,
-        RMS reprojection tercatat di file itu sendiri).
+        (key `K`, `dist`, `image_size`, `rms` — lihat `dwe.npz` di root repo,
+        kalibrasi nyata kamera DWE ExploreHD).
 
     Dipisah dari `qr_detector.py` supaya testable headless (M3: kalibrasi
     kamera fisik, lihat docs/HARDWARE.md).
     """
     if path.endswith('.npz'):
         d = np.load(path)
-        return np.asarray(d['K'], dtype=float).reshape(3, 3)
+        K = np.asarray(d['K'], dtype=float).reshape(3, 3)
+        dist = d.get('dist')
+        dist = np.asarray(dist, dtype=float).reshape(-1) if dist is not None else None
+        image_size = d.get('image_size')
+        image_size = tuple(int(x) for x in image_size) if image_size is not None else None
+        rms = float(d['rms']) if 'rms' in d else None
+        return {'K': K, 'dist': dist, 'image_size': image_size, 'rms': rms}
     with open(path) as f:
         doc = yaml.safe_load(f)
     m = doc['camera_matrix']
     k = np.asarray(m['data'], dtype=float).reshape(m['rows'], m['cols'])
-    return k
+    return {'K': k, 'dist': None, 'image_size': None, 'rms': None}
+
+
+def undistort_image(img, K, dist, image_size=None):
+    """Kembalikan `img` yang sudah di-undistort, atau img asli bila `dist` None/zeros.
+
+    Jika `image_size` (w, h) diberikan dan berbeda dari ukuran `img`, `K` diskalakan
+    proporsional sebelum perhitungan newK.
+    """
+    if dist is None or not np.any(dist):
+        return img
+    h, w = img.shape[:2]
+    K_use = K.copy()
+    if image_size and image_size != (w, h):
+        sx, sy = w / image_size[0], h / image_size[1]
+        K_use[0, :] *= sx
+        K_use[1, :] *= sy
+    newK = cv2.getOptimalNewCameraMatrix(K_use, dist, (w, h), alpha=1.0)[0]
+    return cv2.undistort(img, K_use, dist, None, newK)
