@@ -49,6 +49,8 @@ class RecorderQR(Node):
         self.cmd = Twist()
         self.sp = float('nan')
         self.depth = float('nan')
+        self.vz = float('nan')
+        self.gripper_status = ''
         self.fsm_state = ''
         self.qr_result = ''
         self.qr_ex = float('nan')
@@ -72,6 +74,7 @@ class RecorderQR(Node):
         self.create_subscription(PointStamped, '/hydroships/qr_offset', self.on_qr_offset, 10)
         self.create_subscription(String, '/hydroships/qr_offset_debug', self.on_qr_debug, 10)
         self.create_subscription(Log, '/rosout', self.on_rosout, 50)
+        self.create_subscription(String, '/hydroships/gripper/status', self.on_gripper_status, 10)
         # payload_spawner menerbitkan SEKALI dengan QoS latched (TRANSIENT_LOCAL) —
         # subscriber harus pakai durability sama, persis seperti mission_fsm.py:234-236,
         # supaya tetap dapat pesan walau recorder start belakangan (recorder.py pattern:
@@ -81,11 +84,11 @@ class RecorderQR(Node):
             QoSProfile(depth=1, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL))
 
         self.f = open(path, 'w')
-        self.f.write('t,fsm_state,sp_depth,depth,x,y,z,yaw,vx,vy,cmd_fx,cmd_fy,'
+        self.f.write('t,fsm_state,sp_depth,depth,vz,x,y,z,yaw,vx,vy,cmd_fx,cmd_fy,'
                      'qr_result,qr_ex,qr_ey,qr_size,qr_frame,qr_age,'
                      'payload_x,payload_y,payload_z,'
                      'qr_decode_success,qr_c1x,qr_c1y,qr_c2x,qr_c2y,qr_c3x,qr_c3y,'
-                     'qr_c4x,qr_c4y,qr_candidate_idx\n')
+                     'qr_c4x,qr_c4y,qr_candidate_idx,gripper_status\n')
         self.create_timer(0.1, self.tick)
 
     def on_clock(self, m):
@@ -141,6 +144,9 @@ class RecorderQR(Node):
             self.qr_corners = vals[:8]
             self.qr_candidate_idx = vals[8]
 
+    def on_gripper_status(self, m: String):
+        self.gripper_status = m.data
+
     def tick(self):
         if self.t is None or self.odom is None or self.done:
             return
@@ -158,11 +164,11 @@ class RecorderQR(Node):
         c = self.cmd
         qr_age = (self.t - self.qr_t) if self.qr_t is not None else float('nan')
         qr_result = self.qr_result.replace(',', ';').replace('\n', ' ')
-        self.f.write('%.4f,%s,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.4f,%.4f,'
+        self.f.write('%.4f,%s,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.4f,%.4f,'
                      '%s,%.5f,%.5f,%.5f,%s,%.4f,'
                      '%.5f,%.5f,%.5f,'
-                     '%.0f,%s,%.0f\n' % (
-                         self.t, self.fsm_state, self.sp, self.depth, p.x, p.y, p.z, yaw,
+                     '%.0f,%s,%.0f,%s\n' % (
+                         self.t, self.fsm_state, self.sp, self.depth, v.z, p.x, p.y, p.z, yaw,
                          v.x, v.y,
                          c.linear.x, c.linear.y,
                          qr_result, self.qr_ex, self.qr_ey, self.qr_size,
@@ -170,7 +176,7 @@ class RecorderQR(Node):
                          self.payload_x, self.payload_y, self.payload_z,
                          self.qr_decode_success,
                          ','.join('%.2f' % v for v in self.qr_corners),
-                         self.qr_candidate_idx))
+                         self.qr_candidate_idx, self.gripper_status))
 
 
 def main():

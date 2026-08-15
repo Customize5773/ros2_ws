@@ -740,6 +740,16 @@ ROS-Gazebo berjalan sampai batas `timeout 30s`. Wiring latency terverifikasi mel
 parameter launch dan unit test `DelayLine`; pengukuran timestamp UDP end-to-end
 untuk delay aktual 250 ms masih terbuka.
 
+### R-8 UDP latency measurement — 2026-08-15
+
+Probe `tools/p0-experiments/measure_r8_udp_latency.py` mengirim 10 command
+`surge=37` setelah arm dan mencocokkan timestamp monotonic UDP dengan callback
+`/hydroships/cmd_vel` (`Fx=14.8 N`). Pada `tether_latency_ms:=250`, hasilnya
+10/10 teramati: min **253.7 ms**, median **278.2 ms**, max **315.6 ms**.
+Selama probe, 72 packet telemetry diterima di port 14551. Ini memvalidasi
+latency uplink; latency downlink belum dapat dihitung end-to-end karena payload
+telemetry belum membawa timestamp sumber.
+
 Menindaklanjuti `P1-OWNER-DECISIONS-AND-ROADMAP.md` §5. Keputusan pemilik
 proyek untuk R-10 (opsi toleransi DESCEND, bukan naikkan `max_alt_gap`) dan
 lanjut R-8 (dropout kamera + latency tether; noise MS5837 sudah tertutup
@@ -873,3 +883,59 @@ diverifikasi runtime, jangan tutup dari code review saja".
   overshoot ke alt_gap negatif (kemungkinan arah tanda depth vs `grab_depth`
   di `_st_descend` perlu dicek), dan tambah seed lagi untuk seed 3003-lama
   yang inconclusive.
+
+## 2026-08-15 (lanjutan) — R-10 trajectory investigation (6 seed × 2 tol)
+
+Follow-up battery dengan trajectory capture (`recorder_qr.py` diperluas: `vz`
++ `gripper_status`, tools baru `run_r10_trajectory.sh`,
+`run_r10_trajectory_battery.sh`, `reduce_r10_trajectory.py`).
+
+- 12 run: seeds 3001–3006 × `descend_depth_tol` 0.06 (old) vs 0.02 (new),
+  duration 150s sim, recorder 10 Hz.
+- **R-10 DITUTUP:** `alt_gap` di GRAB selalu **0.010–0.047 m** (margin
+  0.065–0.110 m ke `max_alt_gap=0.12`). Tidak ada negatif, tidak ada depth
+  di bawah `grab_depth` yang menyebabkan masalah fisik.
+- Attach failures (`3002-after`, `3005-after`) disebabkan XY offset
+  > `max_offset` (R-11), bukan `alt_gap`. `3004-before` juga gagal attach
+  dengan alt_gap=0.035 — confirming failure mode is XY, not depth.
+- `descend_depth_tol=0.02` aman sebagai default. Perubahan ini tidak
+  memerlukan revert atau penambahan mitigasi.
+- Log & CSV: `/tmp/r10-trajectory/R10-{before,after}-{3001..3006}.{log,csv}`.
+
+## 2026-08-15 (lanjutan) — R-11 battery replay: pinned repro + 3 seed baru
+
+Runtime verification R-11 (`P1-OWNER-DECISIONS-AND-ROADMAP.md` §5) — fix Opsi
+3 (2026-08-15 lebih awal) ditandai "belum diverifikasi runtime, butuh replay
+`R11-3002-pinned` + seed lain".
+
+- Skrip baru `tools/p0-experiments/run_r11_replay_battery.sh`: replay
+  deterministik `qr_letter:=C payload_x:=0.34 payload_y:=-0.35
+  spawn_seed:=3002` (kondisi persis yang dulu memicu diagnosis R-11) + 3 seed
+  random-spawn baru (`spawn_seed:=4001/4002/4003`). Window 100s/run (worst-case
+  `t_dive+t_scan+t_descend+t_grab=90s` + buffer).
+- **Opsi 1 (centered independen dari wall_scored) TERKONFIRMASI runtime** di
+  ke-4 run: `CONVERGEDBG` menunjukkan `centered` selalu dievaluasi baik saat
+  `wall_scored=True` maupun `False` — inilah perbaikan inti R-11.
+- **4001, 4003: GRAB sukses bersih**, gerbang latch+alt_gap valid, tanpa
+  anomali. **4002: inconclusive** (window 100s sedikit kurang panjang untuk
+  kasus ini, masih di tengah decode-gagal-berulang saat window habis).
+- **3002-pinned-replay: temuan baru, di luar cakupan R-11 asli.** Replay
+  TIDAK mereproduksi kondisi asli persis — `qr_offset` tak pernah diterima
+  sama sekali sepanjang run (beda dari diagnosis asli yang punya offset besar
+  tapi tak terpusat). Lebih penting: ditemukan **anomali ack** —
+  `gripper_controller` log jelas menolak attach ("tutup TAPI payload di luar
+  jangkauan"), tapi 13ms kemudian `mission_fsm` menerima ack `'attached'` dan
+  lanjut ke `NAV_WALL`. Ditelusuri via pembacaan kode + REPL langsung
+  (`gripper_logic._do_close`/`is_safe()` mengonfirmasi reject deterministik
+  untuk skenario ini) — **tak ketemu jalur di kode yang bisa menghasilkan
+  'attached' di sini**, satu-satunya publisher `gripper/status` adalah
+  `gripper_controller._on_cmd` (single-threaded `rclpy.spin`, tak ada race
+  yang kelihatan). **Belum dijelaskan — dicatat sebagai item baru (kandidat
+  R-12) di `P1-OWNER-DECISIONS-AND-ROADMAP.md` R-11**, bukan ditutup sebagai
+  bagian dari fix R-11 sendiri.
+- **Kesimpulan:** mekanisme inti R-11 (Opsi 1+2) bekerja sesuai desain —
+  cukup untuk R-11 sendiri dianggap terverifikasi — tapi anomali ack yang
+  disingkap perlu investigasi terpisah sebelum battery Fase 1 berikutnya
+  dipercaya penuh (ack `gripper/status` tak selalu bisa dipercaya tanpa
+  silang-cek log mentah `gripper_controller`). Log mentah:
+  `/tmp/r11-replay/R11-{3002-pinned-replay,4001,4002,4003}.log`.
