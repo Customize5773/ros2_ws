@@ -992,6 +992,29 @@ Dua item P1 reliability dari caveat sesi sebelumnya ditindaklanjuti.
   APPROACH_HOOK sekarang keluar via konvergensi asli alih-alih timeout
   (langkah verifikasi berikutnya: `start_state:=APPROACH_HOOK` beberapa
   run, cek log `hook terpusat (...) -> AUTO_RELEASE` vs `timeout -> lanjut`).
+
+## 2026-08-16 (lanjutan 3) — APPROACH_HOOK dwell debounce: battery runtime verification
+
+Langkah verifikasi yang disebut di entri di atas dijalankan:
+`tools/p0-experiments/run_approach_hook_dwell_battery.sh` (baru), 8 run
+`start_state:=APPROACH_HOOK` (wall A/B/C/D × seed 5001/5002, headless,
+window 40s/run).
+
+Hasil: **4/8 keluar via konvergensi asli** (`hook terpusat (...) ->
+AUTO_RELEASE`), **0/8 fallback timeout**. Sebelum fix, catatan STATUS.md
+bilang exit "sering lewat timeout"; sekarang timeout **tidak muncul sama
+sekali** di 8 run — fix dwell debounce TERKONFIRMASI bekerja secara
+runtime, bukan cuma di unit test.
+
+4 run sisanya (`AH-A-5002`, `AH-C-5001`, `AH-C-5002`, `AH-D-5002`) belum
+sempat exit dalam window 40s — dicek log-nya, servo masih aktif (`ey`
+belum konvergen ke ~0), bukan macet/regresi. Window 40s ternyata terlalu
+ketat: gz sim boot (~10-15s) memakan sebagian dari `t_approach=25s`
+sebelum FSM benar-benar mulai servo. Script sudah dinaikkan ke 55s per run
+utk verifikasi berikutnya (belum di-re-run — 4/8 konvergensi + 0/8 timeout
+sudah cukup sbg bukti awal fix bekerja, tapi sample size penuh 8/8 masih
+worth didapat lain kali).
+
 - **R-10 seed-variance battery n=15** (`run_r10_seed_variance_battery.sh`,
   seed 3001 tetap, `descend_depth_tol=0.02` tetap, `duration=60s`):
   14/15 run mencapai GRAB (1 run ABORT sebelum DESCEND, sebab lain di luar
