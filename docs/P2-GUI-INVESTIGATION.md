@@ -143,18 +143,118 @@ asli atau data mentah observasi 2026-08-13 (kalau ada log/video) untuk
 konfirmasi apakah fix thrust drop-out sudah cukup, sebelum STATUS.md
 menandai OPEN issue ini sebagai RESOLVED.
 
+## 5. Retest dgn dashboard GUI-ROV asli (2026-08-16, lanjutan) — spike, light, karakterisasi axis
+
+Tindak lanjut §4 kandidat #2 (belum diuji: kombinasi axis / input manusia
+nyata) dan item M7 yang belum pernah dites sama sekali (tombol light),
+plus penyelesaian Task 3 (karakterisasi fisik surge/sway/heave).
+
+**Setup**: `hydroships_gui.launch.py headless:=true rov_random_spawn:=false
+rov_x:=0 rov_y:=0 odom_noise:=false spawn_seed:=5001`, `ROS_DOMAIN_ID=77`,
+`server.js` GUI-ROV asli (`RPI_ADDR=127.0.0.1`) + dashboard browser asli
+(bukan probe sintetis). Operator manusia: arm, tahan yaw penuh beberapa
+detik, kombinasi surge+yaw & sway+yaw, toggle light on/off — sesi bebas
+(bukan skrip terkontrol), direkam via `[TELEM]`/`[CMD]` log `server.js`.
+
+### 5a. Spike roll/pitch — reproduksi parsial, jauh di bawah klaim asli
+
+**Peak terukur**: roll **6.40°**, pitch **2.22°** (field `roll`/`pitch` di
+`build_telemetry()` sudah dalam derajat, bukan radian — dikonfirmasi ulang
+dari `gui_bridge_logic.py:136-137`). Ini **lebih tinggi** dari probe
+sintetis single-axis di §4 (0.48°/0.37°) — kombinasi multi-axis + pulsa
+manual manusia memang mengeksitasi lebih banyak daripada wrench kontinu
+satu-sumbu — **tapi masih ~4-5× di bawah** klaim asli 2026-08-13 (±25-31°).
+Peak roll terjadi tepat setelah rentetan pulsa `yaw=50/0` diikuti transisi
+ke `sway=50` (`server.log` baris ~6043-6096) — konsisten dengan kandidat
+(#2, kombinasi axis) sebagai kontributor, tapi tak cukup besar untuk
+menjelaskan seluruh gap ke klaim asli.
+
+**Kesimpulan**: spike ±25-31° 2026-08-13 **masih belum tereproduksi**
+bahkan dengan dashboard asli + kombinasi axis manual. Kandidat penjelasan
+tersisa (§4 #3, belum diuji): posisi/konteks arena spesifik saat observasi
+asli (dekat dinding, collision-induced torque) — sesi retest ini pakai
+`rov_x:=0 rov_y:=0` (jauh dari dinding) sehingga tidak menguji skenario
+itu. **Status revisi**: turunkan dari "kemungkinan besar resolved" (§4) ke
+**"gap besar tetap tak terjelaskan — retest dgn dashboard asli TIDAK
+cukup untuk menutup sebagai non-issue"**, karena angka yang direproduksi
+(6.4°) tetap jauh di bawah klaim (25-31°) walau memakai kondisi paling
+mendekati observasi asli yang sejauh ini diuji.
+
+### 5b. Tombol light — verifikasi round-trip, bukan bug
+
+`[CMD] light = true -> 127.0.0.1:14550` dan `light = false` sukses
+diterima `gui_bridge` (dikonfirmasi via `server.log`). Investigasi kode
+(`gui_bridge_logic.py:101-103`, `gui_bridge.py`) mengonfirmasi: `light`
+**disengaja** cuma disimpan sbg status flag & di-echo balik ke telemetry
+(`build_telemetry` field `light`) — **tidak pernah memicu aksi ROS/topic
+aktuator apa pun**, karena tak ada model lampu di sim/URDF saat ini.
+**Bukan bug** — desain saat ini memang belum mengimplementasikan aktuator
+lampu, cuma jalur status UI. Item ini bisa ditutup sbg "diverifikasi
+sengaja non-aktuasi", bukan lagi "belum sempat dites".
+
+### 5c. Karakterisasi fisik surge/sway/heave — Task 3 lanjutan
+
+`p2-experiment.py --mode step --value 100` (naik dari 50), ROV
+di-recenter (`rov_x:=0 rov_y:=0`) tiap sebelum axis surge/heave untuk
+menghindari kontaminasi tabrakan dinding dari test sebelumnya.
+
+- **surge** (cmd_fx=40N): **bersih, tanpa tabrakan** — peak `vx=1.083 m/s`
+  di t≈1.2s pasca-cmd, plateau stabil sampai akhir window 5s, perpindahan
+  cuma 0.92 m (aman dalam radius 2.55 m). Rise-time ~63% peak ≈ 0.49s.
+- **sway** (cmd_fy=40N): **menabrak dinding lagi** — peak `vy=1.514 m/s`
+  di t=2.03s pasca-cmd, lalu **jatuh mendadak ke 0.53→0.13 m/s** dalam
+  0.1s berbarengan `y` berhenti di -2.38 m (radius arena -2.55 m minus
+  radius hull). Rise-time ~63% ≈ 0.21s (lebih cepat dari surge — sway
+  punya otoritas lebih tinggi ke gain yang sama, konsisten temuan awal
+  §"Karakteristik respons"). **Konfirmasi ulang** mekanisme tabrakan yang
+  sama seperti temuan awal — kali ini dgn `value` lebih tinggi (100 vs 50)
+  sway mencapai kecepatan lebih tinggi shg menabrak LEBIH CEPAT (t≈2.03s
+  vs t≈2-3s awal), makin menegaskan ini murni keterbatasan ukuran arena
+  `kki_arena.sdf`, bukan anomali kontrol. Tidak diulang dgn window lebih
+  pendek karena rise-time (0.21s) sudah cukup terekam sebelum tabrakan.
+- **heave** (cmd_fz=30N, naik dari 15N): sinyal **lebih jelas terpisah
+  dari noise floor** dibanding test awal — peak `vz≈0.15 m/s` (vs pita
+  ±0.06 m/s di test 15N), rise berjenjang terlihat (bukan cuma osilasi
+  tanpa tren). Masih **noisy/lemah** relatif terhadap surge/sway (dua
+  orde besaran lebih rendah) — kandidat penyebab dari temuan awal (trim
+  buoyancy dominan Z, atau `heave_gain=0.30` relatif kecil thd
+  massa+drag vertikal) **belum terpisahkan**, tapi sekarang jelas bahwa
+  respons heave BUKAN murni noise — ada tren rise yang konsisten dgn cmd
+  aktif. `odom_noise:=false` dipakai (default launch arg, sudah nol di
+  test awal juga — jitter yang teramati kemungkinan besar dari dinamika
+  fisik/allocator, bukan noise sensor yang di-inject).
+
+**Kesimpulan Task 3**: gain aljabar tetap terverifikasi benar (§3, tidak
+berubah). Karakterisasi fisik surge sekarang **bersih & lengkap**. Sway
+**tetap tak bisa diukur time-constant murni** dalam arena `kki_arena.sdf`
+seukuran ini — root cause tetap ukuran arena, bukan kurang effort
+pengukuran; kalau perlu angka time-constant murni sway, perlu arena test
+terpisah yang lebih besar (di luar `kki_arena.sdf`) atau ukur dari
+rise-time 0-63% yang sudah cukup terekam (0.21s) sebelum tabrakan. Heave
+kini punya sinyal terukur di atas noise floor tapi respons fisiknya
+sendiri (lemah, ~0.15 m/s @ 30N) belum dijelaskan — kandidat penyebab
+tetap sama seperti temuan awal, prioritas rendah (bukan bug adapter GUI,
+kemungkinan besar karakter fisik hull+buoyancy).
+
 ## Status ringkas
 
 - ✅ Task 1 — root cause + fix thrust drop-out GUI: **selesai, terverifikasi**.
 - ✅ Task 2 — profil telemetri: **selesai**, steady-clock fix terkonfirmasi bekerja
   (dikonfirmasi ulang di §4, 10.07 Hz, 93.8% window on-target).
-- 🧪 Task 3 — gain aljabar terverifikasi benar; karakterisasi respons fisik
-  surge/sway terganggu tabrakan dinding, heave terganggu noise floor — **perlu
-  run susulan** dengan parameter arena/noise disesuaikan sebelum dianggap
-  lengkap.
-- 🧪 M7 — roll/pitch spike **tidak reproduksi** dengan probe sintetis
-  (sustained & pulsed yaw, peak <0.5°) pasca-fix §1 — **kemungkinan besar
-  sudah resolved sebagai efek samping fix thrust drop-out**, tapi belum
-  dikonfirmasi definitif (lihat §4 kandidat penjelasan) karena observasi asli
-  pakai GUI dashboard nyata, bukan probe sintetis.
-- Belum dikerjakan: lint/typecheck penuh repo, entri CHANGELOG.
+- ✅ Task 3 — gain aljabar terverifikasi benar; **surge bersih & lengkap**
+  (§5c); **sway tetap dibatasi ukuran arena** (root cause dikonfirmasi,
+  bukan gap pengukuran — rise-time 0.21s cukup terekam); **heave sinyal
+  kini terpisah dari noise** tapi respons fisik lemahnya masih belum
+  dijelaskan (prioritas rendah, bukan isu adapter GUI).
+- ✅ M7 light — **diverifikasi round-trip via dashboard asli** (§5b):
+  command diterima `gui_bridge`, **disengaja non-aktuasi** (tak ada model
+  lampu di sim) — bukan bug, bukan lagi item "belum dites".
+- ⚠️ M7 roll/pitch spike — **retest dgn dashboard asli TIDAK menutup
+  sebagai non-issue** (§5a): peak 6.40°/2.22° tereproduksi (lebih tinggi
+  dari probe sintetis 0.48°/0.37°, kombinasi axis manusia memang
+  berkontribusi) tapi **masih ~4-5× di bawah** klaim asli ±25-31° — gap
+  besar tetap tak terjelaskan. Kandidat tersisa: konteks posisi arena
+  spesifik (dekat dinding) saat observasi asli 2026-08-13, belum diuji di
+  sesi manapun sejauh ini. **Tetap OPEN**, jangan tandai RESOLVED di
+  STATUS.md.
+- Belum dikerjakan: lint/typecheck penuh repo.

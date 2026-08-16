@@ -1015,6 +1015,27 @@ utk verifikasi berikutnya (belum di-re-run — 4/8 konvergensi + 0/8 timeout
 sudah cukup sbg bukti awal fix bekerja, tapi sample size penuh 8/8 masih
 worth didapat lain kali).
 
+## 2026-08-16 (lanjutan 4) — APPROACH_HOOK dwell debounce: re-run window 55s
+
+Script yang sama di-re-run dengan window dinaikkan ke 55s (tag/wall/seed
+sama persis: `AH-{A,B,C,D}-{5001,5002}`). Hasil: **sama persis** — 4/8
+konvergensi (`hook terpusat (...) -> AUTO_RELEASE`), **0/8 timeout**, 4/8
+masih belum exit dalam window (`AH-A-5002`, `AH-C-5001`, `AH-C-5002`,
+`AH-D-5002` — sama 4 tag yang gagal di run 40s sebelumnya).
+
+Cek log run yang gagal (mis. `AH-A-5002`): FSM baru mulai servo hook
+setelah `qr_detector`/`hook_detector` boot dan bergantian gagal/berhasil
+deteksi di t≈10-16s pertama — variasi boot time headless jauh lebih besar
+dari perkiraan awal (>15s pada sebagian run), jadi menaikkan window dari
+40s→55s **tidak cukup** untuk 4 run yang secara kebetulan kena boot
+lambat + start posisi jauh dari hook. **0/8 timeout tetap jadi bukti utama**
+fix dwell debounce bekerja (tak ada satupun regresi ke fallback lama);
+sample 8/8 konvergensi penuh masih belum tercapai — kalau mau ditutup
+sepenuhnya, window perlu dinaikkan lebih agresif (mis. 90s) atau
+boot Gazebo di-decouple dari `t_approach` (start timer setelah node servo
+benar-benar hidup, bukan dari `ros2 launch`). Tidak dikejar lebih jauh
+sesi ini karena non-blocking bagi kesimpulan fix.
+
 - **R-10 seed-variance battery n=15** (`run_r10_seed_variance_battery.sh`,
   seed 3001 tetap, `descend_depth_tol=0.02` tetap, `duration=60s`):
   14/15 run mencapai GRAB (1 run ABORT sebelum DESCEND, sebab lain di luar
@@ -1032,3 +1053,55 @@ worth didapat lain kali).
   negatif. Kesimpulan: caveat run-to-run variance **tetap valid dan
   dipertahankan** (bukan jaminan stabil), tapi tak ada bukti baru bahwa
   ini sering terjadi pada n yang lebih besar — R-10 tetap DITUTUP.
+
+## 2026-08-16 (lanjutan 5) — M7 retest dgn dashboard GUI-ROV asli: spike, light, karakterisasi axis
+
+Tiga item lanjutan dari `P2-GUI-INVESTIGATION.md` yang butuh interaksi
+manual dashboard GUI-ROV asli (bukan probe sintetis) dikerjakan.
+
+- **Tombol light — RESOLVED**: `[CMD] light = true/false` diterima
+  `gui_bridge` (dikonfirmasi via `server.js` log). Investigasi kode
+  (`gui_bridge_logic.py:101-103`) mengonfirmasi ini **disengaja
+  non-aktuasi** — cuma status flag yang di-echo balik ke telemetry, tak
+  ada model lampu di sim/URDF jadi tak ada aksi ROS yang dipicu. Bukan
+  bug, item ditutup sbg "diverifikasi round-trip status".
+- **Roll/pitch spike ±25-31° (2026-08-13) — retest dashboard asli TIDAK
+  menutup sebagai non-issue**: sesi manual (`hydroships_gui.launch.py
+  rov_x:=0 rov_y:=0 odom_noise:=false spawn_seed:=5001 ROS_DOMAIN_ID=77`
+  + `server.js` `RPI_ADDR=127.0.0.1` + dashboard browser asli, arm + tahan
+  yaw + kombinasi surge/sway+yaw manual) menghasilkan peak **roll 6.40°,
+  pitch 2.22°** — lebih tinggi dari probe UDP sintetis single-axis
+  sebelumnya (0.48°/0.37°, kombinasi axis manusia memang berkontribusi)
+  tapi **masih ~4-5× di bawah** klaim asli. Fix thrust drop-out
+  (`853f7ff`) sudah masuk di kedua test, jadi bukan penjelasan sisa gap.
+  Kandidat tersisa: konteks posisi arena spesifik (dekat dinding) saat
+  observasi asli — retest ini pakai ROV di tengah arena, belum menguji
+  skenario itu. **Status diturunkan** dari "kemungkinan besar resolved"
+  (2026-08-16 lanjutan 1) ke **tetap OPEN**, STATUS.md tidak boleh
+  menandai RESOLVED.
+- **Karakterisasi fisik surge/sway/heave (Task 3 lanjutan)**:
+  `p2-experiment.py --mode step --value 100` (naik dari 50), ROV
+  di-recenter tiap sebelum test surge/heave.
+  - **surge**: bersih tanpa tabrakan — peak vx=1.083 m/s @ cmd_fx=40N,
+    rise-time 63%≈0.49s, perpindahan cuma 0.92m (arena radius 2.55m).
+  - **sway**: menabrak dinding lagi (peak vy=1.514 m/s @ t=2.03s pasca-cmd,
+    jatuh ke 0.53→0.13 m/s dalam 0.1s, y berhenti di -2.38m) — konfirmasi
+    ulang root cause murni ukuran arena, bukan gap pengukuran. Rise-time
+    63%≈0.21s sempat terekam sebelum tabrakan.
+  - **heave**: sinyal kini lebih jelas terpisah dari noise (peak
+    vz≈0.15 m/s @ cmd_fz=30N vs pita ±0.06 m/s @ 15N sebelumnya) — ada
+    tren rise yang konsisten dgn cmd aktif, bukan cuma osilasi noise.
+    Respons fisiknya sendiri tetap lemah (dua orde besaran di bawah
+    surge/sway); penyebab (trim buoyancy Z / `heave_gain` kekecilan)
+    belum terpisahkan — prioritas rendah, bukan isu adapter GUI.
+  - Gain aljabar (dari sesi 2026-08-15) tidak berubah, tetap RESOLVED.
+- Detail lengkap & data mentah (`server.log`, CSV step-response):
+  `P2-GUI-INVESTIGATION.md` §5. `docs/STATUS.md` M7 & `docs/GUI-INTEGRATION.md`
+  §4 diperbarui sesuai hasil di atas.
+- **Catatan operasional**: mesin dev sempat OOM 2× selama sesi ini (dua
+  instance Gazebo — sim investigasi ini + sim battery sesi lain — jalan
+  bersamaan di RAM 15Gi terbatas oleh beban desktop/IDE lain). Tak ada
+  data yang salah dilaporkan (data korup dibuang, bukan dipakai), tapi
+  ke depan hindari menjalankan >1 instance Gazebo bersamaan di mesin ini
+  kalau memungkinkan.
+- Belum dikerjakan: lint/typecheck penuh repo.

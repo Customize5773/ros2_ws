@@ -6,9 +6,9 @@ yang dipakai untuk menjembatani keduanya **tanpa mengubah node inti** (stabilize
 mission_fsm, thruster_allocator).
 
 > Status: kode adapter & detektor hook **sudah diverifikasi end-to-end dengan
-> dashboard GUI-ROV asli (2026-08-13)** untuk arm/disarm, yaw, dan gripper —
-> lihat [`STATUS.md`](STATUS.md) untuk detail & item yang masih terbuka
-> (light, surge/sway, gain/tanda/offset kompas).
+> dashboard GUI-ROV asli (2026-08-13, retest 2026-08-16)** untuk arm/disarm,
+> yaw, gripper, dan light — lihat [`STATUS.md`](STATUS.md) untuk detail &
+> item yang masih terbuka (roll/pitch spike, offset kompas).
 
 ## 1. Temuan utama: GUI-ROV bukan ROS 2
 
@@ -84,25 +84,31 @@ wall) menggantikan gerak *timed*; **fallback timed** tetap ada bila deteksi tak 
 ## 4. Yang BELUM (VERIFY/OPEN)
 - **Live test 2026-08-13** (dashboard GUI-ROV asli, `server.js` lokal via
   `RPI_ADDR=127.0.0.1`) membuktikan arm/disarm, yaw, dan gripper open/close
-  round-trip. **Belum** terverifikasi pada run itu: tombol **light** (tak ada
-  command terkirim), dan efek gerak sim dari surge/sway (command sampai ke
-  adapter, tapi pergerakan ROV tak dicek via `/hydroships/odom`).
-- Kalibrasi gain persen→N, offset heading kompas, dan tanda sumbu — masih OPEN;
-  ROV bergerak sesuai perintah tapi skala/tanda belum divalidasi terhadap
-  gerak yang diharapkan.
-- **[🧪 2026-08-16, kemungkinan besar RESOLVED tapi belum definitif]** Roll/pitch
-  melonjak besar (±25-31°) yang tercatat di run 2026-08-13 **tidak mereproduksi**
-  dengan probe UDP sintetis (`tools/p2-gui-probe.py`/`p2-experiment.py`, mode
-  `sustained` & `pulsed`, yaw 100%, `ROS_DOMAIN_ID=77` terisolasi) di atas kode
-  saat ini — peak roll/pitch terukur cuma **0.48°/0.37°**, dua orde besaran di
-  bawah klaim asli. Kandidat penjelasan: spike lama kemungkinan efek turunan dari
-  bug **thrust drop-out** (watchdog `thruster_allocator` 0.5s menolkan thrust
-  tiap kali `gui_bridge` berhenti republish, lihat `P2-GUI-INVESTIGATION.md`
-  §1) yang sudah di-fix commit `853f7ff` — GUI asli kirim datagram per keypress
-  jadi rentan drop-out berulang, beda dari wrench kontinu yang dipakai probe di
-  sini. Belum dikonfirmasi dgn dashboard GUI-ROV asli/keyboard fisik pasca-fix
-  — jangan tandai RESOLVED penuh sampai itu dilakukan. Detail eksperimen &
-  angka lengkap: `P2-GUI-INVESTIGATION.md` §4.
+  round-trip.
+- **[RESOLVED 2026-08-16]** Tombol **light**: diverifikasi via dashboard GUI-ROV
+  asli — `[CMD] light = true/false` diterima `gui_bridge`. Investigasi kode
+  (`gui_bridge_logic.py:101-103`) mengonfirmasi ini **disengaja non-aktuasi**:
+  cuma disimpan sbg status flag & di-echo balik ke telemetry, tak ada model
+  lampu di sim/URDF saat ini jadi tak ada aksi ROS yang dipicu. Bukan bug.
+  Detail: `P2-GUI-INVESTIGATION.md` §5b.
+- Kalibrasi gain persen→N: **RESOLVED 2026-08-16** (`P2-GUI-INVESTIGATION.md`
+  §3) — terverifikasi benar secara aljabar (`cmd = gain × value` exact) utk
+  keempat axis. Offset heading kompas & tanda sumbu tetap OPEN (butuh ROV
+  fisik utk validasi).
+- **[⚠️ 2026-08-16, retest dgn dashboard asli TIDAK menutup sebagai
+  non-issue]** Roll/pitch melonjak besar (±25-31°) yang tercatat di run
+  2026-08-13: probe UDP sintetis single-axis (`p2-experiment.py`, mode
+  `sustained`/`pulsed`, yaw 100%) tidak mereproduksi (peak 0.48°/0.37°) —
+  tapi retest lanjutan dgn **dashboard GUI-ROV asli** (browser + input
+  manual, kombinasi surge+yaw/sway+yaw, `ROS_DOMAIN_ID=77`) menghasilkan
+  peak **6.40°/2.22°** — lebih tinggi dari probe sintetis (kombinasi axis
+  manusia memang berkontribusi) tapi **masih ~4-5× di bawah** klaim asli.
+  Fix thrust drop-out (`853f7ff`) sudah masuk di kedua test ini, jadi
+  bukan penjelasan sisa gap. Kandidat tersisa: posisi/konteks arena
+  spesifik (dekat dinding) saat observasi asli 2026-08-13 — retest ini
+  pakai ROV di tengah arena (`rov_x:=0 rov_y:=0`), belum menguji skenario
+  dekat-dinding. **Tetap OPEN**, jangan tandai RESOLVED. Detail eksperimen
+  & angka lengkap: `P2-GUI-INVESTIGATION.md` §4 & §5a.
 - **[RESOLVED 2026-08-15, dikonfirmasi ulang 2026-08-16]** Timer telemetri UDP
   dipacing steady/wall clock, bukan ROS/Gazebo simulation clock. Ini mencegah
   beban headless membuat rate GUI turun bersama real-time factor. Live test
