@@ -36,7 +36,9 @@ def generate_launch_description():
     payload_y = LaunchConfiguration('payload_y')
     # Diteruskan ke stabilized -> sim.launch.py (spawn ROV acak dekat dinding / manual).
     rov_args = ('rov_random_spawn', 'rov_x', 'rov_y', 'rov_z',
-                'rov_wall_margin', 'rov_arena_half')
+                'rov_wall_margin', 'rov_arena_half', 'spawn_seed',
+                'odom_noise', 'odom_pos_noise_std', 'odom_vel_noise_std',
+                'odom_heading_noise_std_deg', 'odom_noise_seed')
 
     # sim + allocator + stabilizer (M2). Teruskan qr_letter/payload_x/y (payload
     # spawner) + rov_* (spawn ROV) ke sim.launch.py lewat stabilized.
@@ -57,6 +59,8 @@ def generate_launch_description():
                       'start_wall': start_wall,
                       'scan_depth': ParameterValue(LaunchConfiguration('scan_depth'),
                                                    value_type=float),
+                      'descend_depth_tol': ParameterValue(
+                          LaunchConfiguration('descend_depth_tol'), value_type=float),
                       'cam_gripper_dx': ParameterValue(
                           LaunchConfiguration('cam_gripper_dx'), value_type=float),
                       'hook_size_stop': ParameterValue(
@@ -66,7 +70,15 @@ def generate_launch_description():
                       'hook_max_age': ParameterValue(
                           LaunchConfiguration('hook_max_age'), value_type=float),
                       't_approach': ParameterValue(
-                          LaunchConfiguration('t_approach'), value_type=float)}],
+                          LaunchConfiguration('t_approach'), value_type=float),
+                      'qr_offset_ema_alpha': ParameterValue(
+                          LaunchConfiguration('qr_offset_ema_alpha'), value_type=float),
+                      'qr_servo_range': ParameterValue(
+                          LaunchConfiguration('qr_servo_range'), value_type=float),
+                      'approach_min_fmax_frac': ParameterValue(
+                          LaunchConfiguration('approach_min_fmax_frac'), value_type=float),
+                      'approach_dwell_ticks': ParameterValue(
+                          LaunchConfiguration('approach_dwell_ticks'), value_type=int)}],
     )
 
     return LaunchDescription([
@@ -92,6 +104,15 @@ def generate_launch_description():
         DeclareLaunchArgument('rov_z', default_value='-0.5'),
         DeclareLaunchArgument('rov_wall_margin', default_value='0.5'),
         DeclareLaunchArgument('rov_arena_half', default_value='2.55'),
+        DeclareLaunchArgument('spawn_seed', default_value='',
+                              description='Isi utk fix seed pose spawn acak '
+                                          '(replay/debug); kosong = acak penuh tiap launch.'),
+        DeclareLaunchArgument('odom_noise', default_value='false',
+                              description='P2-B: true -> /hydroships/odom disuntik noise.'),
+        DeclareLaunchArgument('odom_pos_noise_std', default_value='0.03'),
+        DeclareLaunchArgument('odom_vel_noise_std', default_value='0.02'),
+        DeclareLaunchArgument('odom_heading_noise_std_deg', default_value='1.0'),
+        DeclareLaunchArgument('odom_noise_seed', default_value='0'),
         # Tuning kamera bawah: kedalaman scan menentukan lebar petak pandang
         # (h_cam = 0.714 - scan_depth), jadi menentukan pula seberapa besar QR di
         # frame DAN apakah offset gripper masih muat. Lihat komentar scan_depth
@@ -104,6 +125,13 @@ def generate_launch_description():
         DeclareLaunchArgument('cam_gripper_dx', default_value='0.16',
                               description='Jarak gripper di depan kamera bawah (m). '
                                           '0.0 = perilaku lama (tanpa koreksi).'),
+        # R-10 (P1-OWNER-DECISIONS-AND-ROADMAP.md): toleransi exit DESCEND. Default
+        # 0.02 = perilaku BARU (celah alt_gap lebih besar). 0.06 = perilaku LAMA
+        # (dulu exit DESCEND pakai depth_tol yang sama dgn APPROACH_QR) -- dipakai
+        # utk battery pembanding sebelum/sesudah.
+        DeclareLaunchArgument('descend_depth_tol', default_value='0.02',
+                              description='Toleransi kedalaman (m) exit DESCEND->GRAB. '
+                                          '0.06 = replikasi perilaku lama (R-10 pembanding).'),
         # Tuning APPROACH_HOOK (visual servo hook lewat kamera depan). Naikkan
         # hook_size_stop = berhenti lebih dekat ke hook; turunkan hook_center_tol
         # = tuntut pemusatan lebih ketat (butuh deteksi lebih stabil).
@@ -119,6 +147,27 @@ def generate_launch_description():
         DeclareLaunchArgument('t_approach', default_value='25.0',
                               description='Timeout APPROACH_HOOK (s); habis waktu = '
                                           'lanjut AUTO_RELEASE, bukan abort.'),
+        # P0-2.5 Candidate #2 (docs/P0-2-5-ENGINEERING-ANALYSIS.md): EMA pada
+        # qr_ex/qr_ey sebelum dipakai target servo. 1.0 = filter nonaktif
+        # (default, sama seperti sebelum kandidat ini ada).
+        DeclareLaunchArgument('qr_offset_ema_alpha', default_value='1.0',
+                              description='EMA alpha utk qr_ex/qr_ey sebelum servo '
+                                          '(1.0=nonaktif/mentah, lebih kecil=lebih halus).'),
+        # P0-2.5 Kandidat #1: lebar gerbang aktivasi visual servo (dist_raw <
+        # qr_servo_range). 0.3 = nilai lama/default.
+        DeclareLaunchArgument('qr_servo_range', default_value='0.3',
+                              description='Jarak (m) di bawah mana visual servo QR mulai '
+                                          'aktif (dist_raw < qr_servo_range).'),
+        # P0-2.5 Kandidat #3: lantai fraksi gaya taper _goto_xy, KHUSUS
+        # APPROACH_QR (_st_hang/_st_nav_wall tetap 0.05 hardcoded).
+        DeclareLaunchArgument('approach_min_fmax_frac', default_value='0.05',
+                              description='Lantai fraksi approach_fmax dalam radius '
+                                          'slow-down 1.0m, khusus APPROACH_QR.'),
+        # P0-2.5 Kandidat #4: jumlah tick berturut-turut kondisi convergen
+        # harus bertahan sebelum GRAB dipicu. 1 = nilai lama/default (tanpa dwell).
+        DeclareLaunchArgument('approach_dwell_ticks', default_value='1',
+                              description='Tick dwell (10Hz) sebelum transisi GRAB '
+                                          'benar2 dipicu di APPROACH_QR.'),
         stabilized,
         mission,
     ])

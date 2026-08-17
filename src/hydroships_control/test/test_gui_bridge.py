@@ -2,8 +2,30 @@
 
 import math
 
-from hydroships_control.gui_bridge_logic import GuiBridgeLogic
+from hydroships_control.gui_bridge_logic import DelayLine, GuiBridgeLogic
 from hydroships_control.hook_logic import normalize_hook_offset
+
+
+def test_delay_line_zero_delay_passthrough():
+    d = DelayLine(0.0)
+    d.push('a', now=10.0)
+    assert d.pop_ready(now=10.0) == ['a']
+
+
+def test_delay_line_holds_until_release():
+    d = DelayLine(1.0)
+    d.push('a', now=10.0)
+    assert d.pop_ready(now=10.5) == []
+    assert d.pop_ready(now=10.9) == []
+    assert d.pop_ready(now=11.0) == ['a']
+
+
+def test_delay_line_fifo_order():
+    d = DelayLine(1.0)
+    d.push('a', now=10.0)
+    d.push('b', now=10.2)
+    d.push('c', now=10.4)
+    assert d.pop_ready(now=11.5) == ['a', 'b', 'c']
 
 
 def test_disarmed_wrench_zero():

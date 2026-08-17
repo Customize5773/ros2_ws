@@ -136,7 +136,7 @@ Param: `hook_kp_surge=40.0`, `hook_kd_surge=30.0`, `hook_kp_sway=45.0`,
 
 ### Metode umum tuning visual servo
 1. Uji dengan `start_state:=APPROACH_HOOK` (atau `APPROACH_QR`) langsung — lihat
-   `docs/HOW-TO-RUN.txt` skenario 3H — supaya tidak perlu menunggu seluruh misi
+   `docs/HOW-TO-RUN.md` skenario 3H — supaya tidak perlu menunggu seluruh misi
    dari `DIVE`.
 2. Amati `ros2 topic echo /hydroships/hook_offset` (atau `/hydroships/qr_offset`)
    bersamaan dengan `ros2 topic echo /hydroships/manual/cmd` untuk lihat korelasi

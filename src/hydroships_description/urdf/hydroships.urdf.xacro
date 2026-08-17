@@ -309,8 +309,17 @@
          (gripper_logic.is_safe), HANG di-skor dari odometri, dan kedua jari
          kosmetik. Lihat docs/CHANGELOG.md. -->
   </link>
+  <!-- z=-0.13: gripper di DASAR haluan, bukan setinggi pusat hull. Sebelumnya z=0,
+       artinya gripper 0.14 m di atas dasar hull — walau ROV turun sampai hull hampir
+       menyentuh lantai, gripper tetap ~0.19 m di atas payload yg tergeletak di lantai
+       (qr_floor_z=-0.894), jadi DetachableJoint selalu mengelas lintas celah (M5-D).
+       Dgn -0.13: pada grab_depth=0.70 dasar gripper (-0.86) cuma 0.034 m di atas bidang
+       QR, sementara dasar collision hull (-0.775, cob.z=+0.02) masih 0.12 m di atas
+       lantai. Aman thd neraca apung: link ini sengaja TANPA <collision> (lihat catatan
+       di gripper_base), jadi volume perpindahan air tak berubah; yg bergeser hanya
+       massa 0.08 kg turun 0.13 m -> CoG sedikit turun (menambah stabilitas). -->
   <joint name="gripper_base_joint" type="fixed">
-    <origin xyz="0.18 0 0" rpy="0 0 0"/>
+    <origin xyz="0.18 0 -0.13" rpy="0 0 0"/>
     <parent link="base_link"/>
     <child link="gripper_base"/>
   </joint>

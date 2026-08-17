@@ -15,7 +15,7 @@ cd ~/ros2_ws
 colcon build
 ```
 Wajib dijalankan ulang setiap kali file kode/URDF/world/config berubah — launch
-file membaca dari `install/`, bukan `src/` (lihat `docs/HOW-TO-RUN.txt` §1).
+file membaca dari `install/`, bukan `src/` (lihat `docs/HOW-TO-RUN.md` §1).
 `build/`, `install/`, `log/` sengaja di-gitignore (regenerasi lokal, tidak
 di-commit).
 
@@ -39,7 +39,7 @@ sudo apt install ros-humble-ros-gz-sim ros-humble-ros-gz-bridge \
 # atau, bila python3-opencv gagal via apt:
 pip install -r requirements.txt
 ```
-Lihat `docs/HOW-TO-RUN.txt` §0 untuk detail lengkap & catatan GPU/headless.
+Lihat `docs/HOW-TO-RUN.md` §0 untuk detail lengkap & catatan GPU/headless.
 
 ---
 

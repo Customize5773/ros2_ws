@@ -15,10 +15,28 @@
   direction: GZ_TO_ROS
 
 # ---- Odometry ROV (pose & twist) : Gazebo -> ROS ----
-- ros_topic_name: "/hydroships/odom"
+# P2-B: ground truth dibridge ke odom_raw, BUKAN /hydroships/odom langsung --
+# node odom_injector (hydroships_control) relay odom_raw -> odom, opsional
+# +noise (odom_noise:=true). Default (noise mati) = passthrough identik.
+- ros_topic_name: "/hydroships/odom_raw"
   gz_topic_name: "/model/hydroships/odometry"
   ros_type_name: "nav_msgs/msg/Odometry"
   gz_type_name: "gz.msgs.Odometry"
+  direction: GZ_TO_ROS
+
+# ---- Pose live semua entity dunia (ground truth) : Gazebo -> ROS ----
+# M5: dipakai untuk validasi runtime "payload benar-benar terangkat" & ketahanan
+# grip (validate_grab_lift.py). Topik bawaan scene-broadcaster gz-sim (aktif
+# otomatis, tak perlu plugin tambahan) berisi pose tiap entity relatif WORLD.
+# Dibridge sbg TFMessage krn Pose_V->PoseStamped/Pose TIDAK menyimpan nama
+# entity (butuh child_frame_id utk memfilter 'payload' dari daftar). Percobaan
+# awal pakai plugin PosePublisher per-model gagal (hanya menerbitkan pose link
+# relatif ke model = selalu nol, bukan pose dunia) — lihat CHANGELOG 2026-08-14.
+# NAMA WORLD "kki_arena" hardcode sesuai default world.py (ganti bila world lain).
+- ros_topic_name: "/hydroships/world_pose_tf"
+  gz_topic_name: "/world/kki_arena/pose/info"
+  ros_type_name: "tf2_msgs/msg/TFMessage"
+  gz_type_name: "gz.msgs.Pose_V"
   direction: GZ_TO_ROS
 
 # ---- Sensor Milestone 3 (Gazebo -> ROS) ----
@@ -29,15 +47,16 @@
   gz_type_name: "gz.msgs.IMU"
   direction: GZ_TO_ROS
 
-# Kamera depan (haluan)
-- ros_topic_name: "/hydroships/camera_front/image_raw"
+# Kamera depan (haluan). Nama topic "_gt" (ground truth) -- camera_dropout_injector
+# relay ke image_raw, opsional drop frame (R-8, docs/P1-OWNER-DECISIONS-AND-ROADMAP.md).
+- ros_topic_name: "/hydroships/camera_front/image_raw_gt"
   gz_topic_name: "/hydroships/camera_front/image"
   ros_type_name: "sensor_msgs/msg/Image"
   gz_type_name: "gz.msgs.Image"
   direction: GZ_TO_ROS
 
-# Kamera bawah (dasar kolam / QR)
-- ros_topic_name: "/hydroships/camera_bottom/image_raw"
+# Kamera bawah (dasar kolam / QR). Sama, lihat catatan camera_front di atas.
+- ros_topic_name: "/hydroships/camera_bottom/image_raw_gt"
   gz_topic_name: "/hydroships/camera_bottom/image"
   ros_type_name: "sensor_msgs/msg/Image"
   gz_type_name: "gz.msgs.Image"

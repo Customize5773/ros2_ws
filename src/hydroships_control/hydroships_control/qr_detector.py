@@ -27,6 +27,11 @@ CATATAN INTRINSICS (Tugas M3/M6): K matrix dari `camera_info` DISIMPAN untuk
 konsumen visual-servo, TAPI intrinsics ini murni hasil kalkulasi Gazebo dari
 FOV/resolusi SDF sim — BUKAN kalibrasi kamera fisik ROV asli. JANGAN dipakai
 untuk estimasi jarak riil sampai kalibrasi hardware tersedia (lihat PROBLEM.md).
+
+Jalur kalibrasi hardware SUDAH tersedia (param `calib_file_bottom`/
+`calib_file_front`, lihat docs/HARDWARE.md untuk prosedur `camera_calibration`)
+tapi BELUM divalidasi dengan kamera fisik ROV asli — tetap OPEN sampai
+benar-benar dites dengan hardware (docs/STATUS.md M3).
 """
 
 import numpy as np
@@ -38,7 +43,9 @@ from sensor_msgs.msg import Image, CameraInfo
 from std_msgs.msg import String
 from geometry_msgs.msg import PointStamped
 
-from hydroships_control.qr_logic import robust_decode, parse_wall, offset_from_points
+from hydroships_control.qr_logic import (
+    robust_decode, parse_wall, offset_from_points, load_calibration_yaml,
+)
 from hydroships_control.image_util import image_msg_to_bgr
 
 
@@ -51,6 +58,11 @@ class QRDetector(Node):
                                ['/hydroships/camera_bottom/image_raw',
                                 '/hydroships/camera_front/image_raw'])
         self.declare_parameter('max_rate', 5.0)   # batas deteksi/detik (hemat CPU)
+        # M3: file kalibrasi kamera fisik (format ost.yaml, hasil `ros2 run
+        # camera_calibration cameracalibrator`, lihat docs/HARDWARE.md). Kosong
+        # (default) -> perilaku tak berubah, K tetap dari camera_info sim.
+        self.declare_parameter('calib_file_bottom', '')
+        self.declare_parameter('calib_file_front', '')
         topics = list(self.get_parameter('image_topics').value)
 
         self.pub = self.create_publisher(String, '/hydroships/qr_result', 10)
@@ -70,6 +82,22 @@ class QRDetector(Node):
         # visual-servo bisa memakainya, TAPI jangan untuk estimasi jarak riil sampai
         # kalibrasi hardware tersedia (lihat PROBLEM.md / docs/ARCHITECTURE.md).
         self.K = {}                # frame_id -> 3x3 K matrix (numpy) atau None
+        # M3: kalau file kalibrasi hardware diberi, muat & KUNCI frame itu supaya
+        # camera_info sim (subscription di bawah) tidak menimpanya (lihat
+        # _on_caminfo: hanya set K bila belum ada).
+        self._calib_locked = set()
+        for frame, path in (('camera_bottom_link', self.get_parameter('calib_file_bottom').value),
+                            ('camera_front_link', self.get_parameter('calib_file_front').value)):
+            if not path:
+                continue
+            try:
+                self.K[frame] = load_calibration_yaml(path)
+                self._calib_locked.add(frame)
+                self.get_logger().info(
+                    'kalibrasi HARDWARE dimuat utk %s dari %s' % (frame, path))
+            except Exception as e:
+                self.get_logger().error(
+                    'gagal muat kalibrasi %s dari %s: %s' % (frame, path, e))
         for info_topic, frame in (('/hydroships/camera_bottom/camera_info', 'camera_bottom_link'),
                                   ('/hydroships/camera_front/camera_info', 'camera_front_link')):
             self.create_subscription(
@@ -92,7 +120,9 @@ class QRDetector(Node):
 
     def _on_caminfo(self, msg: CameraInfo, frame):
         # K = [fx 0 cx; 0 fy cy; 0 0 1]. Simpan sekali (intrinsics statis di sim).
-        if self.K.get(frame) is not None:
+        # Frame dengan kalibrasi HARDWARE (calib_file_*) sudah terkunci -- jangan
+        # ditimpa camera_info sim.
+        if frame in self._calib_locked or self.K.get(frame) is not None:
             return
         k = np.asarray(msg.k, dtype=float).reshape(3, 3)
         self.K[frame] = k
@@ -129,13 +159,17 @@ class QRDetector(Node):
         if img is None:
             return
         # Decode berjenjang (mentah -> CLAHE -> adaptive-threshold -> upscale).
-        data, pts = robust_decode(img, self.det)
+        # P0-2.6 instrumentasi (approved, observability only): debug_info diisi
+        # robust_decode() dgn kandidat preprocessing mana yg menang/pertama
+        # punya corner points -- TIDAK mengubah decode/urutan kandidat itu sendiri.
+        debug_info = {}
+        data, pts = robust_decode(img, self.det, debug_info=debug_info)
 
         # Offset piksel: publish begitu QR TERDETEKSI (pts ada), walau decode gagal,
         # supaya visual servo tetap bisa memusatkan QR di frame.
         if pts is not None and len(pts) > 0:
             self._publish_offset(pts, img.shape, self._frame_of(topic))
-            self._publish_debug(data, pts, self._frame_of(topic))
+            self._publish_debug(data, pts, self._frame_of(topic), debug_info)
 
         if not data:
             # Bedakan dua kegagalan (butuh diagnosis beda) — throttle agar tak spam:
@@ -147,9 +181,21 @@ class QRDetector(Node):
                     % (img.shape, topic), throttle_duration_sec=5.0)
             else:
                 self.get_logger().warn(
-                    'DECODE GAGAL: QR terdeteksi (pts ada) tapi decode kosong '
-                    'shape=%s [%s]' % (img.shape, topic), throttle_duration_sec=5.0)
+                    'DECODE GAGAL: QR terdeteksi (pts ada, kandidat=%s) tapi decode '
+                    'kosong shape=%s [%s]'
+                    % (debug_info.get('first_pts_candidate_name'), img.shape, topic),
+                    throttle_duration_sec=5.0)
             return
+        # P0-2.6 instrumentasi: kandidat mana yg berhasil decode (throttled, tidak
+        # spam tiap frame) -- indikator langsung utk kandidat perbaikan #1
+        # (docs/P0-2-6-DIAGNOSTIC.md S4): apakah kandidat awal/murah sudah cukup,
+        # atau decode sukses didominasi kandidat belakangan/mahal.
+        self.get_logger().info(
+            'DECODE SUKSES via kandidat #%d (%s) dari %d dicoba [%s]'
+            % (debug_info.get('winning_candidate_index', -1),
+               debug_info.get('winning_candidate_name'),
+               debug_info.get('n_candidates_tried', 0), topic),
+            throttle_duration_sec=2.0)
         wall = parse_wall(data)
         out = String()
         out.data = wall if wall else data
@@ -160,6 +206,14 @@ class QRDetector(Node):
 
     def _publish_offset(self, pts, shape, frame_id):
         ex, ey, size = offset_from_points(pts, shape)
+        # Corner points garbage (mis. dari buffer/decode korup) menghasilkan
+        # size di luar rentang wajar (normal ~0.05-1.5) -> tolak sebelum
+        # dipublikasikan, jangan suapi gerbang gripper dgn data sampah.
+        if not (0.0 < size <= 5.0):
+            self.get_logger().warn(
+                'GATEDBG offset: DITOLAK size=%.3f di luar rentang wajar '
+                '(pts korup?) [%s]' % (size, frame_id))
+            return
         ps = PointStamped()
         ps.header.stamp = self.get_clock().now().to_msg()
         ps.header.frame_id = frame_id
@@ -167,14 +221,33 @@ class QRDetector(Node):
         ps.point.y = ey        # + = QR di bawah pusat
         ps.point.z = size      # ukuran-tampak (proxy jarak)
         self.pub_off.publish(ps)
+        # Instrumentasi diagnostik M5-D (DIAGNOSIS ONLY, tanpa throttle): satu
+        # baris per frame yang BERHASIL menghasilkan corner points — inilah
+        # sinyal yang menyuapi gerbang attach. Ketiadaan baris ini di sekitar
+        # transisi DESCEND->GRAB = dropout deteksi (kandidat penyebab (c)).
+        self.get_logger().info(
+            'GATEDBG offset: t=%.3f frame=%s ex=%+.3f ey=%+.3f size=%.3f'
+            % (ps.header.stamp.sec + ps.header.stamp.nanosec * 1e-9,
+               frame_id, ex, ey, size))
 
-    def _publish_debug(self, data, pts, frame_id):
+    def _publish_debug(self, data, pts, frame_id, debug_info=None):
         """P0-2.3: raw corner points + decode_success, SAME pts/data already
-        computed for _publish_offset() above -- no new detection logic."""
+        computed for _publish_offset() above -- no new detection logic.
+        P0-2.6 (additive, approved): trailing field = winning candidate index
+        (>=0 if decode succeeded) or first-pts candidate index (if decode
+        failed but corners were found) -- -1 if neither present. Format:
+        "decode_success,x1,y1,...,x4,y4,candidate_idx"."""
         p = np.asarray(pts, dtype=float).reshape(-1, 2)
+        di = debug_info or {}
+        cand_idx = di.get('winning_candidate_index')
+        if cand_idx is None or cand_idx < 0:
+            cand_idx = di.get('first_pts_candidate_index')
+        if cand_idx is None:
+            cand_idx = -1
         out = String()
-        out.data = '%d,%s' % (1 if data else 0,
-                              ','.join('%.2f' % v for v in p.flatten()))
+        out.data = '%d,%s,%d' % (1 if data else 0,
+                                 ','.join('%.2f' % v for v in p.flatten()),
+                                 cand_idx)
         self.pub_debug.publish(out)
 
 

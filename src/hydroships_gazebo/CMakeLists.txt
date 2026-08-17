@@ -16,4 +16,12 @@ install(
   RENAME payload_spawner
 )
 
+# M5: validasi runtime payload terangkat & ketahanan grip (manual, bukan
+# pytest). 'ros2 run hydroships_gazebo validate_grab_lift' setelah sim+FSM up.
+install(
+  PROGRAMS scripts/validate_grab_lift.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME validate_grab_lift
+)
+
 ament_package()

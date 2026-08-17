@@ -484,7 +484,7 @@ dipakai untuk keputusan desain permanen.
 
 Data lengkap: `/tmp/p0-2-3-battery/*.csv`, `*.log`, `P0-2-3-precision-results.json`.
 
-## 19. Status (menggantikan §17)
+## 19. Status (superseded oleh §21 — lihat koreksi analisis korelasi di bawah)
 
 ```text
 P0-2.2                          CLOSE-PARTIAL   (QR influence VERIFIED, precision OPEN)
@@ -500,4 +500,98 @@ P0-2.3                          OPEN
   qr_detector.py / qr_logic.py     TIDAK DIUBAH
   P0-2.3 verdict                   BELUM DIBERIKAN — evidence jauh lebih kuat, coverage masih
                                     dianggap belum cukup untuk keputusan desain permanen
+```
+
+## 20. KOREKSI — korelasi `qr_size`/`1/qr_size` bersifat tautologis, BUKAN evidence
+
+Analisis lanjutan (read-only, terhadap 42 observasi independen dari `R1`-`R6`, §18) mencoba
+mengidentifikasi correlate sign-flip yang paling kuat. Ditemukan `r(dist_diff_raw,
+1/qr_size)=+1.000` dan regresi berganda `R²=1.000` dengan koefisien `inflation`/`angle`/
+`decode_success` ≈0. **Angka-angka ini SALAH DIBACA sebagai evidence dan harus ditarik.**
+
+**Alasan**: `distance_est = K/qr_size` (K = `FX_PX × QR_SIDE_M / FRAME_W_PX`, konstanta), jadi
+`dist_diff_raw = distance_est - h_cam = K/qr_size - h_cam` **secara aljabar** hampir linear
+sempurna terhadap `1/qr_size` (`h_cam` nyaris konstan sepanjang satu episode `APPROACH_QR`,
+karena `depth_target` jarang berubah). Korelasi `r=+1.000` hanya menemukan kembali definisi
+rumusnya sendiri — bukan pola empiris apa pun. Regresi berganda `R²=1.000` dengan koefisien
+prediktor lain ≈0 adalah tautologi yang sama menjenuhkan fit, **bukan bukti bahwa
+`inflation`/`angle`/`decode_success` tidak berpengaruh**.
+
+**ATURAN untuk pass berikutnya**: angka `r=+1.000`/`r=-0.883` (`qr_size`/`1/qr_size` vs
+`dist_diff_raw`) dan `R²=1.000` dari regresi tersebut **TIDAK BOLEH** dikutip sebagai evidence
+di P0-2.3 manapun setelah ini. Hipotesis "QR kecil menyebabkan noise/sign-flip" dari §16-§19
+**ditarik** — crossover residual di sekitar nol bisa muncul murni dari struktur rumus
+(`qr_size* ≈ K/h_cam`, titik di mana `distance_est` menyeberangi `h_cam`), bukan berarti
+bukti kualitas deteksi memburuk pada QR kecil.
+
+### Yang tetap valid (korelasi non-tautologis, dihitung ulang dari 41 observasi valid — 1
+### outlier degenerat `R4` dikeluarkan, lihat §20.1)
+
+| Correlate | r vs `dist_diff_raw` | Kekuatan sinyal |
+|---|---|---|
+| `decode_success` | **+0.442** | Satu-satunya correlate independen dengan sinyal cukup jelas — konsisten dengan pemisahan mean residual sebelumnya (+0.009m decode-success vs −0.176m corner-only, §18-19) |
+| `inflation` | −0.269 | Lemah — belum cukup untuk klaim kausalitas |
+| `angle` (rotasi) | −0.132 | Lemah — belum cukup untuk klaim kausalitas |
+
+Stratifikasi (`1/qr_size` vs `dist_diff_raw` dalam strata inflasi rendah/tinggi dan sudut
+rendah/tinggi) semuanya kembali menunjukkan `r≈+1.000` di setiap strata — ini murni
+mengulang tautologi yang sama di setiap subset, **tidak informatif**, tidak dilaporkan
+sebagai evidence robustness.
+
+### §20.1 — Outlier `R4` (1 dari 42)
+
+Terkonfirmasi satu kejadian degenerat: `R4 t=6.864`, satu titik sudut di `y≈-29968` (~30.000
+piksel di luar frame 480px tinggi). **Penyebabnya masih belum diketahui.** Menghapusnya
+menggeser mean `dist_diff_raw` run `R4` dari **−0.140 → −0.106 m** — pergeseran nyata tapi
+kecil, tidak mengubah kesimpulan kualitatif run tersebut.
+
+### §20.2 — R6 vs R1-R5 (deskriptif, BUKAN bukti mekanisme noise baru)
+
+| | R6 (n=6) | R1-R5 (n=35, valid) |
+|---|---|---|
+| mean `dist_diff_raw` | −0.005 | −0.172 |
+| mean `qr_size` | 0.208 | 0.470 |
+| sign-flip rate | 5/6 (83%) | 4/35 (11%) |
+
+Perbedaan run-level ini nyata secara deskriptif, tapi per §20 di atas, **bisa sepenuhnya
+dijelaskan oleh ROV berada di sisi `qr_size` yang melewati titik crossover rumus untuk
+sebagian besar run itu** — bukan otomatis bukti mekanisme noise yang berbeda di `R6`.
+
+### Kesimpulan yang aman dari seluruh analisis korelasi (§16-§20)
+
+- **`decode_success` tetap satu-satunya correlate yang punya dukungan independen dan
+  konsisten** (muncul dua kali: pemisahan mean §18-19, dan korelasi §20) — data cukup untuk
+  bilang observasi corner-only membawa bias residual lebih besar daripada observasi
+  decode-success.
+- **Belum cukup untuk menentukan PENYEBAB** kualitas corner-only yang lebih buruk itu —
+  apakah rotation/inflasi AABB, noise deteksi corner, atau karakteristik lain — tidak
+  terjawab oleh analisis ini.
+- Hipotesis rotasi/inflasi sebagai penjelasan utama sign-flip: correlate lemah, tidak
+  didukung kuat.
+- Hipotesis "QR kecil menyebabkan sign-flip/noise": **ditarik**, kemungkinan besar artefak
+  struktur rumus, bukan temuan tentang kualitas deteksi.
+- **Tidak ada patch detector/controller yang disarankan dari hasil ini. P0-2.3 tetap OPEN.**
+
+## 21. Status (menggantikan §19)
+
+```text
+P0-2.2                          CLOSE-PARTIAL   (QR influence VERIFIED, precision OPEN)
+P0-2.3                          OPEN
+  Instrumentation                  CLOSED
+  Battery instrumentasi aktif      CLOSED   (§18, 6/6 gate PASS, protocol-comparable Q1-Q6)
+  AABB rotation hypothesis         CONFIRMED (mean inflation 1.353x) tapi correlate lemah
+                                    terhadap sign-flip (r=-0.269, §20) — bukan penjelasan utama
+  qr_size/1/qr_size correlation    DITARIK — tautologis terhadap rumus distance_est=K/qr_size,
+                                    r=+1.000/R²=1.000 TIDAK BOLEH dipakai sebagai evidence (§20)
+  decode_success correlate         SATU-SATUNYA sinyal independen konsisten — r=+0.442,
+                                    residual +0.009m (success) vs -0.176m (corner-only)
+  Penyebab kualitas corner-only    OPEN — rotation/AABB vs corner noise vs lainnya belum
+                                    terpisahkan
+  R4 degenerate outlier            CONFIRMED, 1/42, penyebab UNKNOWN, efek pada mean R4 kecil
+                                    (-0.140 -> -0.106 setelah dikeluarkan)
+  R6 vs R1-R5                      Beda deskriptif nyata, TAPI bisa dijelaskan crossover rumus,
+                                    bukan bukti mekanisme noise terpisah
+  Precision acceptance             OPEN
+  qr_detector.py / qr_logic.py     TIDAK DIUBAH
+  P0-2.3 verdict                   BELUM DIBERIKAN
 ```

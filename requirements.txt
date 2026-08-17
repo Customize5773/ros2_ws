@@ -1,2 +1,7 @@
-opencv-python
+# pinned: opencv-python 5.0.0.93 (latest) menyebabkan qr_detector crash
+# native "double free or corruption" (SIGABRT) setelah ribuan panggilan
+# QRCodeDetector.detectAndDecode; python3-opencv 4.5.4 (apt) stabil tapi
+# tak ter-link QUIRC (tak bisa decode QR sama sekali). 4.10.0.84: QUIRC ok,
+# tak reproduce crash pada re-test.
+opencv-python==4.10.0.84
 numpy

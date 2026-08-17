@@ -23,14 +23,16 @@ CATATAN [VERIFY]: belum diuji dgn GUI live end-to-end; gain/tanda perlu kalibras
 
 import json
 import socket
+import time
 
 import rclpy
+from rclpy.clock import Clock, ClockType
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64, String
 
-from hydroships_control.gui_bridge_logic import GuiBridgeLogic
+from hydroships_control.gui_bridge_logic import DelayLine, GuiBridgeLogic
 
 
 def _yaw_rpy(q):
@@ -57,11 +59,18 @@ class GuiBridge(Node):
         p('telem_hz', 10.0)
         p('surge_gain', 0.40); p('sway_gain', 0.40)
         p('heave_gain', 0.30); p('yaw_gain', 0.12)
+        p('tether_latency_ms', 0.0)   # R-8: simulasi latency tether topside<->ROV
         g = lambda n: self.get_parameter(n).value
 
         self.logic = GuiBridgeLogic(
             surge_gain=float(g('surge_gain')), sway_gain=float(g('sway_gain')),
             heave_gain=float(g('heave_gain')), yaw_gain=float(g('yaw_gain')))
+
+        # R-8: dua arah delay terpisah (uplink cmd GUI->ROV, downlink telemetri
+        # ROV->GUI). delay 0 (default) = pass-through identik ke perilaku lama.
+        latency_s = float(g('tether_latency_ms')) / 1000.0
+        self._uplink = DelayLine(latency_s)
+        self._downlink = DelayLine(latency_s)
 
         # ROS keluar (ke sim) & masuk (telemetri).
         self.pub_cmd = self.create_publisher(Twist, '/hydroships/cmd_vel', 10)
@@ -79,9 +88,15 @@ class GuiBridge(Node):
         self._rx.setblocking(False)
         self._tx = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-        self.create_timer(0.02, self._poll_cmd)                 # 50 Hz drain UDP
+        wall_clock = Clock(clock_type=ClockType.STEADY_TIME)
+        self.create_timer(0.02, self._poll_cmd, clock=wall_clock)  # 50 Hz UDP
+        self.create_timer(0.02, self._drain_downlink, clock=wall_clock)
         hz = max(1.0, float(g('telem_hz')))
-        self.create_timer(1.0 / hz, self._send_telem)
+        # Telemetry is a wall-facing UDP contract. Do not pace it with Gazebo
+        # simulation time: a loaded/headless sim must not make the GUI appear
+        # to have a dead link.
+        self.create_timer(1.0 / hz, self._send_telem,
+                          clock=Clock(clock_type=ClockType.STEADY_TIME))
         self.get_logger().info(
             'gui_bridge siap — dengar UDP cmd :%d, telemetri -> %s:%d' % (
                 int(g('cmd_port')), self._telem_dest[0], self._telem_dest[1]))
@@ -93,6 +108,7 @@ class GuiBridge(Node):
         self._rpy = _yaw_rpy(msg.pose.pose.orientation)
 
     def _poll_cmd(self):
+        now = time.monotonic()
         # Kuras semua datagram tertunda tiap tick.
         for _ in range(50):
             try:
@@ -103,6 +119,8 @@ class GuiBridge(Node):
                 msg = json.loads(data.decode('utf-8'))
             except (ValueError, UnicodeDecodeError):
                 continue
+            self._uplink.push(msg, now)
+        for msg in self._uplink.pop_ready(now):
             self._handle(msg)
 
     def _handle(self, msg):
@@ -120,11 +138,16 @@ class GuiBridge(Node):
         roll, pitch, yaw = self._rpy
         telem = self.logic.build_telemetry(
             yaw_rad=yaw, depth_m=self._depth, roll=roll, pitch=pitch)
-        try:
-            self._tx.sendto(json.dumps(telem).encode('utf-8'), self._telem_dest)
-        except socket.error as e:
-            self.get_logger().warn('kirim telemetri gagal: %s' % e,
-                                   throttle_duration_sec=5.0)
+        self._downlink.push(telem, time.monotonic())
+
+    def _drain_downlink(self):
+        now = time.monotonic()
+        for telem in self._downlink.pop_ready(now):
+            try:
+                self._tx.sendto(json.dumps(telem).encode('utf-8'), self._telem_dest)
+            except socket.error as e:
+                self.get_logger().warn('kirim telemetri gagal: %s' % e,
+                                       throttle_duration_sec=5.0)
 
 
 def main(args=None):

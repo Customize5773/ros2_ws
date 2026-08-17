@@ -1,7 +1,7 @@
 # Troubleshooting
 
 Debugging terstruktur untuk masalah kompleks. Bagian "cara cepat" (tersalin dari
-`docs/HOW-TO-RUN.txt` §7, dipertahankan agar quick-reference lama tetap valid) ada
+`docs/HOW-TO-RUN.md` §7, dipertahankan agar quick-reference lama tetap valid) ada
 di §1; bagian debugging mendalam ada di §2 dan seterusnya.
 
 ---
@@ -30,7 +30,7 @@ di §1; bagian debugging mendalam ada di §2 dan seterusnya.
    ros2 topic hz /hydroships/camera_bottom/image_raw   # cek frame rate kamera hidup
    ```
 2. **Isolasi node dengan `start_state`.** `mission_fsm` mendukung mulai dari state
-   manapun (`start_state:=NAV_WALL`, dst — lihat `docs/HOW-TO-RUN.txt` §3H). Pakai
+   manapun (`start_state:=NAV_WALL`, dst — lihat `docs/HOW-TO-RUN.md` §3H). Pakai
    ini untuk mempersempit masalah ke satu state tanpa menunggu seluruh urutan misi.
 3. **Bandingkan dengan unit test.** Semua logika inti (`pid.py`, `allocation.py`,
    `qr_logic.py`, `hook_logic.py`, `gripper_logic.py`, `gui_bridge_logic.py`,
@@ -110,7 +110,7 @@ dikonfirmasi definitif — investigasi lanjutan diperlukan):
   sampai `nav_tol` karena proportional-only control tanpa integral).
 
 **Debug disarankan:** jalankan `start_state:=NAV_WALL start_wall:=B` (lihat
-`docs/HOW-TO-RUN.txt` §3C) dan amati `ros2 topic echo /hydroships/odom` vs jarak
+`docs/HOW-TO-RUN.md` §3C) dan amati `ros2 topic echo /hydroships/odom` vs jarak
 target overlay manual — plot jarak-vs-waktu untuk melihat apakah benar-benar
 plateau atau berosilasi pelan. Lihat juga `docs/TUNING_GUIDE.md` §2 untuk konteks
 timeout, dan §1 untuk kemungkinan re-tuning `heading` PID yang berinteraksi.

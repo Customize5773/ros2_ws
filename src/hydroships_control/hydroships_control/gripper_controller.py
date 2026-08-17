@@ -17,6 +17,7 @@ Kontrak topic (lihat docs/ARCHITECTURE.md — tak mengubah interface lama yg dip
     /hydroships/gripper_right/cmd (std_msgs/Float64, rad)              -> keluar (bridge->gz)
     /hydroships/gripper/attach    (std_msgs/Empty)                     -> keluar (bridge->gz)
     /hydroships/gripper/detach    (std_msgs/Empty)                     -> keluar (bridge->gz)
+    /hydroships/gripper/status    (std_msgs/String "attached"|"detached"|"rejected") -> keluar (ack ke mission_fsm/GUI)
 """
 
 import rclpy
@@ -28,6 +29,10 @@ from nav_msgs.msg import Odometry
 import subprocess
 import math
 from hydroships_control.gripper_logic import GripperLogic
+# Geometri yang SAMA dipakai mission_fsm untuk membidik APPROACH_QR. Wajib satu
+# sumber: kalau gerbang attach di sini dan kriteria centering FSM memakai acuan
+# berbeda, keduanya bisa jadi mustahil dipenuhi bersamaan (itulah bug M5).
+from hydroships_control.qr_logic import qr_ey_target
 
 
 class GripperController(Node):
@@ -37,6 +42,29 @@ class GripperController(Node):
         p('max_offset', 0.30)       # |offset x/y| maks agar "di atas payload"
         p('min_size', 0.12)         # ukuran-tampak QR min (proxy dekat)
         p('offset_timeout', 1.5)    # umur maks qr_offset (s)
+        # Gerbang fisik M5-D (docs/STATUS.md): tolak attach kalau gripper masih
+        # jauh di atas lantai QR — DetachableJoint mengelas pada pose saat itu,
+        # jadi attach dari ketinggian jelajah menjangkarkan ROV ke lantai.
+        # Independen dari urutan FSM (mis. start_state:=GRAB saat testing manual).
+        # 0.12 dipilih thd celah rancangan 0.034 m di grab_depth=0.70 (mission_fsm),
+        # margin 45mm utk variasi spawn payload.
+        p('max_alt_gap', 0.12)      # m jarak vertikal maks DASAR GRIPPER di atas lantai QR
+        # Dasar gripper relatif base_link: gripper_base_joint z=-0.13 + ½ tinggi
+        # box 0.03 (hydroships.urdf.xacro).
+        p('gripper_bottom_dz', 0.16)
+        # Berapa lama syarat visual tetap berlaku setelah QR hilang. WAJIB > durasi
+        # DESCEND: di grab_depth kamera bawah sejajar bidang QR, jadi tak ada
+        # deteksi segar saat "close" dikirim. Lihat gripper_logic.is_safe().
+        p('arm_timeout', 8.0)       # s
+        # Kamera sumber qr_offset yang dipakai gerbang attach. HARUS sama dengan
+        # filter mission_fsm (camera_bottom_link) — lihat _on_offset().
+        p('offset_frame', 'camera_bottom_link')
+        # Geometri untuk qr_ey_target — HARUS sama dengan default mission_fsm.
+        p('cam_gripper_dx', 0.16)     # m, gripper_base di depan kamera bawah
+        p('qr_floor_z', -0.894)       # m, ketinggian bidang QR di dunia
+        p('cam_bottom_dz', 0.18)      # m, kamera bawah di bawah base_link
+        p('cam_vfov_half_tan', 0.6293)
+        p('ey_target_max', 0.8)
         p('jaw_open', 0.35)         # sudut jari terbuka (rad; <= upper limit URDF 0.5)
         p('jaw_close', 0.0)         # sudut jari menutup (rad)
         # Auto-detach startup kini DIPICU TOPIK /hydroships/payload/spawned (dari
@@ -47,10 +75,19 @@ class GripperController(Node):
         # ada -> Fortress lalu auto-attach payload saat load -> payload nempel salah).
         p('startup_detach_fallback', 8.0)   # s (was startup_detach_delay=1.5)
         g = lambda n: self.get_parameter(n).value
+        self.offset_frame = str(g('offset_frame'))
+        self.qr_floor_z = float(g('qr_floor_z'))
+        self.gripper_bottom_dz = float(g('gripper_bottom_dz'))
+        self._ey_geom = (float(g('cam_gripper_dx')), self.qr_floor_z,
+                         float(g('cam_bottom_dz')), float(g('cam_vfov_half_tan')),
+                         float(g('ey_target_max')))
+        # Kedalaman terakhir; None = belum ada -> ey_target 0.0 (perilaku lama).
+        self._depth = None
 
         self.logic = GripperLogic(
             max_offset=float(g('max_offset')), min_size=float(g('min_size')),
             offset_timeout=float(g('offset_timeout')),
+            max_alt_gap=float(g('max_alt_gap')), arm_timeout=float(g('arm_timeout')),
             jaw_open=float(g('jaw_open')), jaw_close=float(g('jaw_close')))
 
         self.pub_jaw_left = self.create_publisher(Float64, '/hydroships/gripper_left/cmd', 10)
@@ -102,7 +139,19 @@ class GripperController(Node):
         # Bila stamp kosong (0), pakai jam node agar tetap dianggap segar.
         if stamp <= 0.0:
             stamp = self._now()
-        self.logic.update_offset(msg.point.x, msg.point.y, msg.point.z, stamp)
+        ey_target = 0.0 if self._depth is None else qr_ey_target(
+            self._depth, *self._ey_geom)
+        self.logic.update_offset(msg.point.x, msg.point.y, msg.point.z, stamp,
+                                 ey_target)
+
+    def _on_depth(self, msg: Float64):
+        self._depth = float(msg.data)
+        # alt_gap = jarak vertikal DASAR GRIPPER di atas lantai QR (m). Sengaja
+        # dihitung DI SINI, bukan menumpang _on_offset: di kedalaman grasp QR
+        # sudah tak terlihat sehingga qr_offset berhenti terbit — justru saat
+        # itulah gerbang fisik harus hidup. /hydroships/depth terbit terus.
+        self.logic.update_altitude(
+            abs(self.qr_floor_z) - abs(self._depth) - self.gripper_bottom_dz)
 
     def _publish_state(self):
         m = String()
@@ -199,7 +248,34 @@ class GripperController(Node):
             self.get_logger().warn('teleport payload exception: %s' % e)
 
     def _on_cmd(self, msg: String):
-        action = self.logic.on_command(msg.data, self._now())
+        now = self._now()
+        # --- Instrumentasi diagnostik M5-D (DIAGNOSIS ONLY) -------------------
+        # Cetak status TIAP sub-kondisi gerbang PADA TICK KEPUTUSAN, sebelum
+        # on_command() mengubah state. Murni observability: tidak ada cabang
+        # keputusan yang bergantung pada blok ini. Prefiks GATEDBG supaya
+        # gampang di-grep dari log run.
+        if (msg.data or '').strip().lower() in ('close', 'tutup', 'grab',
+                                                'jepit', '1', 'true'):
+            d = self.logic.explain(now)
+            if not d.get('has_offset'):
+                self.get_logger().info(
+                    'GATEDBG close: BELUM ADA qr_offset sama sekali -> tolak')
+            else:
+                self.get_logger().info(
+                    'GATEDBG close: result=%s | x=%+.3f (ok=%s) y=%+.3f '
+                    'ey_target=%+.3f |y-ey|=%.3f (ok=%s) size=%.3f (ok=%s) '
+                    'alt_gap=%s (ok=%s) age=%.2fs (fresh=%s) arm_age=%s (armed=%s) '
+                    '| batas: max_offset=%.2f min_size=%.2f max_alt_gap=%.2f '
+                    'offset_timeout=%.1f arm_timeout=%.1f'
+                    % (d['result'], d['x'], d['ok_x'], d['y'], d['ey_target'],
+                       abs(d['y'] - d['ey_target']), d['ok_y'], d['z'], d['ok_size'],
+                       'n/a' if d['alt_gap'] is None else '%.3f' % d['alt_gap'],
+                       d['ok_alt'], d['age'], d['ok_fresh'],
+                       'n/a' if d['arm_age'] is None else '%.2fs' % d['arm_age'],
+                       d['ok_armed'], d['max_offset'], d['min_size'],
+                       d['max_alt_gap'], d['offset_timeout'], d['arm_timeout']))
+        # --- akhir instrumentasi ---------------------------------------------
+        action = self.logic.on_command(msg.data, now)
         if action is None:
             self.get_logger().warn('perintah gripper tak dikenal: %r' % msg.data)
             return
@@ -211,6 +287,7 @@ class GripperController(Node):
             # dan tak menggantung miring / bikin ROV trim.
             self._teleport_payload_to_gripper()
             self.pub_attach.publish(Empty())
+            status = 'attached'
         elif action['joint'] == 'detach':
             self.pub_detach.publish(Empty())
         self._publish_state()

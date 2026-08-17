@@ -52,4 +52,8 @@ def image_msg_to_bgr(msg):
     img = reshape_with_step(buf, h, w, ch, msg.step)
     if enc == 'rgb8':
         img = img[:, :, ::-1]                # RGB -> BGR
-    return np.ascontiguousarray(img)
+    # copy=True (bukan ascontiguousarray, yg no-op saat sudah contiguous):
+    # tanpa ini array bisa tetap view zero-copy atas msg.data, dan native
+    # cv2 (QRCodeDetector) yang menulis in-place ke buffer itu merusak
+    # heap ROS message -> "double free or corruption" tertunda & acak.
+    return np.array(img, copy=True)
