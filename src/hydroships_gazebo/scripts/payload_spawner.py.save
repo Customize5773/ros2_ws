@@ -30,32 +30,16 @@ PAYLOAD_SDF_TEMPLATE = '''<?xml version="1.0"?>
       <inertial>
         <mass>0.3</mass>
         <inertia>
-          <ixx>2.51e-4</ixx><iyy>3.13e-4</iyy><izz>6.34e-5</izz>
+          <ixx>2.5e-3</ixx><iyy>3.13e-4</iyy><izz>1.05e-4</izz>
           <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
         </inertia>
       </inertial>
-      <!-- Kolisi plat: body di BAWAH lubang + dua sayap (dinding slot) di atasnya.
-           Lubang di mesh berada di ujung +Z (z 0.0865..0.10) dan menembus
-           ketebalan (Y). Saat payload dibawa DATAR (QR di atas, lubang VERTIKAL),
-           tip hook (silinder tegak r=0.0125) bisa menembus slot ini dan plat
-           bersandar di palang bawah hook. Slot sengaja lebih lebar dari visual
-           (x +-0.026) supaya threading punya toleransi +-13 mm; body_collision
-           sengaja TIDAK menutupi daerah lubang. Silinder padat lama
-           (hole_ring_collision) DIHAPUS — dia menutup jalan tip ke lubang.
-           Body tebal 0.02 (bukan 0.006) supaya payload saat istirahat di lantai
-           berpijak stabil (bidang kontak 0.05 x 0.02, bukan tepi 6 mm) dan tak
-           goyang/bergoyang. -->
       <collision name="body_collision">
-        <pose>0 0.004 0.04325 0 0 0</pose>
-        <geometry><box><size>0.05 0.02 0.0865</size></box></geometry>
+        <geometry><box><size>0.05 0.006 0.10</size></box></geometry>
       </collision>
-      <collision name="slot_left_collision">
-        <pose>-0.029 -0.003 0.09325 0 0 0</pose>
-        <geometry><box><size>0.006 0.006 0.0135</size></box></geometry>
-      </collision>
-      <collision name="slot_right_collision">
-        <pose>0.029 -0.003 0.09325 0 0 0</pose>
-        <geometry><box><size>0.006 0.006 0.0135</size></box></geometry>
+      <collision name="hole_ring_collision">
+        <pose>0 0 0.029 1.5708 0 0</pose>
+        <geometry><cylinder><radius>0.015</radius><length>0.006</length></cylinder></geometry>
       </collision>
       <visual name="body">
         <geometry>
@@ -93,10 +77,30 @@ PAYLOAD_SDF_TEMPLATE = '''<?xml version="1.0"?>
         </material>
       </visual>
       <velocity_decay>
-        <linear>1.0</linear>
-        <angular>1.0</angular>
+        <linear>0.3</linear>
+        <angular>0.3</angular>
       </velocity_decay>
     </link>
+    <plugin filename="ignition-gazebo-buoyancy-system"
+            name="ignition::gazebo::systems::Buoyancy">
+      <uniform_fluid_density>1000</uniform_fluid_density>
+    </plugin>
+    <plugin filename="ignition-gazebo-hydrodynamics-system"
+            name="ignition::gazebo::systems::Hydrodynamics">
+      <link_name>payload_link</link_name>
+      <xDotU>-0.5</xDotU><yDotV>-0.5</yDotV><zDotW>-0.5</zDotW>
+      <xU>-2.0</xU><xUabsU>-4.0</xUabsU>
+      <yV>-2.0</yV><yVabsV>-4.0</yVabsV>
+      <zW>-2.0</zW><zWabsW>-4.0</zWabsW>
+    </plugin>
+    <plugin filename="ignition-gazebo-detachable-joint-system"
+            name="ignition::gazebo::systems::DetachableJoint">
+      <parent_link>payload_link</parent_link>
+      <child_model>hydroships</child_model>
+      <child_link>base_link</child_link>
+      <detach_topic>/hydroships/gripper/detach</detach_topic>
+      <attach_topic>/hydroships/gripper/attach</attach_topic>
+    </plugin>
   </model>
 </sdf>
 '''
@@ -109,7 +113,7 @@ class PayloadSpawner(Node):
         p('qr_letter', '')          # '' = random A/B/C/D
         p('payload_x', 0.4)         # m
         p('payload_y', 0.04)        # m
-        p('payload_z', -0.90)       # m (tepat di lantai kolam, top floor z=-0.90)
+        p('payload_z', -0.894)      # m (di dasar kolam)
         p('spawn_delay', 4.0)       # s setelah node start (tunggu sim siap)
         p('randomize_pos', True)    # random posisi saat qr_letter kosong
         p('arena_x_min', 0.2)

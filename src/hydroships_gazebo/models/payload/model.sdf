@@ -1,25 +1,33 @@
 <?xml version="1.0" ?>
+<!-- Catatan: file ini cadangan konsisten dgn PAYLOAD_SDF_TEMPLATE di
+     scripts/payload_spawner.py (yang dipakai runtime). Model 'payload' di
+     arena di-spawn oleh spawner, bukan dari sini. DetachableJoint yang benar
+     hidup di hydroships.urdf.xacro (parent=gripper_base, child=payload) —
+     salinan lama di file ini yang membalik parent/child DIHAPUS (dulu
+     menyebabkan closed-kinematic-chain segfault). -->
 <sdf version="1.9">
   <model name="payload">
     <static>false</static>
     <link name="payload_link">
       <inertial>
-        <mass>0.02</mass>
+        <mass>0.3</mass>
         <inertia>
-          <ixx>0.0004</ixx><iyy>0.0004</iyy><izz>0.0004</izz>
+          <ixx>2.51e-4</ixx><iyy>3.13e-4</iyy><izz>6.34e-5</izz>
           <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
         </inertia>
       </inertial>
       <collision name="body_collision">
-  <geometry>
-    <box><size>0.05 0.006 0.1</size></box>
-  </geometry>
-  <surface>
-    <contact>
-      <collide_bitmask>0x02</collide_bitmask>
-    </contact>
-  </surface>
-</collision>
+        <pose>0 0.004 0.04325 0 0 0</pose>
+        <geometry><box><size>0.05 0.02 0.0865</size></box></geometry>
+      </collision>
+      <collision name="slot_left_collision">
+        <pose>-0.029 -0.003 0.09325 0 0 0</pose>
+        <geometry><box><size>0.006 0.006 0.0135</size></box></geometry>
+      </collision>
+      <collision name="slot_right_collision">
+        <pose>0.029 -0.003 0.09325 0 0 0</pose>
+        <geometry><box><size>0.006 0.006 0.0135</size></box></geometry>
+      </collision>
       <visual name="body">
         <geometry>
           <mesh><uri>model://hydroships_gazebo/media/payload_body.obj</uri></mesh>
@@ -45,13 +53,10 @@
           </pbr>
         </material>
       </visual>
+      <velocity_decay>
+        <linear>1.0</linear>
+        <angular>1.0</angular>
+      </velocity_decay>
     </link>
-    <plugin filename="ignition-gazebo-detachable-joint-system"
-            name="ignition::gazebo::systems::DetachableJoint">
-      <parent_link>payload_link</parent_link>
-      <child_model>hydroships</child_model>
-      <child_link>base_link</child_link>
-      <detach_topic>/model/hydroships/detachable_joint/detach</detach_topic>
-    </plugin>
   </model>
 </sdf>

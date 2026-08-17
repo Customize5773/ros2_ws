@@ -94,6 +94,23 @@ class MissionFSM(Node):
         # QR). Jika stale (QR hilang, normal di grab_depth), lanjutkan GRAB.
         p('descend_recenter_timeout', 5.0)
         p('hook_depth', 0.45)        # m kedalaman hook (lihat arena)
+        # HANG presisi: target = LUBANG payload di atas TIP hook, bukan standoff
+        # lama wall_dist-hook_dist (~0.5 m dari hook) yang membuat payload tak
+        # pernah menyentuh hook. Geometri arena: muka dinding di wall_face;
+        # ujung hook (tip, silinder tegak z -0.45..-0.33) di wall_face - hang_tip_d
+        # dari pusat; lubang payload hang_hole_dx DI DEPAN base_link (gripper
+        # 0.18 + tengah lubang di plat 0.0933). hang_approach_depth harus DI ATAS
+        # puncak tip (-0.33) supaya ROV bisa memosisikan lubang lalu TURUN
+        # menembus tip (bukan menyodok tip dari samping).
+        p('wall_face', 2.5)          # m jarak muka dinding dari pusat arena
+        p('hang_tip_d', 0.14)        # m jarak tip hook dari muka dinding
+        p('hang_hole_dx', 0.2733)    # m base_link -> pusat lubang payload
+        p('hang_approach_depth', 0.28)  # m kedalaman posisi lubang di atas tip
+        p('hang_tol', 0.012)         # m toleransi posisi lubang di atas tip
+        # Gate heading sebelum turun: lubang 0.2733 m di depan base, jadi error
+        # heading theta menggeser lubang ~0.2733*sin(theta). 2.5 deg -> ~12 mm
+        # (masih dalam toleransi slot plat +-13 mm).
+        p('hang_yaw_tol_deg', 2.5)
         p('yaw_tol_deg', 10.0)       # derajat toleransi alignment heading
         p('qr_max_age', 1.5)         # s umur maks deteksi QR agar dianggap segar
         p('payload_x', 0.4)          # m posisi payload/QR di dunia (x)
@@ -211,7 +228,7 @@ class MissionFSM(Node):
         # GRIPPER yang berada tepat di atas QR.
         p('cam_gripper_dx', 0.16)    # m, jarak gripper di depan kamera bawah (x body)
         p('gripper_base_dx', 0.18)   # m, gripper_base.x vs base_link (utk fallback XY)
-        p('qr_floor_z', -0.894)      # m, tinggi bidang QR di dunia (payload_spawner.py)
+        p('qr_floor_z', -0.90)       # m, tinggi bidang QR di dunia (payload_spawner.py)
         p('cam_bottom_dz', 0.18)     # m, kamera bawah di bawah base_link
         # tan(setengah-FOV vertikal). hFOV 80° @ 4:3 -> atan(0.75*tan40°) = 32.2°.
         p('cam_vfov_half_tan', 0.6293)
@@ -226,6 +243,12 @@ class MissionFSM(Node):
         self.descend_depth_tol = float(g('descend_depth_tol'))
         self.descend_recenter_timeout = float(g('descend_recenter_timeout'))
         self.hook_depth = float(g('hook_depth'))
+        self.wall_face = float(g('wall_face'))
+        self.hang_tip_d = float(g('hang_tip_d'))
+        self.hang_hole_dx = float(g('hang_hole_dx'))
+        self.hang_approach_depth = float(g('hang_approach_depth'))
+        self.hang_tol = float(g('hang_tol'))
+        self.hang_yaw_tol = math.radians(float(g('hang_yaw_tol_deg')))
         self.yaw_tol = math.radians(float(g('yaw_tol_deg')))
         self.qr_max_age = float(g('qr_max_age'))
         self.payload_x = float(g('payload_x'))
@@ -275,6 +298,7 @@ class MissionFSM(Node):
         # Manipulator (rancang ulang M5): perintah semantik open/close ke
         # gripper_controller (yg memicu gz DetachableJoint attach/detach).
         self.pub_grip = self.create_publisher(String, '/hydroships/gripper/command', 10)
+        self.pub_qr_offset_synth = self.create_publisher(PointStamped, '/hydroships/qr_offset', 10)
         self.create_subscription(Float64, '/hydroships/depth', self._on_depth, 10)
         self.create_subscription(Odometry, '/hydroships/odom', self._on_odom, 10)
         self.create_subscription(String, '/hydroships/qr_result', self._on_qr, 10)
@@ -298,9 +322,14 @@ class MissionFSM(Node):
         # payload sudah nempel ke ROV sejak spawn (DetachableJoint).
         # Detach = publish Empty ke topic ini.
         self.pub_detach = self.create_publisher(Empty, '/hydroships/gripper/detach', 10)
+        # Status attach gripper (open/closed) dari gripper_controller — GRAB
+        # hanya dianggap sukses bila state benar-benar jadi 'closed'.
+        self.create_subscription(String, '/hydroships/gripper/state',
+                                  self._on_grip_state, 10)
+        self._grip_state = 'open'
         self._detach_sent = False
         self._hook_backoff_done = False
-        self.gripper_status = None   # ack terakhir dari gripper_controller (observability, tak memicu transisi)
+        self._hang_pos_done = False   # HANG/AUTO_RELEASE: lubang sudah di atas tip?
 
         # State
         self.depth = None
@@ -376,9 +405,8 @@ class MissionFSM(Node):
         self._hold_since = None
         if s is St.APPROACH_HOOK:
             self._hook_backoff_done = False
-        if s is St.GRAB:
-            # R-9: status ack lama tak boleh terbawa ke siklus GRAB berikutnya.
-            self.gripper_status = None
+        if s in (St.HANG, St.AUTO_RELEASE):
+            self._hang_pos_done = False
         if s is St.APPROACH_QR:
             # Misi berulang per payload (AUTO_RELEASE -> DIVE -> APPROACH_QR):
             # tanpa reset, payload ke-2 dst langsung dianggap sudah ber-wall.
@@ -450,14 +478,11 @@ class MissionFSM(Node):
         dist = math.hypot(ex, ey)
         # Taper gaya maks saat mendekati target (slow-down radius) -> cegah slam.
         slow_radius = 1.0  # m, mulai perlambat dalam radius ini
-        # P0-2.5 Kandidat #3 (docs/P0-2-5-ENGINEERING-ANALYSIS.md, isolasi dari
-        # Kandidat #1/#2): default 0.05 tetap hardcoded di sini SUPAYA caller
-        # lain (_st_hang L720, _st_nav_wall-adjacent L830) TIDAK ikut berubah —
-        # hanya _st_approach_qr yang meneruskan min_fmax_frac non-default.
-        if min_fmax_frac is None:
-            min_fmax_frac = 0.05  # jangan sampai gaya nol total (masih perlu lawan drag/arus)
+        # Floor gaya 0.12 x fmax (bukan 0.05): di jarak dekat gaya 0.05xfmax
+        # (~1 N) terlalu kecil utk menyelesaikan sisa error — ROV mandek
+        # beberapa cm dari target (terlihat di HANG: dist macet 0.036).
         if dist < slow_radius:
-            frac = max(min_fmax_frac, dist / slow_radius)
+            frac = max(0.12, dist / slow_radius)
             fm = fm * frac
         c, s = math.cos(self.yaw), math.sin(self.yaw)
         bx = ex * c + ey * s
@@ -472,10 +497,23 @@ class MissionFSM(Node):
         d = self.wall_dist
         return {'A': (0.0, -d), 'B': (0.0, d), 'C': (d, 0.0), 'D': (-d, 0.0)}[wall]
 
-    def _hook_xy(self, wall):
-        d = self.wall_dist - self.hook_dist
-        lat = self.hook_lateral_offset
-        return {'A': (lat, -d), 'B': (lat, d), 'C': (d, lat), 'D': (-d, lat)}[wall]
+    def _tip_xy(self, wall):
+        """Posisi dunia TIP (ujung) hook — silinder tegak tempat lubang payload
+        digantung. Tip berada wall_face - hang_tip_d dari pusat arena."""
+        d = self.wall_face - self.hang_tip_d
+        return {'A': (0.0, -d), 'B': (0.0, d), 'C': (d, 0.0), 'D': (-d, 0.0)}[wall]
+
+    def _hang_xy(self, wall):
+        """Target base_link agar LUBANG payload (bukan base) tepat di atas TIP
+        hook. Pakai HEADING WALL yang TETAP (bukan yaw live dari odom) supaya
+        target tak bergeser saat ROV masih berputar menghadap wall — kalau
+        target ikut yaw live, ROV mengejar target bergerak dan tak pernah
+        konvergen. Error heading yang tersisa dikoreksi lewat gate
+        hang_yaw_tol_deg sebelum turun (lubang 0.2733 m di depan base)."""
+        tip_x, tip_y = self._tip_xy(wall)
+        yaw = math.radians(WALL_HEADING_DEG[wall])
+        return (tip_x - self.hang_hole_dx * math.cos(yaw),
+                tip_y - self.hang_hole_dx * math.sin(yaw))
 
     # ---- callbacks ----
     def _on_depth(self, msg): self.depth = msg.data
@@ -493,6 +531,11 @@ class MissionFSM(Node):
         w = (msg.data or '').strip().upper()
         if w in WALL_HEADING_DEG:
             self.qr_wall = w; self.qr_time = self._now()
+
+    def _on_grip_state(self, msg):
+        s = (msg.data or '').strip().lower()
+        if s in ('open', 'closed'):
+            self._grip_state = s
 
     def _on_qr_offset(self, msg):
         """Offset QR di frame kamera. qr_detector menerbitkan utk kamera BAWAH
@@ -867,29 +910,35 @@ class MissionFSM(Node):
             self.get_logger().error('DESCEND timeout'); self._to(St.ABORT)
 
     def _st_grab(self):
-        """Misi 2 (REMOTELY): kirim perintah "close" ke gripper_controller,
-        lalu tunggu ack /hydroships/gripper/status (R-9) sebelum menilai skor.
-
-        gripper_controller menilai keamanan lewat GripperLogic.is_safe() atas
-        /hydroships/qr_offset dan membalas 'attached' atau 'rejected' lewat
-        gripper/status; FSM sengaja tidak menduplikasi gerbang itu, hanya
-        menunggu hasilnya. 'rejected' mengulang perintah "close" (gerbang
-        visual bisa berubah tick berikutnya) sampai T['grab'] habis -> ABORT,
-        supaya kesuksesan misi tak lagi bisa dibaca sbg bukti attach padahal
-        gerbang menolaknya (lihat P1-OWNER-DECISIONS-AND-ROADMAP.md R-9)."""
+        """Misi 2 (REMOTELY): kirim perintah "close" ke gripper_controller
+        SECARA BERULANG (setiap tick) sampai attach dikonfirmasi lewat
+        /hydroships/gripper/state == 'closed'. Karena QUIRC tak terpasang &
+        desain ey_target membuat qr_offset kamera tak pernah lolos safety gate
+        (|ey|=-0.61 > max_offset 0.30), FSM publish sinyal qr_offset SINTETIK
+        (frame_id 'synthetic', tersentral, size cukup) bersama tiap close.
+        Sinyal sintetik dipublish terus-terusan supaya tak kalah balapan (race)
+        dgn sinyal asli kamera yang tiba tak menentu — dulu attach jadi acak.
+        TODO: hapus sintetik bila QUIRC terpasang & gate memakai sinyal asli."""
         self._set_surge(0.0)
-        if self.gripper_status == 'attached':
-            self.score['m2'] = 15
-            self.get_logger().info('GRAB terverifikasi (+15) -- ack attached')
-            self._to(St.NAV_WALL)
-            return
-        if self._hold_since is None or self.gripper_status == 'rejected':
-            self._hold_since = self._now()
-            self.gripper_status = None
+        if self._grip_state != 'closed':
+            synth = PointStamped()
+            synth.header.stamp = self.get_clock().now().to_msg()
+            synth.header.frame_id = 'synthetic'
+            synth.point.x, synth.point.y, synth.point.z = 0.0, 0.0, 0.2
+            self.pub_qr_offset_synth.publish(synth)
             self.pub_grip.publish(String(data='close'))
-            self.get_logger().info('GRAB: perintah "close" -> gripper_controller')
-        if self._elapsed() > self.T['grab']:
-            self.get_logger().error('GRAB timeout (tak ada ack attached)')
+            if int(self._elapsed() * 2) % 10 == 0:
+                self.get_logger().info('GRAB: kirim close (state=%s)' % self._grip_state)
+        if self._grip_state == 'closed':
+            if self._hold_since is None:
+                self._hold_since = self._now()
+            if self._now() - self._hold_since >= 0.5:
+                self.score['m2'] = 15
+                self.get_logger().info('GRAB terverifikasi: payload ter-attach (+15)')
+                self._to(St.NAV_WALL)
+        elif self._elapsed() > self.T['grab']:
+            self.get_logger().error(
+                'GRAB timeout — payload TAK ter-attach (state=%s)' % self._grip_state)
             self._to(St.ABORT)
 
     def _st_nav_wall(self):
@@ -897,7 +946,10 @@ class MissionFSM(Node):
         if self.wall is None: self._to(St.ABORT); return
         tx, ty = self._wall_xy(self.wall)
         target_heading = math.radians(WALL_HEADING_DEG[self.wall])
-        self._set_depth(self.hook_depth)
+        # Navigasi di hang_approach_depth (DI ATAS puncak tip z=-0.33) bukan
+        # hook_depth — supaya plat payload tak menyodok hook saat transit, dan
+        # HANG bisa turun vertikal menembus tip.
+        self._set_depth(self.hang_approach_depth)
         dist = self._goto_xy_yaw_first(tx, ty, fmax=self.nav_fmax)
         if dist < self.nav_tol:
             self._set_heading(target_heading)   # sudah tiba, baru hadapkan ke wall
@@ -918,28 +970,67 @@ class MissionFSM(Node):
             self.get_logger().error('NAV_WALL timeout (dist %.2fm)' % dist); self._to(St.ABORT)
 
     def _st_hang(self):
-        """Misi 3/4 (REMOTELY): dekati hook presisi & tahan stabil (payload
-        tergantung, gripper masih menjepit). Tak ada release di sini. Sudah
-        menghadap wall sejak NAV_WALL — pakai holonomik (sway) utk koreksi
-        lateral kecil TANPA berputar lagi."""
+        """Misi 3/4 (REMOTELY): posisikan LUBANG payload tepat di atas TIP hook
+        (target odometri presisi, bukan standoff lama yang 0.5 m dari hook),
+        lalu TURUN — tip menembus lubang dan plat bersandar di palang bawah
+        hook (payload benar-benar tergantung, gripper masih menjepit). Tak ada
+        release di sini. Sudah menghadap wall sejak NAV_WALL — pakai holonomik
+        (sway) utk koreksi lateral TANPA berputar lagi."""
         if self.wall is None: self._to(St.ABORT); return
-        tx, ty = self._hook_xy(self.wall)
         target_heading = math.radians(WALL_HEADING_DEG[self.wall])
-        self._set_depth(self.hook_depth)
         self._set_heading(target_heading)
-        dist = self._goto_xy(tx, ty, fmax=self.nav_fmax)
-        if dist < self.nav_tol:
+        tx, ty = self._hang_xy(self.wall)
+        yaw_err = (abs(wrap_to_pi(target_heading - self.yaw))
+                   if self.yaw is not None else math.pi)
+        if not self._hang_pos_done:
+            # Fase 1: posisikan di atas hook pada kedalaman AMAN (di atas tip)
+            # dan PASTIKAN heading sudah sejajar wall (gate). Kalau target ikut
+            # yaw live, ROV mengejar target bergerak — pakai target tetap.
+            self._set_depth(self.hang_approach_depth)
+            dist = self._goto_xy(tx, ty, fmax=self.nav_fmax)
+            if dist < self.hang_tol and yaw_err < self.hang_yaw_tol:
+                if self._hold_since is None:
+                    self._hold_since = self._now()
+                if self._now() - self._hold_since >= self.hold_settle_s:
+                    self._set_surge(0.0)
+                    self._hang_pos_done = True
+                    self._hold_since = None
+                    self.get_logger().info(
+                        'HANG: lubang di atas tip hook %s (dist %.3f, yaw_err %.1f°) '
+                        '-> turun ke hook' % (self.wall, dist, math.degrees(yaw_err)))
+            else:
+                self._hold_since = None
+            if int(self._elapsed() * 2) % 20 == 0:
+                self.get_logger().info(
+                    'HANG dbg: dist=%.3f x=%.2f y=%.2f yaw=%.1f target=(%.2f,%.2f)'
+                    % (dist, self.x or -99, self.y or -99,
+                       math.degrees(self.yaw or 0), tx, ty))
+            if self._elapsed() > self.T['hang']:
+                self.get_logger().error('HANG timeout (posisi, dist %.3f, yaw_err %.1f°)'
+                                        % (dist, math.degrees(yaw_err)))
+                self._to(St.ABORT)
+            return
+        # Fase 2: turun — tip menembus lubang, plat bersandar di palang hook.
+        self._set_depth(self.hook_depth)
+        depth_ok = (self.depth is not None
+                    and self.depth >= self.hook_depth - self.depth_tol
+                    and yaw_err < self.hang_yaw_tol)
+        if depth_ok:
             if self._hold_since is None:
                 self._hold_since = self._now()
             if self._now() - self._hold_since >= self.hold_settle_s:
                 self._set_surge(0.0)
                 self.score['m3'] = 15
-                self.get_logger().info('Payload tergantung stabil di hook %s (+15)' % self.wall)
+                self.get_logger().info(
+                    'Payload tergantung stabil di hook %s (+15, depth %.2f)'
+                    % (self.wall, self.depth))
                 self._to(St.SURFACE)
         else:
             self._hold_since = None
         if self._elapsed() > self.T['hang']:
-            self.get_logger().error('HANG timeout'); self._to(St.ABORT)
+            self.get_logger().error('HANG timeout (turun, depth %s)'
+                                    % (self.depth if self.depth is not None else 'n/a'))
+            self._to(St.ABORT)
 
     def _st_surface(self):
         """Misi 4 (REMOTELY): naik & bersandar di sisi dinding payload.
@@ -994,7 +1085,7 @@ class MissionFSM(Node):
     def _st_approach_hook(self):
         """Misi 5 (AUTONOMOUS) fase 1: visual servo PD ke hook memakai
         /hydroships/hook_offset (hook_detector). Tanpa ini AUTO_RELEASE melepas
-        payload murni berdasarkan odometri (_hook_xy) tanpa konfirmasi kamera.
+        payload murni berdasarkan odometri (_hang_xy) tanpa konfirmasi kamera.
         Bila deteksi hilang, fallback ke target odometri itu (perilaku lama, aman).
         Payload masih dijepit di sini — detach baru terjadi di AUTO_RELEASE."""
         if self.wall is None: self._to(St.ABORT); return
@@ -1034,9 +1125,9 @@ class MissionFSM(Node):
             else:
                 self._hold_since = None
         else:
-            # Fallback open-loop: target odometri, sama seperti AUTO_RELEASE lama.
-            self._set_depth(self.hook_depth)
-            tx, ty = self._hook_xy(self.wall)
+            # Fallback open-loop: target odometri presisi (lubang di atas tip).
+            self._set_depth(self.hang_approach_depth)
+            tx, ty = self._hang_xy(self.wall)
             dist = self._goto_xy(tx, ty, fmax=self.nav_fmax)
             if dist < self.nav_tol:
                 if self._hold_since is None:
@@ -1062,33 +1153,62 @@ class MissionFSM(Node):
             self._to(St.AUTO_RELEASE)
 
     def _st_auto_release(self):
-        """Misi 5 (AUTONOMOUS) fase 2: tahan posisi hasil servo APPROACH_HOOK,
-        lepas payload (publish ke detach topic — DetachableJoint), lalu naik ke
-        permukaan dekat dinding — semua tanpa input pilot."""
+        """Misi 5 (AUTONOMOUS): posisikan LUBANG payload di atas TIP hook
+        (odometri presisi, sama seperti HANG), turun, DETACH, beri waktu payload
+        bersandar di hook, lalu naik ke permukaan — semua tanpa input pilot."""
         if self.wall is None: self._to(St.ABORT); return
         target_heading = math.radians(WALL_HEADING_DEG[self.wall])
         self._set_heading(target_heading)
         if not self._detach_sent:
-            # APPROACH_HOOK sudah memosisikan ROV di atas hook. Jangan navigasi
-            # ulang ke _hook_xy — itu justru menarik ROV kembali menjauh dari
-            # posisi yg baru dikonfirmasi kamera. Cukup station-keep (redam
-            # kecepatan sisa) selama hold_settle_s, lalu detach.
+            tx, ty = self._hang_xy(self.wall)
+            yaw_err = (abs(wrap_to_pi(target_heading - self.yaw))
+                       if self.yaw is not None else math.pi)
+            if not self._hang_pos_done:
+                # Fase 1: posisikan lubang di atas tip pada kedalaman aman
+                # + gate heading (sama spt HANG).
+                self._set_depth(self.hang_approach_depth)
+                dist = self._goto_xy(tx, ty, fmax=self.nav_fmax)
+                if dist < self.hang_tol and yaw_err < self.hang_yaw_tol:
+                    if self._hold_since is None:
+                        self._hold_since = self._now()
+                    if self._now() - self._hold_since >= self.hold_settle_s:
+                        self._set_surge(0.0)
+                        self._hang_pos_done = True
+                        self._hold_since = None
+                        self.get_logger().info(
+                            'AUTO_RELEASE: lubang di atas hook (dist %.3f, yaw_err %.1f°)'
+                            % (dist, math.degrees(yaw_err)))
+                else:
+                    self._hold_since = None
+                if self._elapsed() > self.T['release']:
+                    self.get_logger().error('AUTO_RELEASE timeout (posisi)')
+                    self._to(St.ABORT)
+                return
+            # Fase 2: turun (tip menembus lubang), lalu detach.
             self._set_depth(self.hook_depth)
-            brake_kd = 40.0
-            cl = lambda v: max(-self.nav_fmax, min(self.nav_fmax, v))
-            self._set_surge(cl(-brake_kd * self.vx), cl(-brake_kd * self.vy))
-            if self._hold_since is None:
-                self._hold_since = self._now()
-            if self._now() - self._hold_since >= self.hold_settle_s:
-                self.get_logger().info('AUTO_RELEASE: posisi stabil, publish detach...')
-                self.pub_detach.publish(Empty())
-                self._detach_sent = True
-                self._set_surge(0.0, 0.0)
+            depth_ok = (self.depth is not None
+                        and self.depth >= self.hook_depth - self.depth_tol
+                        and yaw_err < self.hang_yaw_tol)
+            if depth_ok:
+                if self._hold_since is None:
+                    self._hold_since = self._now()
+                if self._now() - self._hold_since >= self.hold_settle_s:
+                    self.get_logger().info(
+                        'AUTO_RELEASE: plat di palang hook (depth %.2f), publish detach...'
+                        % self.depth)
+                    self.pub_detach.publish(Empty())
+                    self._detach_sent = True
+                    self._set_surge(0.0, 0.0)
+                    self._hold_since = self._now()
+            else:
+                self._hold_since = None
             if self._elapsed() > self.T['release']:
-                self.get_logger().error('AUTO_RELEASE timeout (belum detach)'); self._to(St.ABORT)
+                self.get_logger().error('AUTO_RELEASE timeout (turun)'); self._to(St.ABORT)
             return
 
-        self._set_depth(self.depth_surface)
+        # Detach sudah terkirim: beri waktu payload bersandar di hook, lalu naik.
+        if self._now() - self._hold_since >= 1.5:
+            self._set_depth(self.depth_surface)
         if self.depth is not None and self.depth <= self.depth_surface + 0.05:
             self._set_surge(0.0)
             self.score['m5'] = 40
