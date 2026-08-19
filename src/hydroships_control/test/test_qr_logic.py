@@ -11,6 +11,7 @@ import pytest
 
 from hydroships_control.qr_logic import (
     parse_wall, offset_from_points, robust_decode, load_calibration_yaml,
+    _quiet_zone_ok,
 )
 
 cv2 = pytest.importorskip("cv2")
@@ -133,6 +134,19 @@ def test_load_calibration_npz(tmp_path):
     assert k.shape == (3, 3)
     assert abs(k[0, 0] - 608.8) < 1e-6
     assert abs(k[1, 1] - 619.7) < 1e-6
+
+
+def test_quiet_zone_ok_rejects_uniform_accepts_white_ring():
+    # False positive: quad gelap di atas lantai seragam (siluet hook/tembok).
+    img = np.full((200, 200), 128, dtype=np.uint8)
+    pts = np.array([[50, 50], [150, 50], [150, 150], [50, 150]], dtype=float)
+    assert not _quiet_zone_ok(img, pts)
+    # QR asli: modul gelap di dalam + quiet zone putih di sekelilingnya.
+    img2 = np.full((200, 200), 255, dtype=np.uint8)
+    img2[50:150, 50:150] = 40
+    assert _quiet_zone_ok(img2, pts)
+    # Tanpa corners -> False (tidak crash).
+    assert not _quiet_zone_ok(img, None)
 
 
 def test_robust_decodes_real_sim_frame():

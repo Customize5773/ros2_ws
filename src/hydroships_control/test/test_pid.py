@@ -39,6 +39,22 @@ def test_derivative_on_measurement():
     assert math.isclose(out, -2.0)
 
 
+def test_derivative_wrap_safe_around_pi():
+    """D-term harus pakai selisih wrap-safe: yaw 179.7 -> -177.8 derajat
+    (rotasi nyata +2.5 derajat lewat 180) TIDAK boleh jadi lonjakan -357.5
+    derajat yang menggetarkan ROV di sekitar heading 180 (HANG wiggle)."""
+    pid = PID(kp=0.0, ki=0.0, kd=1.0)
+    a = math.radians(179.7)
+    b = math.radians(-177.8)
+    pid.update(0.0, measurement=a, dt=1.0)          # inisialisasi prev
+    out = pid.update(0.0, measurement=b, dt=1.0)
+    # Rotasi sebenarnya: -177.8 - 179.7 = -357.5 deg -> wrap +2.5 deg,
+    # jadi D kecil & searah redaman, bukan lonjakan raksasa salah arah.
+    expected = -math.radians(2.5)
+    assert math.isclose(out, expected, abs_tol=1e-9)
+    assert abs(out) < 0.1
+
+
 def test_dt_zero_safe():
     pid = PID(kp=2.0, ki=1.0, kd=1.0)
     # dt<=0 tidak boleh error / tidak update state, hanya proporsional.
