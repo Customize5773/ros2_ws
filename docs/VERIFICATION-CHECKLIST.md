@@ -109,7 +109,8 @@ verifikasi — file/commit terkait.
   → NAV_WALL target sisi +Y). — `worlds/kki_arena.sdf`, `mission_fsm.py:81`.
 - [x] **Geometri hook Ø25 mm** — dikonfirmasi via SDF (`radius 0.0125 m` konsisten di semua
   4 hook). Validasi fisik "cukup untuk uji sangkut nyata" tetap **OPEN** (butuh hook & ROV
-  fisik). — `worlds/kki_arena.sdf`.
+  fisik). Prosedur cek geometri + retuning threshold deteksi (kini declared ROS param)
+  sudah disiapkan: `docs/HARDWARE.md` §4. — `worlds/kki_arena.sdf`, `hook_detector.py`.
 - [ ] **Arah bow (haluan)** — cek `bow_yaw` di GUI (footprint ~persegi, tak bisa ditebak bbox). — `hydroships.urdf.xacro`.
 - [ ] **Kalibrasi kamera fisik ROV** (OPEN, gap hardware) — intrinsics sim ≠ kalibrasi
   hardware; jangan pakai K sim untuk estimasi jarak riil sampai kalibrasi kamera fisik tersedia.
