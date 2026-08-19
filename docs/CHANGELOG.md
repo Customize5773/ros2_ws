@@ -1105,3 +1105,68 @@ manual dashboard GUI-ROV asli (bukan probe sintetis) dikerjakan.
   ke depan hindari menjalankan >1 instance Gazebo bersamaan di mesin ini
   kalau memungkinkan.
 - Belum dikerjakan: lint/typecheck penuh repo.
+
+## 2026-08-19 — APPROACH_HOOK dwell debounce: re-run window 90s, sample penuh 8/8 — koreksi kesimpulan timeout
+
+Melanjutkan `2026-08-16 (lanjutan 4)`: window `run_approach_hook_dwell_battery.sh`
+dinaikkan `55s -> 90s` (opsi "a" yang diusulkan sesi itu — cukup ubah
+`sleep`, tak menyentuh `mission_fsm`/`hook_logic`), lalu battery 8-run
+di-re-run persis (tag/wall/seed sama: `AH-{A,B,C,D}-{5001,5002}`).
+
+```bash
+P0_DATA_DIR=/tmp/.../m6-dwell-90s bash tools/p0-experiments/run_approach_hook_dwell_battery.sh
+```
+
+**Hasil: sample penuh 8/8 tercapai untuk pertama kali** (0 tak-selesai) —
+tapi ini **mengoreksi**, bukan menguatkan, kesimpulan "0/8 timeout" dari
+dua battery sebelumnya:
+
+- **4 konvergensi**: `AH-A-5001`, `AH-B-5001`, `AH-B-5002`, `AH-D-5001`
+  (`hook terpusat (...) -> AUTO_RELEASE`).
+- **4 timeout**: `AH-A-5002`, `AH-C-5001`, `AH-C-5002`, `AH-D-5002`
+  (`APPROACH_HOOK timeout -> lanjut AUTO_RELEASE`) — **persis 4 tag yang
+  sama** yang tak pernah sempat exit (baik konvergensi maupun timeout) di
+  window 40s maupun 55s. Ini membuktikan penyebab bukan boot-time random
+  jitter (kalau random, tag yang stuck harusnya berubah antar-run) —
+  **deterministik per kombinasi wall+seed**.
+
+Kesimpulan "0/8 timeout, fix TERKONFIRMASI menghilangkan timeout" dari
+`lanjutan 3`/`lanjutan 4` **adalah artefak window terpotong**: 4 run itu
+dulu dibunuh skrip sebelum sempat *mencapai* cabang timeout sama sekali,
+bukan bukti timeout sudah tereliminasi. Dengan window cukup, timeout
+genuinely muncul di 50% sample.
+
+**Root cause timeout ini — TERPISAH dari bug dwell-debounce yang sudah
+diperbaiki** (dicek log per-tick `APPROACH_HOOK dbg` di keempat run
+timeout): `ex` konvergen ke ~0 dan `size` sudah ≥ `size_stop=0.35`
+(`near=True`) di awal servo, tapi `ey` mandek di kisaran **0.20–0.62**
+(jauh di luar `center_tol=0.15`) dan **tak trending ke 0** sepanjang ~13s
+log yang terekam sebelum timeout — `aligned` (dan karenanya dwell)
+tak pernah mulai terpenuhi utk kriteria ini, walau koreksi setpoint depth
+(`kp_depth=0.25 * ey`, clamp `depth_range=±0.20`) terus dikirim tiap tick.
+
+Dugaan (belum diverifikasi): `hook_servo` (`hook_logic.py:71-107`)
+membidik `ey` mentah ke 0 tanpa mekanisme `ey_target` non-nol — beda dari
+`_st_approach_qr` yang sudah punya `qr_ey_target` (`qr_logic.py`) persis
+utk kasus serupa: offset kamera↔titik-target fisik (gripper 0.16m di
+depan kamera bawah) bikin `ey=0` secara geometris mustahil dicapai, jadi
+target sengaja digeser non-nol. Kemungkinan hook_servo punya gap
+struktural yang sama (offset kamera↔titik-approach-hook), dan
+`depth_range=±0.20` tak cukup lebar utk kompensasi pada sebagian
+wall/seed. **Tidak diinvestigasi lebih lanjut sesi ini** — di luar scope
+tugas (battery-runtime verification utk fix dwell-debounce), butuh
+analisis geometri kamera/hook terpisah kalau mau dikejar.
+
+**Yang tetap valid**: fix dwell-debounce sendiri (grace period 0.4s
+cegah reset prematur dwell oleh tick buruk tunggal) **tidak diragukan
+ulang** — di 24 run gabungan tiga battery (40s+55s+90s), tak ada satupun
+tanda regresi ke pola lama (dwell reset berulang oleh osilasi ex/size).
+Yang perlu dikoreksi murni klaim "timeout tereliminasi" — itu belum
+terbukti; timeout tetap muncul, tapi via jalur *aman* by design
+(fallback ke AUTO_RELEASE dgn station-keep, bukan ABORT/crash), sama
+seperti perilaku lama yang sudah didokumentasikan "bekerja sesuai
+desain" di entri 2026-08-06.
+
+File disentuh: `tools/p0-experiments/run_approach_hook_dwell_battery.sh`
+(`sleep 55` → `sleep 90` + komentar), `docs/STATUS.md` (M6), CHANGELOG
+ini.

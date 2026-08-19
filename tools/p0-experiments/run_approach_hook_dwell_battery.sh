@@ -6,7 +6,13 @@
 # ("APPROACH_HOOK timeout -> lanjut"). Belum pernah diverifikasi runtime.
 #
 # usage:  P0_DATA_DIR=/somewhere bash tools/p0-experiments/run_approach_hook_dwell_battery.sh
-# Window per run 40s (t_approach=25s worst-case + 15s buffer utk backoff+AUTO_RELEASE settle).
+# Window per run: 40s -> 55s -> 90s (naik bertahap, lihat CHANGELOG 2026-08-16
+# lanjutan 2/4 & 2026-08-19). Root cause bukan t_approach=25s FSM (timer itu
+# baru mulai setelah depth tersedia, sudah terlindung dari boot variance) --
+# tapi node persepsi (hook_detector/qr_detector) yg kadang baru stabil publish
+# di t=10-16s+ pertama SETELAH state entry, memakan budget servo efektif.
+# 55s masih kurang di 4/8 run (boot >15s). 90s dicoba sbg opsi (a) sebelum
+# opsi (b) decouple timer dari boot node persepsi (lebih invasif, non-blocking).
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$HERE/../.." && pwd)"
 SP="${P0_DATA_DIR:-$PWD}"
@@ -21,8 +27,9 @@ run_one () {
     ros2 launch hydroships_bringup hydroships_mission.launch.py headless:=true "$@" \
         > "$SP/$tag.log" 2>&1 &
     local launch=$!
-    sleep 55   # ponytail: 40s awal terlalu ketat -- gz boot (~10-15s) + t_approach=25s
-               # kepotong window; 4/8 run pertama belum sampai exit. Naikkan jika masih kurang.
+    sleep 90   # ponytail: 40s & 55s masih kurang -- 4/8 run stuck krn node persepsi
+               # kadang baru stabil publish di t=10-16s+ pasca state entry. Naikkan
+               # lagi jika masih ada sisa tak-selesai.
     kill -9 "$launch" 2>/dev/null
     for p in $(pgrep -f "kki_arena"); do kill -9 "$p" 2>/dev/null; done
     pkill -9 -f "hydroships_control/lib"; pkill -9 -f "hydroships_gazebo/lib"
