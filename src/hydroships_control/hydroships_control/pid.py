@@ -50,11 +50,18 @@ class PID:
                              min(self.integral_limit, self._integral))
         i = self.ki * self._integral
 
-        # Derivatif pada pengukuran (negatif turunan measurement).
+        # Derivatif pada pengukuran (negatif turunan measurement). Pakai
+        # selisih wrap-safe (wrap_to_pi) supaya sinyal SUDUT (yaw/pitch/roll)
+        # yang melewati +-180 derajat tidak memicu lonjakan D salah arah:
+        # mis. yaw 179.7 -> -177.8, selisih mentah -357.5 derajat padahal
+        # rotasi sebenarnya cuma +2.5 derajat — tanpa wrap, D-term menganggap
+        # ROV berputar sangat cepat ke arah sebaliknya dan justru MEMPERBESAR
+        # osilasi di sekitar heading 180 (lihat HANG wiggle). Untuk sinyal
+        # linear (depth) wrap_to_pi identitas, jadi aman dipakai umum.
         if self._prev_measurement is None:
             d = 0.0
         else:
-            d = -self.kd * (measurement - self._prev_measurement) / dt
+            d = -self.kd * wrap_to_pi(measurement - self._prev_measurement) / dt
         self._prev_measurement = measurement
 
         raw = p + i + d

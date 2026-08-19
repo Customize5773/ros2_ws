@@ -165,9 +165,21 @@ class GripperController(Node):
         self.pub_jaw_right.publish(m)
 
     def _on_payload_spawned(self, _msg: Empty):
-        # Payload sudah muncul di dunia (dari payload_spawner) -> lepas attach bawaan
-        # gz sekarang, dgn urutan benar (payload ada dulu, baru detach).
-        self._do_startup_detach('payload spawn terdeteksi')
+        # SETIAP payload baru muncul di dunia (spawn awal & payload ke-2 dst dari
+        # multi-payload) -> lepas attach bawaan gz Fortress (selalu auto-attach saat
+        # model load). Tanpa ini payload ke-2 langsung nempel & ROV terjangkar.
+        try:
+            self._startup_timer.cancel()
+        except Exception:
+            pass
+        self._did_startup_detach = True
+        action = self.logic.startup_detach()
+        self._apply_jaw()
+        self.pub_detach.publish(Empty())
+        self._publish_state()
+        self.get_logger().info('gripper %s: %s [pemicu: %s]'
+                               % (action['state'], action['reason'],
+                                  'payload spawn terdeteksi'))
 
     def _startup_detach_fallback(self):
         # Jaring pengaman: bila topik spawned tak pernah tiba (spawner tak jalan),

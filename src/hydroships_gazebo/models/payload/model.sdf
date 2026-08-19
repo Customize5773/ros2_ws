@@ -16,19 +16,36 @@
           <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
         </inertia>
       </inertial>
+      <!-- Kolisi plat (frame LINK; saat dibawa: link x=samping, y=tebal/vertikal,
+           z=memanjang ke depan):
+           - body_collision : badan plat di BELAKANG lubang, top di bawah lingkaran
+             tip (z 0.0808) supaya tip tak mentok badan.
+           - slot_*         : dua sayap di sisi lubang (z 0.0865..0.10) — lorong
+             tip menembus plat di sini.
+           - bar_collision  : ekstensi PEKAT di DEPAN lubang (z 0.11..0.17) yang
+             bersandar di palang bawah hook saat plat turun (palang hook di
+             x +-0.0125, jadi butuh material padat di sana — sayap di x +-0.035
+             saja TIDAK menyentuh palang dan plat jatuh menembus hook).
+           Tip (silinder tegak r=0.0125 di lubang) menembus lewat celah
+           z 0.075..0.11 (bawah body & atas bar_collision kosong) dan lorong
+           slot, lalu plat bersandar stabil di palang. -->
       <collision name="body_collision">
-        <pose>0 0.004 0.04325 0 0 0</pose>
-        <geometry><box><size>0.05 0.02 0.0865</size></box></geometry>
+        <pose>0 0.004 0.0325 0 0 0</pose>
+        <geometry><box><size>0.05 0.02 0.065</size></box></geometry>
       </collision>
       <collision name="slot_left_collision">
-        <pose>-0.029 -0.003 0.09325 0 0 0</pose>
-        <geometry><box><size>0.006 0.006 0.0135</size></box></geometry>
+        <pose>-0.045 -0.003 0.09325 0 0 0</pose>
+        <geometry><box><size>0.008 0.006 0.0135</size></box></geometry>
       </collision>
       <collision name="slot_right_collision">
-        <pose>0.029 -0.003 0.09325 0 0 0</pose>
-        <geometry><box><size>0.006 0.006 0.0135</size></box></geometry>
+        <pose>0.045 -0.003 0.09325 0 0 0</pose>
+        <geometry><box><size>0.008 0.006 0.0135</size></box></geometry>
       </collision>
-      <visual name="body">
+      <collision name="bar_collision">
+        <pose>0 0.004 0.1275 0 0 0</pose>
+        <geometry><box><size>0.05 0.02 0.025</size></box></geometry>
+      </collision>
+      <visual name="body_1">
         <geometry>
           <mesh><uri>model://hydroships_gazebo/media/payload_body.obj</uri></mesh>
         </geometry>
@@ -37,7 +54,7 @@
           <diffuse>0.82 0.83 0.86 1</diffuse>
         </material>
       </visual>
-      <visual name="qr">
+      <visual name="qr_1">
         <pose>0 0.0012 0.04 0 0 0</pose>
         <geometry><plane><normal>0 1 0</normal><size>0.12 0.12</size></plane></geometry>
         <material>

@@ -18,6 +18,7 @@ import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
@@ -26,6 +27,7 @@ from launch_ros.parameter_descriptions import ParameterValue
 
 def generate_launch_description():
     pkg_bringup = get_package_share_directory('hydroships_bringup')
+    pkg_control = get_package_share_directory('hydroships_control')
 
     headless = LaunchConfiguration('headless')
     world = LaunchConfiguration('world')
@@ -49,6 +51,17 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(
             PathJoinSubstitution([pkg_bringup, 'launch', 'hydroships_stabilized.launch.py'])),
         launch_arguments=stab_args.items(),
+    )
+
+    # Joy trigger utk melewati WAIT_TRIGGER: tombol joystick (default A =
+    # index 0) mempublish Empty ke /hydroships/mission/start_autonomous,
+    # yang dibaca mission_fsm di state WAIT_TRIGGER. Matikan dgn
+    # joy_trigger:=false utk run battery/headless tanpa joystick.
+    joy_trigger = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution([pkg_control, 'launch', 'joy_trigger.launch.py'])),
+        launch_arguments={'button_index': LaunchConfiguration('joy_button_index')}.items(),
+        condition=IfCondition(LaunchConfiguration('joy_trigger')),
     )
 
     mission = Node(
@@ -83,6 +96,13 @@ def generate_launch_description():
 
     return LaunchDescription([
         DeclareLaunchArgument('headless', default_value='false'),
+        DeclareLaunchArgument('joy_trigger', default_value='true',
+                              description='true: jalankan joy_node + joy_mission_trigger '
+                                          '(tombol joystick utk lewati WAIT_TRIGGER); '
+                                          'false: tanpa joystick (battery/headless).'),
+        DeclareLaunchArgument('joy_button_index', default_value='0',
+                              description='Index tombol joystick utk trigger '
+                                          'WAIT_TRIGGER (0 = A/Cross pada XInput/F310).'),
         DeclareLaunchArgument('world', default_value='kki_arena.sdf'),
         DeclareLaunchArgument('start_state', default_value='DIVE',
                               description='State awal FSM (DIVE/GRAB/NAV_WALL/HANG/SURFACE/'
@@ -170,4 +190,5 @@ def generate_launch_description():
                                           'benar2 dipicu di APPROACH_QR.'),
         stabilized,
         mission,
+        joy_trigger,
     ])

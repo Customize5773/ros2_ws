@@ -245,6 +245,32 @@ State lain yang bisa di-start: DIVE, APPROACH_QR, GRAB, NAV_WALL, HANG,
 SURFACE, WAIT_TRIGGER, AUTO_RELEASE. Untuk NAV_WALL/HANG/SURFACE bisa
 ditambah `start_wall:=A/B/C/D`.
 
+### 3H. TRIGGER JOYSTICK UTK LEWATI WAIT_TRIGGER
+
+Setelah SURFACE, FSM parkir di `WAIT_TRIGGER` dan menunggu pesan Empty di
+`/hydroships/mission/start_autonomous` sebelum lanjut ke APPROACH_HOOK →
+AUTO_RELEASE. Sejak launch arg `joy_trigger:=true` (default), tombol
+joystick (default **A** / index 0 pada XInput/F310) mempublish pesan itu
+via node `joy_mission_trigger`:
+
+```bash
+  # default: tombol A (index 0)
+  ros2 launch hydroships_bringup hydroships_mission.launch.py
+
+  # ganti tombol, mis. B (index 1)
+  ros2 launch hydroships_bringup hydroships_mission.launch.py joy_button_index:=1
+
+  # nonaktifkan (run battery/headless tanpa joystick)
+  ros2 launch hydroships_bringup hydroships_mission.launch.py joy_trigger:=false
+```
+
+Tanpa joystick, `WAIT_TRIGGER` timeout setelah `t_wait_trigger` (default
+600 s) → ABORT. Cara manual tetap tersedia:
+
+```bash
+  ros2 topic pub -1 /hydroships/mission/start_autonomous std_msgs/msg/Empty "{}"
+```
+
 ### 3I. BATCH REPRODUCIBLE RUN (3-SEED)
 
 Untuk eksperimen batch yang dapat direproduksi, jalankan loop seed dan
