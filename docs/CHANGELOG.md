@@ -1170,3 +1170,41 @@ desain" di entri 2026-08-06.
 File disentuh: `tools/p0-experiments/run_approach_hook_dwell_battery.sh`
 (`sleep 55` → `sleep 90` + komentar), `docs/STATUS.md` (M6), CHANGELOG
 ini.
+
+## 2026-08-19 — M7 retest ROV dekat dinding (kandidat §4 #3, kandidat terakhir habis diuji)
+
+Tindak lanjut kandidat terakhir yang belum diuji dari
+`P2-GUI-INVESTIGATION.md` §4/§5 untuk roll/pitch spike ±25-31°: konteks
+posisi arena (dekat dinding, collision-induced torque) saat observasi asli
+2026-08-13.
+
+- **Temuan pra-retest**: `rov_random_spawn` di `sim.launch.py` default
+  **`true`** (spawn acak dekat dinding, "posisi kontes") — tapi §4 dan §5
+  keduanya eksplisit override ke tengah arena (`rov_random_spawn:=false
+  rov_x:=0 rov_y:=0`). Log 2026-08-13 tak menyebut override posisi apa pun,
+  jadi observasi asli plausibel memakai default (dekat dinding) — kandidat
+  ini punya dasar lebih kuat dari sekadar tebakan.
+- **Run 1 (near-wall via spawn default, `spawn_seed:=6001`, clearance
+  ~0.75-0.8m)**: peak roll/pitch **identik baseline mid-arena §4**
+  (0.48°/0.36°) — clearance terlalu jauh utk kontak fisik saat rotasi yaw
+  di tempat. Proximity murni tanpa kontak **tidak** menambah spike.
+- **Run 2 (kontak sengaja, `rov_random_spawn:=false rov_x:=2.30 rov_y:=0.0`,
+  haluan menghadap wall C, clearance awal 2.75cm)**: yaw pulsed
+  **peak roll 2.733°, pitch -2.708°** — ~5-6× di atas baseline. Trace
+  posisi mengonfirmasi mekanisme: ROV kontak & tergelincir sepanjang
+  dinding sambil berputar (x tetap ~2.3, y bergeser 0→-2.3 menuju sudut
+  dinding C/A) tepat di jendela waktu roll/pitch memuncak; begitu lepas
+  dari dinding, roll/pitch mereda ke baseline. **Kontak dinding
+  terkonfirmasi sbg kontributor nyata**, tapi sendirian **masih ~9-11× di
+  bawah** klaim asli.
+- **Kesimpulan**: ketiga kandidat §4 kini sudah diuji habis — thrust
+  drop-out (fixed, bukan faktor lagi), kombinasi-axis manusia (kontributor
+  sampai 6.4°, §5a), kontak dinding (kontributor sampai 2.7°, sesi ini).
+  Tak satupun sendiri-sendiri menjelaskan gap ke ±25-31°; kemungkinan besar
+  efek gabungan atau anomali satu-kali observasi 2026-08-13. **Tetap
+  OPEN**, prioritas diturunkan (tak ada bukti bug aktif di kode saat ini).
+
+File disentuh: `docs/P2-GUI-INVESTIGATION.md` (§6 baru), `docs/STATUS.md`
+(M7), CHANGELOG ini. Tak ada perubahan kode — murni eksperimen runtime.
+Data mentah: `/tmp/m7-nearwall-retest/*.csv` + `sim*.log` (tak disertakan
+di repo).

@@ -236,6 +236,80 @@ sendiri (lemah, ~0.15 m/s @ 30N) belum dijelaskan — kandidat penyebab
 tetap sama seperti temuan awal, prioritas rendah (bukan bug adapter GUI,
 kemungkinan besar karakter fisik hull+buoyancy).
 
+## 6. Retest ROV dekat dinding — kandidat §4 #3 (2026-08-19)
+
+Tindak lanjut kandidat terakhir yang belum diuji dari §4/§5: **konteks posisi
+arena** (dekat dinding, collision-induced torque) saat observasi asli
+2026-08-13. Investigasi kode sebelum retest menemukan fakta relevan:
+`rov_random_spawn` di `sim.launch.py`/`hydroships_gui.launch.py` **default
+`true`** (spawn acak dekat salah satu dinding, "posisi kontes realistis") —
+sedangkan §4 dan §5 keduanya eksplisit override ke `rov_random_spawn:=false
+rov_x:=0 rov_y:=0` (tengah arena). Log 2026-08-13 (`CHANGELOG.md:637-641`)
+tidak menyebut override posisi apa pun, jadi observasi asli plausibel memakai
+default (dekat dinding) — kandidat ini punya dasar lebih kuat dari sekadar
+tebakan.
+
+**Setup**: `hydroships_gui.launch.py headless:=true`, `ROS_DOMAIN_ID=77`,
+`tools/p2-experiment.py` (sama seperti H1/H2 di §4: `--axis yaw --value 100`,
+mode `sustained --duration 10` / `pulsed --on 0.5 --off 0.5 --cycles 10`).
+Catatan lingkungan: `python3` di PATH shell interaktif resolve ke venv proyek
+tanpa `rclpy` terkompilasi (bukan masalah baru, sama seperti insiden opencv
+2026-08-13 di STATUS.md) — dipakai `/usr/bin/python3` eksplisit, konsisten
+dengan konvensi repo. `payload_spawner` mati di kedua run (env `rclpy`
+serupa, proses tak terkait uji ini) — diabaikan, tak mempengaruhi
+`gui_bridge`/`thruster_allocator`.
+
+**Run 1 — near-wall via spawn default (`spawn_seed:=6001`)**: spawn
+`(1.455, 1.75, -0.5)` — dekat wall B, clearance ~0.75-0.8 m dari muka dinding
+(`rov_wall_margin=0.8`, dipilih 2026-08-13 utk cegah clipping saat spawn).
+H1 sustained: peak roll **0.480°**, pitch **0.364°**. H2 pulsed: peak roll
+**0.479°**, pitch **0.362°**. **Identik dengan baseline mid-arena §4**
+(0.48°/0.37°) — clearance 0.75-0.8 m cukup jauh sehingga rotasi yaw di
+tempat tidak pernah menyentuh dinding (setengah-diagonal hull ~0.24 m,
+clearance dari pusat ~0.75+0.17≈0.92 m, jauh di atas itu). Proximity murni
+tanpa kontak fisik **tidak** menambah spike — hasil ini belum benar-benar
+menguji "collision-induced torque" yang disebut kandidat #3, cuma menguji
+separuh "near" tanpa "collision".
+
+**Run 2 — kontak sengaja dgn dinding (`rov_random_spawn:=false rov_x:=2.30
+rov_y:=0.0`, haluan yaw=0 menghadap wall C @ x=2.5, clearance awal 0.0275 m
+dari muka dinding, cukup dekat agar sapuan diagonal hull saat berputar pasti
+menyentuh dinding)**:
+
+- H2-style pulsed: peak roll **2.733°** (t≈29.3s), peak pitch **-2.708°**
+  (t≈23.0s). Trace posisi menunjukkan mekanisme jelas: ROV **kontak &
+  tergelincir di sepanjang dinding C** (x tetap 2.28-2.36 sementara yaw
+  berputar liar -159°..160° dan y bergeser dari 0 ke -2.3, menuju sudut
+  C/A) selama t≈21-29s — roll/pitch memuncak persis di jendela kontak ini.
+  Setelah lepas dari dinding (t≥30s, x turun ke ~1.2), roll/pitch mereda ke
+  pita ±0.03-0.3° (setara baseline bebas-dinding).
+- H1-style sustained: peak roll **-1.343°**, peak pitch **-1.422°** — juga
+  di atas baseline mid-arena tapi lebih rendah dari pulsed (konsisten
+  dengan H2/pulsed selalu menghasilkan eksitasi kontak lebih besar dari
+  sustained, pola yang sama seperti pulsa vs sustained di §4/§5).
+
+**Kesimpulan**: kandidat #3 **terkonfirmasi sebagian** — kontak fisik dgn
+dinding selama yaw (bukan sekadar "dekat" tanpa sentuh) memang menghasilkan
+roll/pitch lebih tinggi dari baseline air-bebas (2.7° vs 0.48°, ~5-6×) lewat
+mekanisme nyata & teramati langsung (hull menggesek/tergelincir sepanjang
+dinding sambil berputar). **Tapi** angka ini (2.7°) masih **~9-11× di bawah**
+klaim asli ±25-31°, bahkan lebih rendah dari kombinasi-axis dashboard asli
+di tengah arena (§5a, 6.40°/2.22°). Jadi kontak dinding adalah **kontributor
+nyata tapi bukan penjelasan tunggal** untuk gap besar ke klaim asli.
+
+Dengan ini **ketiga kandidat di §4 sudah diuji habis**: (#1) thrust
+drop-out watchdog — fixed, sudah tak jadi faktor sejak commit `853f7ff`;
+(#2) kombinasi-axis input manusia — kontributor parsial (§5a, sampai 6.4°);
+(#3) proximity/collision dinding — kontributor parsial (sesi ini, sampai
+2.7° isolated, potensial lebih tinggi kalau digabung dgn #2 tapi belum
+diuji kombinasinya). Tak satupun, sendiri-sendiri, mendekati ±25-31°. Klaim
+asli kemungkinan besar adalah efek **gabungan** beberapa kandidat sekaligus
+(kontak dinding + kombinasi-axis manusia + mungkin sisa artefak thrust
+drop-out yang belum ter-fix saat observasi 2026-08-13) — atau anomali
+satu-kali yang tak sepenuhnya reproducible secara sistematis dgn probe
+terkontrol. **Tetap OPEN** — turunkan prioritas (tak ada bukti bug aktif di
+kode saat ini), tapi jangan tandai RESOLVED di STATUS.md.
+
 ## Status ringkas
 
 - ✅ Task 1 — root cause + fix thrust drop-out GUI: **selesai, terverifikasi**.
@@ -249,12 +323,14 @@ kemungkinan besar karakter fisik hull+buoyancy).
 - ✅ M7 light — **diverifikasi round-trip via dashboard asli** (§5b):
   command diterima `gui_bridge`, **disengaja non-aktuasi** (tak ada model
   lampu di sim) — bukan bug, bukan lagi item "belum dites".
-- ⚠️ M7 roll/pitch spike — **retest dgn dashboard asli TIDAK menutup
-  sebagai non-issue** (§5a): peak 6.40°/2.22° tereproduksi (lebih tinggi
-  dari probe sintetis 0.48°/0.37°, kombinasi axis manusia memang
-  berkontribusi) tapi **masih ~4-5× di bawah** klaim asli ±25-31° — gap
-  besar tetap tak terjelaskan. Kandidat tersisa: konteks posisi arena
-  spesifik (dekat dinding) saat observasi asli 2026-08-13, belum diuji di
-  sesi manapun sejauh ini. **Tetap OPEN**, jangan tandai RESOLVED di
-  STATUS.md.
+- ⚠️ M7 roll/pitch spike — **ketiga kandidat §4 sudah diuji habis** (§6):
+  kontak fisik dgn dinding selama yaw **terkonfirmasi sebagai kontributor
+  nyata** (peak 2.73°/2.71°, ~5-6× di atas baseline air-bebas 0.48°/0.37°,
+  mekanisme teramati langsung — hull tergelincir sepanjang dinding sambil
+  berputar), tapi sendirian **masih ~9-11× di bawah** klaim asli ±25-31°;
+  kombinasi-axis manusia (§5a) berkontribusi sampai 6.40°/2.22°. Tak
+  satupun kandidat, sendiri-sendiri, mendekati klaim asli — kemungkinan
+  besar efek gabungan beberapa kandidat sekaligus, atau anomali satu-kali
+  yang tak sepenuhnya reproducible. **Tetap OPEN** (turunkan prioritas,
+  tak ada bukti bug aktif di kode), jangan tandai RESOLVED di STATUS.md.
 - Belum dikerjakan: lint/typecheck penuh repo.
