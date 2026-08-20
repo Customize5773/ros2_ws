@@ -195,7 +195,7 @@ class MissionFSM(Node):
         # timeout per state (s)
         p('t_dive', 20.0); p('t_scan', 45.0); p('t_descend', 15.0)
         p('t_grab', 10.0); p('t_nav', 30.0)
-        p('t_hang', 30.0); p('t_surface', 20.0); p('t_wait_trigger', 600.0)
+        p('t_hang', 20.0); p('t_surface', 20.0); p('t_wait_trigger', 600.0)
         p('t_release', 30.0); p('t_approach', 25.0)
         # AUTO_RELEASE fase-turun: retry terbatas bila plat duduk miring (drift
         # lateral saat turun) — naik, re-center, turun ulang sebelum ABORT.
@@ -1069,21 +1069,8 @@ class MissionFSM(Node):
             # dan PASTIKAN heading sudah sejajar wall (gate). Rotasi error ke
             # body-frame ikut yaw_ref di atas (live saat dekat, wall saat jauh).
             self._set_depth(self.hang_approach_depth)
-            if yaw_err >= self.hang_yaw_tol:
-                # Rotasi SAMBIL transisi XY menyapu plat payload ke riser/tip
-                # hook (terukur: wall C, ROV macet l_err~73 mm di riser x 2.44
-                # krn tepi depan plat ~0.32 m di depan base_link). Mundur dulu ke
-                # titik AMAN (retreat 0.25 m dari target) supaya sapuan plat saat
-                # berputar tidak menyentuh riser, putar di sana, baru maju lurus
-                # setelah heading sejajar (cabang else di bawah).
-                retreat = 0.25
-                gx = tx - retreat * math.cos(target_heading)
-                gy = ty - retreat * math.sin(target_heading)
-                dist = self._goto_xy(gx, gy, fmax=self.nav_fmax,
-                                     yaw_ref=target_heading)
-            else:
-                dist = self._goto_xy(tx, ty, fmax=self.nav_fmax,
-                                     yaw_ref=yaw_ref)
+            dist = self._goto_xy(tx, ty, fmax=self.nav_fmax,
+                                 yaw_ref=yaw_ref)
             # Gate arah LUBANG (sepanjang sumbu maju ROV): toleransi fisik lubang
             # hanya ~+-9 mm di arah maju (tip 25mm di lubang 50mm) vs +-28.5 mm
             # ke samping (dinding slot). Gate radial 25 mm sendiri terlalu longgar
@@ -1241,10 +1228,10 @@ class MissionFSM(Node):
             # Run 2026-08-17: depth 0.36-0.37 selama approach, release di 0.36
             # -> payload jatuh dari hook (bukan karena hitbox hilang).
             self._set_depth(self.hang_approach_depth)
-            self._set_surge(-4.0, 0.0)   # dorong mundur pelan, fixed
+            self._set_surge(-8.0, 0.0)   # dorong mundur pelan, fixed
             if self._hold_since is None:
                 self._hold_since = self._now()
-            if self._now() - self._hold_since >= 0.6:   # s durasi backoff
+            if self._now() - self._hold_since >= 1.2:   # s durasi backoff
                 self._hook_backoff_done = True
                 self._hold_since = None
                 self._set_surge(0.0, 0.0)
