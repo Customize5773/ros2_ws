@@ -95,16 +95,18 @@ class MissionFSM(Node):
         p('descend_recenter_timeout', 5.0)
         # hook_depth = kedalaman BASE saat plat PAYLOAD bersandar DI PALANG BAWAH
         # hook (z -0.45, top -0.4375). Plat dibawa HORIZONTAL: link origin payload
-        # = z base (teleport offset z=0), underside plat di z base -0.006. Tip
-        # (silinder tegak r=0.0125, z -0.45..-0.33) menembus lubang plat tanpa
-        # mentok (passage 5 cm di body_collision — collision lama yg menutup tip
-        # SUDAH dibuang). Jadi plat turun bebas sepanjang tip sampai underside
-        # menyentuh palang: base = 0.4375 + 0.006 ~ 0.44. hook_depth 0.45
-        # menekan plat SEATED ke palang. JANGAN kecilkan (0.33 dulu): descent
-        # berhenti di atas palang -> plat HOVER di tip -> "stall" di AUTO_RELEASE
-        # cuma konvergensi depth hold (bukan terblok) -> detach di udara -> jatuh
-        # (run 2026-08-17: HANG "stabil" di 0.35, release 0.33 -> payload jatuh).
-        p('hook_depth', 0.45)        # m kedalaman base saat plat seated di palang
+        # = z base - 0.13 (teleport offset z=-0.13, gripper di dasar haluan),
+        # underside plat di z base -0.136. Tip (silinder tegak r=0.0125,
+        # z -0.45..-0.33) menembus lubang plat tanpa mentok (passage 5 cm di
+        # body_collision — collision lama yg menutup tip SUDAH dibuang). Jadi plat
+        # turun bebas sepanjang tip sampai underside menyentuh palang (depth
+        # positif ke bawah: -depth - 0.136 = -0.4375 -> depth = 0.3015 ~ 0.30).
+        # hook_depth 0.32 menekan plat SEATED ke palang (0.30 + margin tekanan
+        # 0.02, analog 0.4315+0.0185=0.45 jaman offset z=0). JANGAN kecilkan:
+        # descent berhenti di atas palang -> plat HOVER di tip -> "stall" di
+        # AUTO_RELEASE cuma konvergensi depth hold (bukan terblok) -> detach di
+        # udara -> jatuh.
+        p('hook_depth', 0.32)        # m kedalaman base saat plat seated di palang
         # HANG presisi: target = LUBANG payload di atas TIP hook, bukan standoff
         # lama wall_dist-hook_dist (~0.5 m dari hook) yang membuat payload tak
         # pernah menyentuh hook. Geometri arena: muka dinding di wall_face;
@@ -116,9 +118,11 @@ class MissionFSM(Node):
         p('wall_face', 2.5)          # m jarak muka dinding dari pusat arena
         p('hang_tip_d', 0.14)        # m jarak tip hook dari muka dinding
         p('hang_hole_dx', 0.2733)    # m base_link -> pusat lubang payload
-        # hang_approach_depth DI ATAS hook_depth - gate_turun (0.31-0.035=0.275)
+        # hang_approach_depth DI ATAS hook_depth - gate_turun (0.32-0.02=0.30)
         # supaya gate kedalaman turun tak langsung lolos saat masih di approach.
-        p('hang_approach_depth', 0.27)  # m kedalaman posisi lubang di atas tip
+        # Dgn offset z=-0.13, lubang di base_z-0.13: di atas tip (-0.33) ->
+        # -depth-0.13 > -0.33 -> depth < 0.20. 0.14 (0.27-0.13) celah 0.06 m.
+        p('hang_approach_depth', 0.14)  # m kedalaman posisi lubang di atas tip
         # Toleransi posisi lubang di atas tip. Diukur dari run nyata: ROV sering
         # mandek ~21 mm dari target (gaya sway sebagian terserap kopling yaw-hold)
         # dan heading hold menyisakan error ~7 deg di wall D (180 deg). Slot plat
@@ -126,10 +130,12 @@ class MissionFSM(Node):
         # hang_tol 25 mm aman: tip masih menembus slot tanpa menyentuh dinding.
         p('hang_tol', 0.025)         # m toleransi posisi lubang di atas tip
         # hang_l_tol: toleransi arah MAJU (sepanjang sumbu ROV) — lubang hanya
-        # ~50 mm di arah ini (tip 25 mm), vs +-28.5 mm ke samping. Tanpa gate
-        # ini dist radial 25 mm bisa lolos dgn error maju 25 mm -> tip mentok
-        # badan plat saat turun (lihat komentar di _st_hang).
-        p('hang_l_tol', 0.008)       # m toleransi lubang sepanjang sumbu maju
+        # ~50 mm di arah ini (tip Ø25) -> clearance ±12.5 mm. Dulu 8 mm
+        # (err maju 25 mm -> tip mentok badan plat saat turun), tapi terukur
+        # (run z=-0.13) residual 12.2 mm saat plat sudah SEATED dan tetap lolos
+        # secara fisik (tip menembus lubang). 12 mm = dekat batas fisik ±12.5,
+        # memberi margin utk variasi spawn tanpa macet lagi.
+        p('hang_l_tol', 0.012)       # m toleransi lubang sepanjang sumbu maju
         # Gate heading sebelum turun: dengan kompensasi yaw live di _hang_xy,
         # error heading TIDAK lagi menggeser lubang dari tip (hanya memutar
         # slot sedikit, tip silinder tak peduli) — gate cukup utk memastikan
@@ -189,8 +195,11 @@ class MissionFSM(Node):
         # timeout per state (s)
         p('t_dive', 20.0); p('t_scan', 45.0); p('t_descend', 15.0)
         p('t_grab', 10.0); p('t_nav', 30.0)
-        p('t_hang', 20.0); p('t_surface', 20.0); p('t_wait_trigger', 600.0)
+        p('t_hang', 30.0); p('t_surface', 20.0); p('t_wait_trigger', 600.0)
         p('t_release', 30.0); p('t_approach', 25.0)
+        # AUTO_RELEASE fase-turun: retry terbatas bila plat duduk miring (drift
+        # lateral saat turun) — naik, re-center, turun ulang sebelum ABORT.
+        p('release_max_retries', 3)
         # APPROACH_HOOK: visual servo PD ke hook (hook_detector ->
         # /hydroships/hook_offset). Default sama dgn hook_logic.HookServoGains —
         # di sini hanya diekspos sebagai parameter ROS supaya bisa di-tune runtime.
@@ -292,6 +301,7 @@ class MissionFSM(Node):
         self.nav_tol = float(g('nav_tol'))
         self.nav_fmax = float(g('nav_fmax'))
         self.hold_settle_s = float(g('hold_settle_s'))
+        self.release_max_retries = int(g('release_max_retries'))
         self.t_nav_qr = float(g('t_nav_qr'))
         self.qr_center_tol = float(g('qr_center_tol'))
         self.qr_servo_gain = float(g('qr_servo_gain'))
@@ -360,6 +370,7 @@ class MissionFSM(Node):
         self._detach_sent = False
         self._hook_backoff_done = False
         self._hang_pos_done = False   # HANG/AUTO_RELEASE: lubang sudah di atas tip?
+        self._release_retries = 0
 
         # State
         self.depth = None
@@ -438,6 +449,8 @@ class MissionFSM(Node):
         if s in (St.HANG, St.AUTO_RELEASE):
             self._hang_pos_done = False
             self._hang_depth_max = None
+        if s is St.AUTO_RELEASE:
+            self._release_retries = 0
         if s is St.APPROACH_QR:
             # Misi berulang per payload (AUTO_RELEASE -> DIVE -> APPROACH_QR):
             # tanpa reset, payload ke-2 dst langsung dianggap sudah ber-wall.
@@ -1056,8 +1069,21 @@ class MissionFSM(Node):
             # dan PASTIKAN heading sudah sejajar wall (gate). Rotasi error ke
             # body-frame ikut yaw_ref di atas (live saat dekat, wall saat jauh).
             self._set_depth(self.hang_approach_depth)
-            dist = self._goto_xy(tx, ty, fmax=self.nav_fmax,
-                                 yaw_ref=yaw_ref)
+            if yaw_err >= self.hang_yaw_tol:
+                # Rotasi SAMBIL transisi XY menyapu plat payload ke riser/tip
+                # hook (terukur: wall C, ROV macet l_err~73 mm di riser x 2.44
+                # krn tepi depan plat ~0.32 m di depan base_link). Mundur dulu ke
+                # titik AMAN (retreat 0.25 m dari target) supaya sapuan plat saat
+                # berputar tidak menyentuh riser, putar di sana, baru maju lurus
+                # setelah heading sejajar (cabang else di bawah).
+                retreat = 0.25
+                gx = tx - retreat * math.cos(target_heading)
+                gy = ty - retreat * math.sin(target_heading)
+                dist = self._goto_xy(gx, gy, fmax=self.nav_fmax,
+                                     yaw_ref=target_heading)
+            else:
+                dist = self._goto_xy(tx, ty, fmax=self.nav_fmax,
+                                     yaw_ref=yaw_ref)
             # Gate arah LUBANG (sepanjang sumbu maju ROV): toleransi fisik lubang
             # hanya ~+-9 mm di arah maju (tip 25mm di lubang 50mm) vs +-28.5 mm
             # ke samping (dinding slot). Gate radial 25 mm sendiri terlalu longgar
@@ -1104,27 +1130,40 @@ class MissionFSM(Node):
         # hanya depth+yaw -> lubang bisa bergeser dan tetap lolos.
         l_err = abs((tx - (self.x or 0)) * math.cos(target_heading)
                     + (ty - (self.y or 0)) * math.sin(target_heading))
-        # Gate turun INLINE (bukan depth_tol 0.06 yg lebar): hang_approach_depth
-        # 0.27 < gate 0.29, jadi tak langsung lolos; saat plat bersandar di
-        # palang (base ~0.30, terukur di sim: free-plate rest z=-0.5525,
-        # attached-plate rest base ~0.3015) ROV mandek ~0.30 >= 0.29 -> lolos.
-        depth_ok = (self.depth is not None
-                    and self.depth >= self.hook_depth - 0.02
-                    and yaw_err < self.hang_yaw_tol
-                    and dist < self.hang_tol
-                    and l_err < self.hang_l_tol)
-        if depth_ok:
-            if self._hold_since is None:
-                self._hold_since = self._now()
-            if self._now() - self._hold_since >= self.hold_settle_s:
-                self._set_surge(0.0)
-                self.score['m3'] = 15
-                self.get_logger().info(
-                    'Payload tergantung stabil di hook %s (+15, depth %.2f)'
-                    % (self.wall, self.depth))
-                self._to(St.SURFACE)
+        # Gate turun INLINE: pakai STALL detector (kedalaman berhenti naik karena
+        # terblok palang) — BUKAN ambang absolute (hook_depth - 0.02 = 0.30).
+        # Sebelumnya: depth 0.277 di run nyata (plat duduk agak tinggi) < 0.30
+        # -> HANG timeout padahal plat sudah bersandar (ABORT siklus-2, seed
+        # 3001). Kedalaman duduk bervariasi 0.28..0.32 tergantung cara plat
+        # mendarat; stall = bukti fisik "sudah duduk" yang invarian terhadap itu.
+        # Histeresis 5 mm (sama dgn AUTO_RELEASE): creeps mikro jangan restore
+        # _hold_since. Tetap uji ulang dist/l_err saat duduk (presisi).
+        d = self.depth
+        depth_stalled = False
+        if d is not None:
+            if self._hang_depth_max is None or d > self._hang_depth_max + 0.005:
+                self._hang_depth_max = max(d, self._hang_depth_max or 0.0)
+                self._hold_since = None
+            elif (d >= self._hang_depth_max - 0.015
+                  and d >= self.hang_approach_depth + 0.03
+                  and yaw_err < self.hang_yaw_tol
+                  and dist < self.hang_tol
+                  and l_err < self.hang_l_tol):
+                if self._hold_since is None:
+                    self._hold_since = self._now()
+                if self._now() - self._hold_since >= self.hold_settle_s:
+                    depth_stalled = True
+            else:
+                self._hold_since = None
         else:
             self._hold_since = None
+        if depth_stalled:
+            self._set_surge(0.0)
+            self.score['m3'] = 15
+            self.get_logger().info(
+                'Payload tergantung stabil di hook %s (+15, depth %.2f)'
+                % (self.wall, d))
+            self._to(St.SURFACE)
         if self._elapsed() > self.T['hang']:
             self.get_logger().error('HANG timeout (turun, depth %s, dist %.3f)'
                                     % (self.depth if self.depth is not None else 'n/a',
@@ -1202,10 +1241,10 @@ class MissionFSM(Node):
             # Run 2026-08-17: depth 0.36-0.37 selama approach, release di 0.36
             # -> payload jatuh dari hook (bukan karena hitbox hilang).
             self._set_depth(self.hang_approach_depth)
-            self._set_surge(-8.0, 0.0)   # dorong mundur pelan, fixed
+            self._set_surge(-4.0, 0.0)   # dorong mundur pelan, fixed
             if self._hold_since is None:
                 self._hold_since = self._now()
-            if self._now() - self._hold_since >= 1.2:   # s durasi backoff
+            if self._now() - self._hold_since >= 0.6:   # s durasi backoff
                 self._hook_backoff_done = True
                 self._hold_since = None
                 self._set_surge(0.0, 0.0)
@@ -1319,6 +1358,12 @@ class MissionFSM(Node):
             dist = self._goto_xy(tx, ty, fmax=0.6 * self.nav_fmax,
                                  yaw_ref=yaw_ref)
             self._set_depth(self.hook_depth)
+            # Gate presisi saat duduk (sama spt HANG fase 2): selain stall,
+            # uji ulang dist/l_err. Tanpa ini detach bisa terjadi dgn lubang
+            # sudah bergeser dr tip (kontak saat turun) -> payload bersandar
+            # MIRING di palang (terukur 25-32 mm off, tilt 8-12°).
+            l_err = abs((tx - (self.x or 0)) * math.cos(target_heading)
+                        + (ty - (self.y or 0)) * math.sin(target_heading))
             # Deteksi "plat SUDAH bersandar" = depth STALL (ROV terblok palang),
             # bukan ambang kedalaman: ambang 0.29 dulu lolos saat ROV masih turun
             # (depth 0.31 < titik berhenti 0.32) -> detach di udara -> payload jatuh
@@ -1327,12 +1372,20 @@ class MissionFSM(Node):
             d = self.depth
             depth_stalled = False
             if d is not None:
-                if self._hang_depth_max is None or d > self._hang_depth_max:
-                    self._hang_depth_max = d
+                # Histeresis 5 mm: creeps mikro (0.1 mm/tick saat plat menyentuh
+                # palang & depth-hold menekan) jangan dianggap "bergerak" — tanpa
+                # ini tiap kenaikan kecil men-set _hang_depth_max baru & me-reset
+                # _hold_since, timer stall tak pernah menumpuk -> AUTO_RELEASE
+                # timeout padahal plat sudah SEATED (terjadi saat hook_depth
+                # diturunkan 0.45 -> 0.32 utk offset gripper z=-0.13).
+                if self._hang_depth_max is None or d > self._hang_depth_max + 0.005:
+                    self._hang_depth_max = max(d, self._hang_depth_max or 0.0)
                     self._hold_since = None
                 elif (d >= self._hang_depth_max - 0.015
                       and d >= self.hang_approach_depth + 0.03
-                      and yaw_err < self.hang_yaw_tol):
+                      and yaw_err < self.hang_yaw_tol
+                      and dist < self.hang_tol
+                      and l_err < self.hang_l_tol):
                     if self._hold_since is None:
                         self._hold_since = self._now()
                     if self._now() - self._hold_since >= self.hold_settle_s:
@@ -1358,9 +1411,28 @@ class MissionFSM(Node):
                                     self.hook_depth - 0.08))
                 self._hold_since = self._now()
             if self._elapsed() > self.T['release']:
-                self.get_logger().error('AUTO_RELEASE timeout (turun, depth %s)'
-                                        % (self.depth if self.depth is not None else 'n/a'))
-                self._to(St.ABORT)
+                # Plat tidak berhasil duduk presisi (stall tapi dist/l_err gagal,
+                # atau kedalaman tak pernah stall). RETRY: naik lagi, re-center,
+                # turun ulang — bukan ABORT langsung. DetachableJoint masih
+                # menahan payload, jadi mengangkat plat & menyelam ulang memberi
+                # kesempatan threading lubang ke tip yg lebih baik (drift lateral
+                # saat turun adalah kelemahan terdokumentasi, bukan kegagalan
+                # permanen). Habis retry -> ABORT jujur.
+                if self._release_retries < self.release_max_retries:
+                    self._release_retries += 1
+                    self._hang_pos_done = False
+                    self._hang_depth_max = None
+                    self._set_depth(self.hang_approach_depth)
+                    self.get_logger().warn(
+                        'AUTO_RELEASE retry %d/%d (depth %s, dist %.3f) — '
+                        'naik & coba turun ulang'
+                        % (self._release_retries, self.release_max_retries,
+                           self.depth if self.depth is not None else 'n/a', dist))
+                else:
+                    self.get_logger().error(
+                        'AUTO_RELEASE timeout (turun, depth %s, retry habis)'
+                        % (self.depth if self.depth is not None else 'n/a'))
+                    self._to(St.ABORT)
             return
 
         # Detach sudah terkirim: beri waktu payload bersandar di hook, lalu naik.
