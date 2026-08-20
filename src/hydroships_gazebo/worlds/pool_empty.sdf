@@ -85,7 +85,8 @@
       </link>
     </model>
 
-    <!-- Volume air visual (semi-transparan), tidak punya collision agar tidak
+
+  <!-- Volume air visual (semi-transparan), tidak punya collision agar tidak
          mengganggu fisika. Permukaan air di z = 0. -->
     <model name="water_volume">
       <static>true</static>

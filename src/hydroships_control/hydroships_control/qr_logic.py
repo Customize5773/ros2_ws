@@ -159,7 +159,7 @@ def _quiet_zone_ok(gray, pts):
     Nyaring false positive korner-QR: siluet hook/tembok/bayangan memberi corner
     palsu tanpa quiet zone (terukur di run 2026-08-18: "QR besar" di hook 2 yg
     bukan payload). Ring dipilih [0.98, 1.15] * r0 agar TETAP berada di dalam
-    bidang putih payload (plane 0.20 m > QR 0.12 m -> tepi ~1.18*r0); kalau
+    bidang putih payload (plane 0.12 m > QR 0.06 m -> tepi ~1.41*r0); kalau
     ring menyentuh lantai gelap, QR asli ikut tertolak. Relatif thd kecerahan
     dalam quad (bukan ambang absolut) agar kebal variasi pencahayaan sim.
     """

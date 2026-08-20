@@ -75,7 +75,7 @@ PAYLOAD_SDF_TEMPLATE = '''<?xml version="1.0"?>
       </visual>
       <visual name="qr_quiet_zone_{vsuf}">
         <pose>0 0.0006 0.04 0 0 0</pose>
-        <geometry><plane><normal>0 1 0</normal><size>0.20 0.20</size></plane></geometry>
+        <geometry><plane><normal>0 1 0</normal><size>0.12 0.12</size></plane></geometry>
         <material>
           <ambient>1 1 1 1</ambient>
           <diffuse>1 1 1 1</diffuse>
@@ -85,7 +85,7 @@ PAYLOAD_SDF_TEMPLATE = '''<?xml version="1.0"?>
       </visual>
       <visual name="qr_{vsuf}">
         <pose>0 0.0012 0.04 0 0 0</pose>
-        <geometry><plane><normal>0 1 0</normal><size>0.12 0.12</size></plane></geometry>
+        <geometry><plane><normal>0 1 0</normal><size>0.06 0.06</size></plane></geometry>
         <material>
           <diffuse>1 1 1 1</diffuse>
           <specular>0 0 0 1</specular>

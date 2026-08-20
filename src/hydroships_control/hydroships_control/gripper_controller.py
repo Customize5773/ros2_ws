@@ -40,7 +40,7 @@ class GripperController(Node):
         super().__init__('gripper_controller')
         p = self.declare_parameter
         p('max_offset', 0.30)       # |offset x/y| maks agar "di atas payload"
-        p('min_size', 0.12)         # ukuran-tampak QR min (proxy dekat)
+        p('min_size', 0.06)         # ukuran-tampak QR min (proxy dekat); QR fisik 0.06 m
         p('offset_timeout', 1.5)    # umur maks qr_offset (s)
         # Gerbang fisik M5-D (docs/STATUS.md): tolak attach kalau gripper masih
         # jauh di atas lantai QR — DetachableJoint mengelas pada pose saat itu,
@@ -101,7 +101,9 @@ class GripperController(Node):
         self.create_subscription(PointStamped, '/hydroships/qr_offset', self._on_offset, 10)
         self.create_subscription(Odometry, '/hydroships/odom', self._on_odom, 10)
         self._rov_pose = None  # (x, y, z, qx, qy, qz, qw)
-        self._gripper_offset = (0.18, 0.0, 0.0)  # local xyz, dari hydroships.urdf.xacro
+        # local xyz gripper_base relatif base_link — harus sama dgn origin
+        # gripper_base_joint di hydroships.urdf.xacro (0.18 0 -0.13).
+        self._gripper_offset = (0.18, 0.0, -0.13)
 
         # Terbitkan target jari berkala (2 Hz) agar tak hilang bila bridge/gz belum
         # siap saat publish awal — sama pola gripper lama.

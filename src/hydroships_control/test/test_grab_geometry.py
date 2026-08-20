@@ -96,3 +96,12 @@ def test_gerbang_attach_konsisten_dengan_grab_depth():
     # gerbang menilai ketinggian yang salah.
     assert _param(GRIP, 'gripper_bottom_dz') == pytest.approx(
         -g['gripper_dz'] + g['gripper_half_h'], abs=1e-6)
+    # _gripper_offset (teleport payload ke gripper) harus cocok dgn origin
+    # gripper_base_joint di URDF, kalau tidak payload nempel di atas gripper.
+    m2 = re.search(r"self\._gripper_offset = \(([\d.]+), ([\d.]+), ([\d.-]+)\)",
+                   _text(GRIP))
+    assert m2, '_gripper_offset tak terbaca di gripper_controller.py'
+    assert float(m2.group(3)) == pytest.approx(g['gripper_dz'], abs=1e-6), (
+        '_gripper_offset.z (%.3f) != URDF gripper_base_joint.z (%.3f) '
+        '-> payload teleport tidak sampai ke gripper' % (float(m2.group(3)),
+                                                         g['gripper_dz']))
