@@ -31,6 +31,10 @@ pip install -r requirements.txt
 ```
 ---
 
+<img width="1220" height="1021" alt="image" src="https://github.com/user-attachments/assets/a959087e-39a3-4d06-ab33-da4618b25e6f" />
+
+---
+
 <img width="535" height="497" alt="Screenshot from 2026-07-04 18-39-12" src="https://github.com/user-attachments/assets/f9793a9f-5241-45bb-a489-960bd04cdac1" />
 
 ---
