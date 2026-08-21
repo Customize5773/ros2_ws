@@ -97,6 +97,11 @@ class GripperController(Node):
         # Status attach (open/closed) utk verifikasi GRAB oleh mission_fsm —
         # FSM tak boleh terbang dengan payload TIDAK ter-attach.
         self.pub_state = self.create_publisher(String, '/hydroships/gripper/state', 10)
+        # Ack semantik R-9 (attached/rejected/detached) — 'closed' saja tak cukup:
+        # jaw menutup TERLEPAS dari apakah gerbang keamanan menyetujui attach
+        # (lihat GripperLogic._do_close). mission_fsm._st_grab menunggu ini,
+        # bukan gripper/state, sebelum menganggap GRAB sukses.
+        self.pub_status = self.create_publisher(String, '/hydroships/gripper/status', 10)
         self.create_subscription(String, '/hydroships/gripper/command', self._on_cmd, 10)
         self.create_subscription(PointStamped, '/hydroships/qr_offset', self._on_offset, 10)
         self.create_subscription(Odometry, '/hydroships/odom', self._on_odom, 10)
@@ -304,6 +309,12 @@ class GripperController(Node):
             status = 'attached'
         elif action['joint'] == 'detach':
             self.pub_detach.publish(Empty())
+            status = 'detached'
+        elif self.logic.attached:
+            status = 'attached'      # close saat sudah ter-attach: no-op tapi tetap attached
+        else:
+            status = 'rejected' if action['state'] == 'closed' else 'detached'
+        self.pub_status.publish(String(data=status))
         self._publish_state()
         self.get_logger().info('gripper %s: %s' % (action['state'], action['reason']))
 

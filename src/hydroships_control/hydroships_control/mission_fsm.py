@@ -88,6 +88,7 @@ class MissionFSM(Node):
         # cuma 5-7mm dari max_alt_gap=0.08. Toleransi lebih ketat di sini turun
         # ROV lebih dekat ke grab_depth sebenarnya sebelum trigger GRAB.
         p('descend_depth_tol', 0.02)  # m toleransi kedalaman KHUSUS exit DESCEND
+        p('descend_settle_dwell', 0.5)  # s dwell depth_ok sblm GRAB (redam overshoot turun)
         # R-11 Opsi 2: saat depth_ok tercapai di DESCEND, beri waktu tambahan
         # `descend_recenter_timeout` supaya servo visual memperbaiki offset
         # QR sebelum GRAB — hanya bila qr_off masih segar (camera masih melihat
@@ -370,6 +371,7 @@ class MissionFSM(Node):
         self.create_subscription(String, '/hydroships/gripper/state',
                                   self._on_grip_state, 10)
         self._grip_state = 'open'
+        self.gripper_status = None   # ack terakhir dari gripper_controller (R-9)
         self._detach_sent = False
         self._hook_backoff_done = False
         self._hang_pos_done = False   # HANG/AUTO_RELEASE: lubang sudah di atas tip?
@@ -451,6 +453,9 @@ class MissionFSM(Node):
         self._hold_since = None
         if s is St.APPROACH_HOOK:
             self._hook_backoff_done = False
+        if s is St.GRAB:
+            # R-9: status ack lama tak boleh terbawa ke siklus GRAB berikutnya.
+            self.gripper_status = None
         if s in (St.HANG, St.AUTO_RELEASE):
             self._hang_pos_done = False
             self._hang_depth_max = None
@@ -998,35 +1003,37 @@ class MissionFSM(Node):
             self.get_logger().error('DESCEND timeout'); self._to(St.ABORT)
 
     def _st_grab(self):
-        """Misi 2 (REMOTELY): kirim perintah "close" ke gripper_controller
-        SECARA BERULANG (setiap tick) sampai attach dikonfirmasi lewat
-        /hydroships/gripper/state == 'closed'. Karena QUIRC tak terpasang &
-        desain ey_target membuat qr_offset kamera tak pernah lolos safety gate
-        (|ey|=-0.61 > max_offset 0.30), FSM publish sinyal qr_offset SINTETIK
-        (frame_id 'synthetic', tersentral, size cukup) bersama tiap close.
-        Sinyal sintetik dipublish terus-terusan supaya tak kalah balapan (race)
-        dgn sinyal asli kamera yang tiba tak menentu — dulu attach jadi acak.
-        TODO: hapus sintetik bila QUIRC terpasang & gate memakai sinyal asli."""
+        """Misi 2 (REMOTELY): kirim perintah "close" ke gripper_controller,
+        lalu tunggu ack /hydroships/gripper/status (R-9) sebelum menilai skor.
+
+        gripper_controller menilai keamanan lewat GripperLogic.is_safe() atas
+        /hydroships/qr_offset dan membalas 'attached' atau 'rejected' lewat
+        gripper/status; FSM sengaja tidak menduplikasi gerbang itu, hanya
+        menunggu hasilnya. 'rejected' mengulang perintah "close" (gerbang
+        visual bisa berubah tick berikutnya) sampai T['grab'] habis -> ABORT,
+        supaya kesuksesan misi tak lagi bisa dibaca sbg bukti attach padahal
+        gerbang menolaknya (lihat P1-OWNER-DECISIONS-AND-ROADMAP.md R-9).
+        Sinyal qr_offset SINTETIK (frame_id 'synthetic') dipublish bersama
+        tiap close karena QUIRC tak terpasang & sinyal kamera asli tak pernah
+        lolos gate — lihat gripper_controller._on_offset()."""
         self._set_surge(0.0)
-        if self._grip_state != 'closed':
+        if self.gripper_status == 'attached':
+            self.score['m2'] = 15
+            self.get_logger().info('GRAB terverifikasi (+15) -- ack attached')
+            self._to(St.NAV_WALL)
+            return
+        if self._hold_since is None or self.gripper_status == 'rejected':
+            self._hold_since = self._now()
+            self.gripper_status = None
             synth = PointStamped()
             synth.header.stamp = self.get_clock().now().to_msg()
             synth.header.frame_id = 'synthetic'
             synth.point.x, synth.point.y, synth.point.z = 0.0, 0.0, 0.2
             self.pub_qr_offset_synth.publish(synth)
             self.pub_grip.publish(String(data='close'))
-            if int(self._elapsed() * 2) % 10 == 0:
-                self.get_logger().info('GRAB: kirim close (state=%s)' % self._grip_state)
-        if self._grip_state == 'closed':
-            if self._hold_since is None:
-                self._hold_since = self._now()
-            if self._now() - self._hold_since >= 0.5:
-                self.score['m2'] = 15
-                self.get_logger().info('GRAB terverifikasi: payload ter-attach (+15)')
-                self._to(St.NAV_WALL)
-        elif self._elapsed() > self.T['grab']:
-            self.get_logger().error(
-                'GRAB timeout — payload TAK ter-attach (state=%s)' % self._grip_state)
+            self.get_logger().info('GRAB: perintah "close" -> gripper_controller')
+        if self._elapsed() > self.T['grab']:
+            self.get_logger().error('GRAB timeout (tak ada ack attached)')
             self._to(St.ABORT)
 
     def _st_nav_wall(self):
@@ -1139,7 +1146,7 @@ class MissionFSM(Node):
         # thrust coupling / kontak tip) dan lubang meleset dari tip.
         dist = self._goto_xy(tx, ty, fmax=0.6 * self.nav_fmax,
                              yaw_ref=yaw_ref)
-        self._set_depth(self.depth_bottom)  # ponytail: HANG ke dasar (0.70) bukan hook_depth (0.32); kembalikan ke hook_depth bila palang 0.32 mau jadi stop fisik
+        self._set_depth(self.hook_depth)
         # Gate presisi: selain depth & yaw, UJI ULANG error lateral (dist &
         # l_err) saat plat duduk — kalau lubang bergeser selama turun (coupling
         # depth-hold/kontak tip), jangan lolos diam-diam lalu HANG "sukses"
