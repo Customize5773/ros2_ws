@@ -1139,7 +1139,7 @@ class MissionFSM(Node):
         # thrust coupling / kontak tip) dan lubang meleset dari tip.
         dist = self._goto_xy(tx, ty, fmax=0.6 * self.nav_fmax,
                              yaw_ref=yaw_ref)
-        self._set_depth(self.hook_depth)
+        self._set_depth(self.depth_bottom)  # ponytail: HANG ke dasar (0.70) bukan hook_depth (0.32); kembalikan ke hook_depth bila palang 0.32 mau jadi stop fisik
         # Gate presisi: selain depth & yaw, UJI ULANG error lateral (dist &
         # l_err) saat plat duduk — kalau lubang bergeser selama turun (coupling
         # depth-hold/kontak tip), jangan lolos diam-diam lalu HANG "sukses"
