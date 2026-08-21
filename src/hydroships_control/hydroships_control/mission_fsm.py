@@ -39,7 +39,7 @@ from geometry_msgs.msg import Twist, PointStamped
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64, String, Empty
 
-from hydroships_control.hook_logic import HookServoGains, hook_servo, update_dwell
+from hydroships_control.hook_logic import HookServoGains, hook_ey_target, hook_servo, update_dwell
 # qr_ey_target dipindah ke qr_logic (modul murni) supaya gripper_controller
 # memakai geometri yang SAMA PERSIS untuk gerbang attach-nya — sebelumnya FSM
 # membidik ey_target~-0.52 sementara GripperLogic.is_safe() menuntut |ey|<=0.30,
@@ -88,6 +88,7 @@ class MissionFSM(Node):
         # cuma 5-7mm dari max_alt_gap=0.08. Toleransi lebih ketat di sini turun
         # ROV lebih dekat ke grab_depth sebenarnya sebelum trigger GRAB.
         p('descend_depth_tol', 0.02)  # m toleransi kedalaman KHUSUS exit DESCEND
+        p('descend_settle_dwell', 0.5)  # s dwell depth_ok sblm GRAB (redam overshoot turun)
         # R-11 Opsi 2: saat depth_ok tercapai di DESCEND, beri waktu tambahan
         # `descend_recenter_timeout` supaya servo visual memperbaiki offset
         # QR sebelum GRAB — hanya bila qr_off masih segar (camera masih melihat
@@ -268,6 +269,13 @@ class MissionFSM(Node):
         p('cam_vfov_half_tan', 0.6293)
         # Batas |ey_target| supaya QR tetap di dalam frame (1.0 = tepat di tepi).
         p('ey_target_max', 0.8)
+        # APPROACH_HOOK ey_target (M6): hook di dinding, kamera depan di haluan
+        # (xacro body_x/2 = 0.1725, z=0). Di hang_approach_depth=0.14 hook selalu
+        # di BAWAH pusat frame (ey~+0.5 bukan 0) -> gate lama |ey|<0.15 tak pernah
+        # lolos 4/8 wall+seed. hook_z = pusat tip (-0.39, arena sdf -0.45..-0.33).
+        p('hook_z', -0.39)
+        p('cam_front_dz', 0.0)       # m kamera depan di atas base_link (xacro 0)
+        p('hook_ey_max', 0.8)        # clamp ey_target hook biar tetap di frame
 
         g = lambda n: self.get_parameter(n).value
         self.surge = float(g('surge_force'))
@@ -318,6 +326,9 @@ class MissionFSM(Node):
         self.cam_bottom_dz = float(g('cam_bottom_dz'))
         self.cam_vfov_half_tan = float(g('cam_vfov_half_tan'))
         self.ey_target_max = float(g('ey_target_max'))
+        self.hook_z = float(g('hook_z'))
+        self.cam_front_dz = float(g('cam_front_dz'))
+        self.hook_ey_max = float(g('hook_ey_max'))
         self.hook_max_age = float(g('hook_max_age'))
         self.hook_settle_grace_s = float(g('hook_settle_grace_s'))
         self.hook_gains = HookServoGains(
@@ -1139,7 +1150,7 @@ class MissionFSM(Node):
         # thrust coupling / kontak tip) dan lubang meleset dari tip.
         dist = self._goto_xy(tx, ty, fmax=0.6 * self.nav_fmax,
                              yaw_ref=yaw_ref)
-        self._set_depth(self.depth_bottom)  # ponytail: HANG ke dasar (0.70) bukan hook_depth (0.32); kembalikan ke hook_depth bila palang 0.32 mau jadi stop fisik
+        self._set_depth(self.hook_depth)
         # Gate presisi: selain depth & yaw, UJI ULANG error lateral (dist &
         # l_err) saat plat duduk — kalau lubang bergeser selama turun (coupling
         # depth-hold/kontak tip), jangan lolos diam-diam lalu HANG "sukses"
@@ -1271,9 +1282,16 @@ class MissionFSM(Node):
         off = self._hook_fresh()
 
         if off is not None:
-            cmd = hook_servo(off, self.vx, self.vy, self.hook_depth, self.hook_gains)
+            tip_x, tip_y = self._tip_xy(self.wall)
+            rx, ry = tip_x - (self.x or tip_x), tip_y - (self.y or tip_y)
+            dist_fwd = math.hypot(rx, ry)
+            ey_tgt = hook_ey_target(
+                self.hang_approach_depth, self.cam_front_dz, self.hook_z,
+                dist_fwd, self.cam_vfov_half_tan, self.hook_ey_max)
+            cmd = hook_servo(off, self.vx, self.vy, self.hook_depth,
+                             self.hook_gains, ey_target=ey_tgt)
             # Depth TETAP di kedalaman approach (di atas tip) — koreksi depth
-            # hook_servo (hook_depth + kp*ey, bisa sampai +0.20 m) dulu bikin
+            # hook_servo (hook_depth + kp*(ey-ey_tgt), bisa sampai +0.20 m) dulu bikin
             # ROV menyelam melewati titik berhenti plat dan macet di bawah
             # hook. Descent dilakukan TERKONTROL di AUTO_RELEASE fase 2 (dgn
             # stall detector), sama seperti HANG. cmd.target_depth diabaikan;
@@ -1281,11 +1299,8 @@ class MissionFSM(Node):
             self._set_depth(self.hang_approach_depth)
             # Sudah dekat tapi belum terpusat: stop maju, koreksi lateral saja.
             self._set_surge(0.0 if cmd.near else cmd.surge, cmd.sway)
-            # Gate "terpusat" hanya pakai ex (lateral). ey sengaja TIDAK nol:
-            # plat ditahan DI ATAS puncak tip (hang_approach_depth), jadi hook
-            # selalu tampak di bawah pusat frame — kalau ey ikut di-gate,
-            # APPROACH_HOOK tak pernah lolos (timeout -> AUTO_RELEASE).
-            aligned_ok = abs(off[0]) < self.hook_gains.center_tol
+            aligned_ok = (abs(off[0]) < self.hook_gains.center_tol
+                          and abs(off[1] - ey_tgt) < self.hook_gains.center_tol)
             if cmd.near and aligned_ok:
                 if self._hold_since is None:
                     self._hold_since = self._now()
@@ -1316,9 +1331,13 @@ class MissionFSM(Node):
                 return
 
         if int(self._elapsed() * 2) % 20 == 0:
+            ey_tgt_dbg = hook_ey_target(
+                self.hang_approach_depth, self.cam_front_dz, self.hook_z,
+                max(0.5, dist_fwd if off is not None else 0.8),
+                self.cam_vfov_half_tan, self.hook_ey_max) if 'dist_fwd' in locals() else 0.0
             self.get_logger().info(
-                'APPROACH_HOOK dbg: off=%s depth=%.2f'
-                % (off, self.depth if self.depth is not None else -99.0))
+                'APPROACH_HOOK dbg: off=%s ey_tgt=%+.2f depth=%.2f'
+                % (off, ey_tgt_dbg, self.depth if self.depth is not None else -99.0))
         if self._elapsed() > self.T['approach']:
             # Jangan abort: AUTO_RELEASE punya station-keep sendiri sebelum detach.
             self.get_logger().warn('APPROACH_HOOK timeout -> lanjut AUTO_RELEASE')

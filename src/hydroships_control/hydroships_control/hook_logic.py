@@ -68,7 +68,28 @@ def update_dwell(ok, now, hold_since, bad_since, settle_s, grace_s):
     return DwellState(hold_since, bad_since, done)
 
 
-def hook_servo(off, vx, vy, hook_depth, gains):
+def hook_ey_target(depth, cam_front_dz, hook_z, dist_forward,
+                   cam_vfov_half_tan, ey_max):
+    """ey ternormalisasi tempat hook HARUS tampak di kamera depan (konvensi
+    hook_detector: ey>0 = hook di BAWAH pusat).
+
+    Kamera depan di z_cam = -depth + cam_front_dz (cam_front_dz dari URDF,
+    0 di xacro hydroships.urdf). Hook di hook_z (pusat tip, arena sdf -0.39).
+    Jarak forward ke hook = dist_forward (>0). Sudut vertikal ke hook:
+        alpha = atan( (hook_z - z_cam) / dist_forward )  (<0 bila di bawah)
+    Proyeksi ke frame: ey = -tan(alpha)/tan(vfov/2) — negatif alpha -> ey positif.
+
+    Di-clamp ke +-ey_max biar tetap di dalam frame (1.0 = tepi)."""
+    z_cam = -float(depth) + float(cam_front_dz)
+    dz = float(hook_z) - z_cam
+    df = max(0.2, float(dist_forward))
+    vf = max(1e-3, float(cam_vfov_half_tan))
+    ey = -(dz / df) / vf
+    lo, hi = -float(ey_max), float(ey_max)
+    return lo if ey < lo else (hi if ey > hi else ey)
+
+
+def hook_servo(off, vx, vy, hook_depth, gains, ey_target=0.0):
     """PD visual servo hook -> perintah gerak (fungsi MURNI, testable).
 
     Args:
@@ -77,13 +98,15 @@ def hook_servo(off, vx, vy, hook_depth, gains):
         vx, vy     : kecepatan body-frame (surge/sway) dari odom, utk redaman.
         hook_depth : kedalaman dasar hook (m, positif) — pusat rentang setpoint.
         gains      : HookServoGains.
+        ey_target  : ey ideal dimana hook harus tampak (dari hook_ey_target).
+                     0 = kompat lama (hook di pusat frame).
     Returns HookServoCmd(surge, sway, target_depth, aligned, near):
         surge       : gaya maju body +x (N). + = maju (hook terlalu jauh).
         sway        : gaya lateral body +y (N). Body +y = KIRI, jadi hook di kanan
                       (ex>0) -> sway negatif (geser kanan).
-        target_depth: setpoint kedalaman (m, positif) = hook_depth + koreksi(ey),
-                      di-clamp ke ±depth_range.
-        aligned     : True bila |ex| & |ey| < center_tol (terpusat).
+        target_depth: setpoint kedalaman (m, positif) = hook_depth + koreksi(ey - ey_target),
+                      di-clamp ke +-depth_range. Di posisi ideal ey==ey_target -> 0.
+        aligned     : True bila |ex|<center_tol & |ey - ey_target|<center_tol.
         near        : True bila size >= size_stop (cukup dekat utk transisi).
     """
     ex, ey, size = float(off[0]), float(off[1]), float(off[2])
@@ -100,8 +123,8 @@ def hook_servo(off, vx, vy, hook_depth, gains):
     surge = _clamp(g.kp_surge * e_size * size_taper * align_taper - g.kd_surge * vx,
                     -g.fmax, g.fmax)
     sway = _clamp(-g.kp_sway * ex - g.kd_sway * vy, -g.fmax, g.fmax)
-    d_depth = _clamp(g.kp_depth * ey, -g.depth_range, g.depth_range)
+    d_depth = _clamp(g.kp_depth * (ey - ey_target), -g.depth_range, g.depth_range)
     target_depth = hook_depth + d_depth
-    aligned = abs(ex) < g.center_tol and abs(ey) < g.center_tol
+    aligned = abs(ex) < g.center_tol and abs(ey - ey_target) < g.center_tol
     near = size >= g.size_stop
     return HookServoCmd(surge, sway, target_depth, aligned, near)
