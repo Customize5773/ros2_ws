@@ -24,4 +24,12 @@ install(
   RENAME validate_grab_lift
 )
 
+# Ukur pose payload saat menggantung setelah AUTO_RELEASE (diagnostik hang
+# accuracy). 'ros2 run hydroships_gazebo measure_hang_pose' bareng mission.
+install(
+  PROGRAMS scripts/measure_hang_pose.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME measure_hang_pose
+)
+
 ament_package()

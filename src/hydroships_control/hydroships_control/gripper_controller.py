@@ -25,7 +25,9 @@ from rclpy.node import Node
 from rclpy.qos import QoSDurabilityPolicy, QoSProfile
 from std_msgs.msg import String, Float64, Empty
 from geometry_msgs.msg import PointStamped
-
+from nav_msgs.msg import Odometry
+import subprocess
+import math
 from hydroships_control.gripper_logic import GripperLogic
 # Geometri yang SAMA dipakai mission_fsm untuk membidik APPROACH_QR. Wajib satu
 # sumber: kalau gerbang attach di sini dan kriteria centering FSM memakai acuan
@@ -38,7 +40,7 @@ class GripperController(Node):
         super().__init__('gripper_controller')
         p = self.declare_parameter
         p('max_offset', 0.30)       # |offset x/y| maks agar "di atas payload"
-        p('min_size', 0.12)         # ukuran-tampak QR min (proxy dekat)
+        p('min_size', 0.06)         # ukuran-tampak QR min (proxy dekat); QR fisik 0.06 m
         p('offset_timeout', 1.5)    # umur maks qr_offset (s)
         # Gerbang fisik M5-D (docs/STATUS.md): tolak attach kalau gripper masih
         # jauh di atas lantai QR — DetachableJoint mengelas pada pose saat itu,
@@ -92,10 +94,16 @@ class GripperController(Node):
         self.pub_jaw_right = self.create_publisher(Float64, '/hydroships/gripper_right/cmd', 10)
         self.pub_attach = self.create_publisher(Empty, '/hydroships/gripper/attach', 10)
         self.pub_detach = self.create_publisher(Empty, '/hydroships/gripper/detach', 10)
-        self.pub_status = self.create_publisher(String, '/hydroships/gripper/status', 10)
+        # Status attach (open/closed) utk verifikasi GRAB oleh mission_fsm —
+        # FSM tak boleh terbang dengan payload TIDAK ter-attach.
+        self.pub_state = self.create_publisher(String, '/hydroships/gripper/state', 10)
         self.create_subscription(String, '/hydroships/gripper/command', self._on_cmd, 10)
         self.create_subscription(PointStamped, '/hydroships/qr_offset', self._on_offset, 10)
-        self.create_subscription(Float64, '/hydroships/depth', self._on_depth, 10)
+        self.create_subscription(Odometry, '/hydroships/odom', self._on_odom, 10)
+        self._rov_pose = None  # (x, y, z, qx, qy, qz, qw)
+        # local xyz gripper_base relatif base_link — harus sama dgn origin
+        # gripper_base_joint di hydroships.urdf.xacro (0.18 0 -0.13).
+        self._gripper_offset = (0.18, 0.0, -0.13)
 
         # Terbitkan target jari berkala (2 Hz) agar tak hilang bila bridge/gz belum
         # siap saat publish awal — sama pola gripper lama.
@@ -120,17 +128,14 @@ class GripperController(Node):
         return self.get_clock().now().nanoseconds * 1e-9
 
     def _on_offset(self, msg: PointStamped):
-        # qr_detector menerbitkan KEDUA kamera ke topic yang sama, dibedakan
-        # hanya lewat frame_id. Gerbang keamanan attach harus dinilai dari
-        # kamera BAWAH: gripper_base sejajar pandangan kamera bawah (offset
-        # tetap cam_gripper_dx=0.16 m, yang sudah dikoreksi mission_fsm), dan
-        # mission_fsm juga memfilter ke frame yang sama (mission_fsm.py:466).
-        # Tanpa filter ini, gerbang dinilai dari kamera mana pun yang kebetulan
-        # terbit terakhir — biasanya kamera depan, yang melihat payload dengan
-        # sudut lebar (terukur ex=0.90 ey=0.75 saat ROV justru terpusat rapi,
-        # gripper_err=0.032 m) sehingga is_safe() selalu False dan attach tak
-        # pernah terpicu. Lihat docs/STATUS.md M5.
-        if msg.header.frame_id != self.offset_frame:
+        # Hanya sinyal SINTETIK dari mission_fsm (frame_id 'synthetic') yang
+        # dipakai gate is_safe. Sinyal asli kamera bawah (camera_bottom_link)
+        # TIDAK PERNAH lolos gate: desain ey_target (-0.61) membuat |ey| >
+        # max_offset (0.30), dan QUIRC tak terpasang — sinyal asli hanya
+        # menimpa sinyal sintetik sehingga attach jadi acak ("kadang tidak
+        # kegrab"). TODO: setelah QUIRC terpasang & ey_target dipertimbangkan,
+        # perbaiki gate dan hidupkan lagi sinyal asli.
+        if msg.header.frame_id != 'synthetic':
             return
         stamp = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
         # Bila stamp kosong (0), pakai jam node agar tetap dianggap segar.
@@ -150,6 +155,11 @@ class GripperController(Node):
         self.logic.update_altitude(
             abs(self.qr_floor_z) - abs(self._depth) - self.gripper_bottom_dz)
 
+    def _publish_state(self):
+        m = String()
+        m.data = 'closed' if self.logic.attached else 'open'
+        self.pub_state.publish(m)
+
     def _apply_jaw(self):
         # Nilai sama untuk kedua jari: arah tutup dibedakan oleh tanda axis di URDF.
         m = Float64(); m.data = float(self.logic.jaw_target)
@@ -157,9 +167,21 @@ class GripperController(Node):
         self.pub_jaw_right.publish(m)
 
     def _on_payload_spawned(self, _msg: Empty):
-        # Payload sudah muncul di dunia (dari payload_spawner) -> lepas attach bawaan
-        # gz sekarang, dgn urutan benar (payload ada dulu, baru detach).
-        self._do_startup_detach('payload spawn terdeteksi')
+        # SETIAP payload baru muncul di dunia (spawn awal & payload ke-2 dst dari
+        # multi-payload) -> lepas attach bawaan gz Fortress (selalu auto-attach saat
+        # model load). Tanpa ini payload ke-2 langsung nempel & ROV terjangkar.
+        try:
+            self._startup_timer.cancel()
+        except Exception:
+            pass
+        self._did_startup_detach = True
+        action = self.logic.startup_detach()
+        self._apply_jaw()
+        self.pub_detach.publish(Empty())
+        self._publish_state()
+        self.get_logger().info('gripper %s: %s [pemicu: %s]'
+                               % (action['state'], action['reason'],
+                                  'payload spawn terdeteksi'))
 
     def _startup_detach_fallback(self):
         # Jaring pengaman: bila topik spawned tak pernah tiba (spawner tak jalan),
@@ -179,8 +201,65 @@ class GripperController(Node):
         action = self.logic.startup_detach()
         self._apply_jaw()
         self.pub_detach.publish(Empty())
+        self._publish_state()
         self.get_logger().info('gripper %s: %s [pemicu: %s]'
                                % (action['state'], action['reason'], trigger))
+
+    def _on_odom(self, msg: Odometry):
+        p = msg.pose.pose.position
+        q = msg.pose.pose.orientation
+        self._rov_pose = (p.x, p.y, p.z, q.x, q.y, q.z, q.w)
+
+    @staticmethod
+    def _quat_mult(q1, q2):
+        """Perkalian quaternion (w,x,y,z) — utk orientasi payload saat teleport."""
+        w1, x1, y1, z1 = q1
+        w2, x2, y2, z2 = q2
+        return (w1*w2 - x1*x2 - y1*y2 - z1*z2,
+                w1*x2 + x1*w2 + y1*z2 - z1*y2,
+                w1*y2 - x1*z2 + y1*w2 + z1*x2,
+                w1*z2 + x1*y2 - y1*x2 + z1*w2)
+
+    def _teleport_payload_to_gripper(self):
+        """Pindahkan payload ke posisi gripper_base (dunia) via gz set_pose
+        service, tepat sebelum attach — DetachableJoint tak menggeser posisi,
+        cuma bikin sambungan kaku di pose SAAT INI, jadi payload harus sudah
+        di situ dulu."""
+        if self._rov_pose is None:
+            self.get_logger().warn('teleport payload gagal: odom belum ada')
+            return
+        x, y, z, qx, qy, qz, qw = self._rov_pose
+        ox, oy, oz = self._gripper_offset
+        ww, xx, yy, zz = qw*qw, qx*qx, qy*qy, qz*qz
+        wx, wy, wz = qw*qx, qw*qy, qw*qz
+        xy, xz, yz = qx*qy, qx*qz, qy*qz
+        dx = (ww+xx-yy-zz)*ox + 2*(xy-wz)*oy + 2*(xz+wy)*oz
+        dy = 2*(xy+wz)*ox + (ww-xx+yy-zz)*oy + 2*(yz-wx)*oz
+        dz = 2*(xz-wy)*ox + 2*(yz+wx)*oy + (ww-xx-yy+zz)*oz
+        tx, ty, tz = x+dx, y+dy, z+dz
+        # Orientasi payload = q_rov * q_carry. q_carry = rotasi 120° sekitar
+        # sumbu (1,1,1): memetakan sumbu MESH plat -> sumbu BODY ROV sbb:
+        #   panjang plat (mesh Z) -> +x ROV (DI DEPAN gripper),
+        #   QR (mesh +Y)         -> +z ROV (menghadap ATAS, terbaca kamera bawah),
+        #   tebal plat (mesh X)  -> +y ROV (samping),
+        #   lubang (sumbu mesh Y) -> VERTIKAL (bisa digantung di tip hook).
+        # Tanpa koreksi ini payload ikut orientasi ROV -> dibawa miring/samping.
+        cw, cx, cy, cz = self._quat_mult(
+            (qw, qx, qy, qz), (0.5, 0.5, 0.5, 0.5))
+        req = ('name: "payload" position: {x: %f y: %f z: %f} '
+               'orientation: {x: %f y: %f z: %f w: %f}'
+               % (tx, ty, tz, cx, cy, cz, cw))
+        try:
+            subprocess.run(
+                ['ign', 'service', '-s', '/world/kki_arena/set_pose',
+                 '--reqtype', 'ignition.msgs.Pose',
+                 '--reptype', 'ignition.msgs.Boolean',
+                 '--timeout', '300', '--req', req],
+                capture_output=True, text=True, timeout=2.0)
+            self.get_logger().info(
+                'payload teleport ke gripper: (%.3f, %.3f, %.3f)' % (tx, ty, tz))
+        except Exception as e:
+            self.get_logger().warn('teleport payload exception: %s' % e)
 
     def _on_cmd(self, msg: String):
         now = self._now()
@@ -216,16 +295,16 @@ class GripperController(Node):
             return
         self._apply_jaw()
         if action['joint'] == 'attach':
+            # DetachableJoint mengunci payload di pose relatif SAAT attach —
+            # tak menggeser posisi. Pindahkan payload ke gripper_base dulu
+            # (via gz set_pose) supaya payload nempel TEPAT di depan gripper
+            # dan tak menggantung miring / bikin ROV trim.
+            self._teleport_payload_to_gripper()
             self.pub_attach.publish(Empty())
             status = 'attached'
         elif action['joint'] == 'detach':
             self.pub_detach.publish(Empty())
-            status = 'detached'
-        elif self.logic.attached:
-            status = 'attached'      # close saat sudah ter-attach: no-op tapi tetap attached
-        else:
-            status = 'rejected' if action['state'] == 'closed' else 'detached'
-        self.pub_status.publish(String(data=status))
+        self._publish_state()
         self.get_logger().info('gripper %s: %s' % (action['state'], action['reason']))
 
 

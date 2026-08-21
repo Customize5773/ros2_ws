@@ -131,8 +131,10 @@ def robust_decode(img, detector, debug_info=None):
             continue
         has_pts = pts is not None and len(pts) > 0
         if has_pts and best_pts is None:
-            best_pts = np.asarray(pts, dtype=float).reshape(-1, 2) / s
-            first_pts_idx, first_pts_name = idx, name
+            cand_pts = np.asarray(pts, dtype=float).reshape(-1, 2) / s
+            if _quiet_zone_ok(_to_gray(img), cand_pts):
+                best_pts = cand_pts
+                first_pts_idx, first_pts_name = idx, name
         if data:
             p = np.asarray(pts, dtype=float).reshape(-1, 2) / s if has_pts else best_pts
             if debug_info is not None:
@@ -149,6 +151,31 @@ def robust_decode(img, detector, debug_info=None):
         debug_info['first_pts_candidate_name'] = first_pts_name
         debug_info['n_candidates_tried'] = idx + 1
     return '', best_pts
+
+
+def _quiet_zone_ok(gray, pts):
+    """True bila ring sempit di luar quad QR dominan terang (quiet zone putih).
+
+    Nyaring false positive korner-QR: siluet hook/tembok/bayangan memberi corner
+    palsu tanpa quiet zone (terukur di run 2026-08-18: "QR besar" di hook 2 yg
+    bukan payload). Ring dipilih [0.98, 1.15] * r0 agar TETAP berada di dalam
+    bidang putih payload (plane 0.12 m > QR 0.06 m -> tepi ~1.41*r0); kalau
+    ring menyentuh lantai gelap, QR asli ikut tertolak. Relatif thd kecerahan
+    dalam quad (bukan ambang absolut) agar kebal variasi pencahayaan sim.
+    """
+    if gray is None or pts is None or len(pts) < 4:
+        return False
+    q = np.asarray(pts, dtype=float).reshape(-1, 2)
+    cx, cy = q.mean(axis=0)
+    r0 = max(1e-3, float(np.mean(np.linalg.norm(q - [cx, cy], axis=1))))
+    h, w = gray.shape[:2]
+    xs, ys = np.meshgrid(np.arange(w, dtype=float), np.arange(h, dtype=float))
+    d = np.hypot(xs - cx, ys - cy)
+    ring = gray[(d >= 0.98 * r0) & (d <= 1.15 * r0)]
+    inner = gray[d < 0.55 * r0]
+    if ring.size == 0 or inner.size == 0:
+        return False
+    return float(ring.mean()) > 1.25 * float(inner.mean())
 
 
 def offset_from_points(pts, shape):

@@ -10,13 +10,12 @@ import os
 import random
 import subprocess
 import tempfile
-import time
 
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSDurabilityPolicy, QoSProfile
 from geometry_msgs.msg import PointStamped
-from std_msgs.msg import Empty, String
+from std_msgs.msg import Empty
 
 
 # Template SDF payload — SAMA PERSIS dgn definisi 'payload' di
@@ -31,40 +30,18 @@ PAYLOAD_SDF_TEMPLATE = '''<?xml version="1.0"?>
       <inertial>
         <mass>0.3</mass>
         <inertia>
-          <ixx>2.51e-4</ixx><iyy>3.13e-4</iyy><izz>6.34e-5</izz>
+          <ixx>2.5e-3</ixx><iyy>3.13e-4</iyy><izz>1.05e-4</izz>
           <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
         </inertia>
       </inertial>
-      <!-- Kolisi plat (frame LINK; saat dibawa: link x=samping, y=tebal/vertikal,
-           z=memanjang ke depan):
-           - body_collision : badan plat di BELAKANG lubang, top di bawah lingkaran
-             tip (z 0.0808) supaya tip tak mentok badan.
-           - slot_*         : dua sayap di sisi lubang (z 0.0865..0.10) — lorong
-             tip menembus plat di sini.
-           - bar_collision  : ekstensi PEKAT di DEPAN lubang (z 0.11..0.17) yang
-             bersandar di palang bawah hook saat plat turun (palang hook di
-             x +-0.0125, jadi butuh material padat di sana — sayap di x +-0.035
-             saja TIDAK menyentuh palang dan plat jatuh menembus hook).
-           Tip (silinder tegak r=0.0125 di lubang) menembus lewat celah
-           z 0.075..0.11 (bawah body & atas bar_collision kosong) dan lorong
-           slot, lalu plat bersandar stabil di palang. -->
       <collision name="body_collision">
-        <pose>0 0.004 0.0325 0 0 0</pose>
-        <geometry><box><size>0.05 0.02 0.065</size></box></geometry>
+        <geometry><box><size>0.05 0.006 0.10</size></box></geometry>
       </collision>
-      <collision name="slot_left_collision">
-        <pose>-0.045 -0.003 0.09325 0 0 0</pose>
-        <geometry><box><size>0.008 0.006 0.0135</size></box></geometry>
+      <collision name="hole_ring_collision">
+        <pose>0 0 0.029 1.5708 0 0</pose>
+        <geometry><cylinder><radius>0.015</radius><length>0.006</length></cylinder></geometry>
       </collision>
-      <collision name="slot_right_collision">
-        <pose>0.045 -0.003 0.09325 0 0 0</pose>
-        <geometry><box><size>0.008 0.006 0.0135</size></box></geometry>
-      </collision>
-      <collision name="bar_collision">
-        <pose>0 0.004 0.1275 0 0 0</pose>
-        <geometry><box><size>0.05 0.02 0.025</size></box></geometry>
-      </collision>
-      <visual name="body_{vsuf}">
+      <visual name="body">
         <geometry>
           <mesh><uri>model://hydroships_gazebo/media/payload_body.obj</uri></mesh>
         </geometry>
@@ -73,9 +50,9 @@ PAYLOAD_SDF_TEMPLATE = '''<?xml version="1.0"?>
           <diffuse>0.82 0.83 0.86 1</diffuse>
         </material>
       </visual>
-      <visual name="qr_quiet_zone_{vsuf}">
+      <visual name="qr_quiet_zone">
         <pose>0 0.0006 0.04 0 0 0</pose>
-        <geometry><plane><normal>0 1 0</normal><size>0.12 0.12</size></plane></geometry>
+        <geometry><plane><normal>0 1 0</normal><size>0.16 0.16</size></plane></geometry>
         <material>
           <ambient>1 1 1 1</ambient>
           <diffuse>1 1 1 1</diffuse>
@@ -83,9 +60,9 @@ PAYLOAD_SDF_TEMPLATE = '''<?xml version="1.0"?>
           <emissive>1 1 1 1</emissive>
         </material>
       </visual>
-      <visual name="qr_{vsuf}">
+      <visual name="qr">
         <pose>0 0.0012 0.04 0 0 0</pose>
-        <geometry><plane><normal>0 1 0</normal><size>0.06 0.06</size></plane></geometry>
+        <geometry><plane><normal>0 1 0</normal><size>0.12 0.12</size></plane></geometry>
         <material>
           <diffuse>1 1 1 1</diffuse>
           <specular>0 0 0 1</specular>
@@ -100,10 +77,30 @@ PAYLOAD_SDF_TEMPLATE = '''<?xml version="1.0"?>
         </material>
       </visual>
       <velocity_decay>
-        <linear>1.0</linear>
-        <angular>1.0</angular>
+        <linear>0.3</linear>
+        <angular>0.3</angular>
       </velocity_decay>
     </link>
+    <plugin filename="ignition-gazebo-buoyancy-system"
+            name="ignition::gazebo::systems::Buoyancy">
+      <uniform_fluid_density>1000</uniform_fluid_density>
+    </plugin>
+    <plugin filename="ignition-gazebo-hydrodynamics-system"
+            name="ignition::gazebo::systems::Hydrodynamics">
+      <link_name>payload_link</link_name>
+      <xDotU>-0.5</xDotU><yDotV>-0.5</yDotV><zDotW>-0.5</zDotW>
+      <xU>-2.0</xU><xUabsU>-4.0</xUabsU>
+      <yV>-2.0</yV><yVabsV>-4.0</yVabsV>
+      <zW>-2.0</zW><zWabsW>-4.0</zWabsW>
+    </plugin>
+    <plugin filename="ignition-gazebo-detachable-joint-system"
+            name="ignition::gazebo::systems::DetachableJoint">
+      <parent_link>payload_link</parent_link>
+      <child_model>hydroships</child_model>
+      <child_link>base_link</child_link>
+      <detach_topic>/hydroships/gripper/detach</detach_topic>
+      <attach_topic>/hydroships/gripper/attach</attach_topic>
+    </plugin>
   </model>
 </sdf>
 '''
@@ -116,7 +113,7 @@ class PayloadSpawner(Node):
         p('qr_letter', '')          # '' = random A/B/C/D
         p('payload_x', 0.4)         # m
         p('payload_y', 0.04)        # m
-        p('payload_z', -0.90)       # m (tepat di lantai kolam, top floor z=-0.90)
+        p('payload_z', -0.894)      # m (di dasar kolam)
         p('spawn_delay', 4.0)       # s setelah node start (tunggu sim siap)
         p('randomize_pos', True)    # random posisi saat qr_letter kosong
         p('arena_x_min', 0.2)
@@ -134,59 +131,21 @@ class PayloadSpawner(Node):
         self.pub_spawned = self.create_publisher(Empty, '/hydroships/payload/spawned', qos)
         self._spawn_delay = float(self.get_parameter('spawn_delay').value)
         self._t0 = self._now()
-        self._spawned_initial = False
+        self._done = False
         self._pose = None           # (x, y, z) hasil spawn utk republish periodik
-        # Sufiks nama VISUAL per spawn. Nama model/link harus tetap 'payload' /
-        # 'payload_link' (DetachableJoint), tapi gz-sim Fortress CRASH (segfault
-        # di render/sensors scene — "Another item already exists with name:
-        # payload::payload_link::qr_quiet_zone_geom") bila model kedua dgn nama
-        # visual SAMA dibuat sebelum scene render menghapus visual model lama.
-        # Sufiks unik per spawn menghindari konflik nama itu sepenuhnya.
-        self._spawn_seq = 0
-        # Multi-payload: mission_fsm meminta payload BARU utk wall berikutnya
-        # (std_msgs/String = huruf QR, mis. "D") setelah 1 hook selesai.
-        self.create_subscription(String, '/hydroships/payload/spawn_next',
-                                 self._on_spawn_next, 10)
         self.create_timer(0.5, self._tick)
         self.get_logger().info('payload_spawner siap (spawn dalam %.1fs)' % self._spawn_delay)
 
     def _now(self):
         return self.get_clock().now().nanoseconds * 1e-9
 
-    def _on_spawn_next(self, msg: String):
-        """Permintaan payload baru dari mission_fsm setelah 1 wall selesai.
-        Buang payload lama (masih ada di dunia, nama model harus tetap 'payload'
-        utk DetachableJoint) lalu spawn yg baru dgn huruf QR dari FSM."""
-        letter = (msg.data or '').strip().upper()
-        if letter not in ('A', 'B', 'C', 'D'):
-            letter = random.choice(['A', 'B', 'C', 'D'])
-        self.get_logger().info('Spawn payload BARU utk siklus berikutnya (QR=%s)' % letter)
-        self._remove_payload()
-        # Kasih waktu render/sensors scene menghapus visual model lama sebelum
-        # spawn model baru (lihat catatan _spawn_seq). Tanpa jeda ini, walau
-        # nama visual sudah unik, ada jendela di mana dua payload ada serentak.
-        time.sleep(1.0)
-        self._spawn(letter)
-
-    def _remove_payload(self):
-        """Hapus model 'payload' lama dari dunia (kalau masih ada) via service
-        /world/kki_arena/remove. Gagal/tak ada -> non-fatal."""
-        try:
-            subprocess.run(
-                ['ign', 'service', '-s', '/world/kki_arena/remove',
-                 '--reqtype', 'ignition.msgs.Entity',
-                 '--reptype', 'ignition.msgs.Boolean',
-                 '--timeout', '5000', '--req', 'name: "payload" type: MODEL'],
-                capture_output=True, text=True, timeout=10.0)
-            self.get_logger().info('Payload lama dihapus dari dunia')
-        except Exception as e:  # noqa: BLE001
-            self.get_logger().warn('remove payload lama gagal (non-fatal): %s' % e)
-
-    def _spawn(self, letter=None):
+    def _spawn(self):
+        if self._done:
+            return
+        self._done = True
         g = lambda n: self.get_parameter(n).value
 
-        if letter is None:
-            letter = str(g('qr_letter')).strip().upper()
+        letter = str(g('qr_letter')).strip().upper()
         random_letter = letter not in ('A', 'B', 'C', 'D')
         if random_letter:
             letter = random.choice(['A', 'B', 'C', 'D'])
@@ -207,9 +166,7 @@ class PayloadSpawner(Node):
         self._pose = (float(x), float(y), float(z))
         self._publish_pose()
 
-        self._spawn_seq += 1
-        sdf = PAYLOAD_SDF_TEMPLATE.format(x=x, y=y, z=z, letter=letter,
-                                          vsuf=self._spawn_seq)
+        sdf = PAYLOAD_SDF_TEMPLATE.format(x=x, y=y, z=z, letter=letter)
         tmp = None
         spawned_ok = False
         try:
@@ -258,9 +215,8 @@ class PayloadSpawner(Node):
         self.pub_pose.publish(ps)
 
     def _tick(self):
-        if not self._spawned_initial:
+        if not self._done:
             if (self._now() - self._t0) >= self._spawn_delay:
-                self._spawned_initial = True
                 self._spawn()
         else:
             # Republish periodik (di atas latching) sbg jaring pengaman late-join.
