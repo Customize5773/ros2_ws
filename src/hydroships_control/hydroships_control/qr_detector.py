@@ -45,6 +45,7 @@ from geometry_msgs.msg import PointStamped
 
 from hydroships_control.qr_logic import (
     robust_decode, parse_wall, offset_from_points, load_calibration_yaml,
+    undistort_image,
 )
 from hydroships_control.image_util import image_msg_to_bgr
 
@@ -81,9 +82,9 @@ class QRDetector(Node):
         # FOV/resolusi SDF — BUKAN kalibrasi kamera fisik ROV. Disimpan agar konsumen
         # visual-servo bisa memakainya, TAPI jangan untuk estimasi jarak riil sampai
         # kalibrasi hardware tersedia (lihat PROBLEM.md / docs/ARCHITECTURE.md).
-        self.K = {}                # frame_id -> 3x3 K matrix (numpy) atau None
+        self.K = {}                # frame_id -> dict {'K','dist','image_size','rms'} atau None
         # M3: kalau file kalibrasi hardware diberi, muat & KUNCI frame itu supaya
-        # camera_info sim (subscription di bawah) tidak menimpanya (lihat
+        # camera_info sim (subscripti di bawah) tidak menimpanya (lihat
         # _on_caminfo: hanya set K bila belum ada).
         self._calib_locked = set()
         for frame, path in (('camera_bottom_link', self.get_parameter('calib_file_bottom').value),
@@ -91,10 +92,19 @@ class QRDetector(Node):
             if not path:
                 continue
             try:
-                self.K[frame] = load_calibration_yaml(path)
+                cal = load_calibration_yaml(path)
+                self.K[frame] = cal
                 self._calib_locked.add(frame)
-                self.get_logger().info(
-                    'kalibrasi HARDWARE dimuat utk %s dari %s' % (frame, path))
+                rms = cal.get('rms')
+                rms_str = 'rms=%.3f px' % rms if rms is not None else 'rms n/a'
+                if rms is not None and rms > 1.0:
+                    self.get_logger().warn(
+                        'kalibrasi HARDWARE %s dari %s — %s (coarse, '
+                        'perlu rekalibrasi)' % (frame, path, rms_str))
+                else:
+                    self.get_logger().info(
+                        'kalibrasi HARDWARE dimuat utk %s dari %s (%s)'
+                        % (frame, path, rms_str))
             except Exception as e:
                 self.get_logger().error(
                     'gagal muat kalibrasi %s dari %s: %s' % (frame, path, e))
@@ -125,7 +135,7 @@ class QRDetector(Node):
         if frame in self._calib_locked or self.K.get(frame) is not None:
             return
         k = np.asarray(msg.k, dtype=float).reshape(3, 3)
-        self.K[frame] = k
+        self.K[frame] = {'K': k, 'dist': None, 'image_size': (msg.width, msg.height), 'rms': None}
         self.get_logger().info(
             'camera_info %s: fx=%.1f fy=%.1f cx=%.1f cy=%.1f (%dx%d) '
             '[intrinsics SIM, bukan kalibrasi hardware]'
@@ -158,6 +168,9 @@ class QRDetector(Node):
         img = self._to_cv(msg)
         if img is None:
             return
+        cal = self.K.get(self._frame_of(topic))
+        if cal and cal.get('dist') is not None and np.any(cal['dist']):
+            img = undistort_image(img, cal['K'], cal['dist'], cal.get('image_size'))
         # Decode berjenjang (mentah -> CLAHE -> adaptive-threshold -> upscale).
         # P0-2.6 instrumentasi (approved, observability only): debug_info diisi
         # robust_decode() dgn kandidat preprocessing mana yg menang/pertama

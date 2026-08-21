@@ -939,3 +939,272 @@ Runtime verification R-11 (`P1-OWNER-DECISIONS-AND-ROADMAP.md` §5) — fix Opsi
   dipercaya penuh (ack `gripper/status` tak selalu bisa dipercaya tanpa
   silang-cek log mentah `gripper_controller`). Log mentah:
   `/tmp/r11-replay/R11-{3002-pinned-replay,4001,4002,4003}.log`.
+
+## 2026-08-16 — R-10 & R-12 re-investigasi
+
+Dua temuan dari investigasi terpisah sebelumnya dinilai ulang; keduanya
+menurunkan tingkat kepercayaan status yang sudah tercatat, tanpa perubahan
+kode.
+
+- **R-10 (caveat pada status "DITUTUP 2026-08-15"):** re-run seed 3001
+  dengan kondisi identik (spawn/param sama seperti battery 6-seed × 2-tol
+  yang menutup R-10) menghasilkan `alt_gap` berbeda jauh antar run (-0.001 vs
+  +0.015/+0.018). Ini membuktikan variasi run-to-run yang nyata, bukan noise
+  pengukuran — `spawn_seed` hanya nge-seed pose spawn awal, bukan timing
+  fisika (kontak, integrasi solver, dsb). Klaim battery 6-seed "`alt_gap`
+  selalu 0.010–0.047 m, tidak ada negatif" tetap valid sebagai hasil 12 run
+  yang sudah dijalankan, tapi **tidak boleh dibaca sebagai jaminan
+  run-to-run stabil** untuk seed manapun — margin ke `max_alt_gap=0.12` bisa
+  jadi lebih tipis dari yang battery tunjukkan pada re-run berikutnya. Status
+  R-10 di `P1-OWNER-DECISIONS-AND-ROADMAP.md` tetap DITUTUP (root cause margin
+  5–7mm sudah stale) tapi kini dengan caveat ini ditambahkan ke sel
+  kesimpulan. Lihat catatan seed-3001 anomaly lama (battery
+  descend_depth_tol sebelum/sesudah) yang sudah pernah menyinggung isu serupa
+  sebelum battery 6-seed menimpanya tanpa rekonsiliasi eksplisit.
+- **R-12 (anomali ack `gripper_controller` vs `mission_fsm`, tidak
+  reproduksi):** re-run dengan `ros2 bag record` (log terurut per-topik,
+  bukan stdout interleaved antar-node) **tidak mereproduksi** anomali ack
+  yang dicatat di `R11-3002-pinned-replay` (13ms gap 'attached' vs 'rejected'
+  read dari log). Kemungkinan besar penyebab asli adalah salah baca log
+  stdout yang interleaved, bukan bug nyata di jalur publish/subscribe
+  `gripper/status`. Status R-12 diturunkan dari "temuan baru, belum
+  dijelaskan" ke **unconfirmed / tak reproduksi** di
+  `P1-OWNER-DECISIONS-AND-ROADMAP.md` (baris R-11) dan `docs/STATUS.md`.
+
+## 2026-08-16 (lanjutan) — P1 reliability: APPROACH_HOOK dwell debounce + R-10 seed-variance battery n=15
+
+Dua item P1 reliability dari caveat sesi sebelumnya ditindaklanjuti.
+
+- **APPROACH_HOOK dwell debounce (kode):** akar penyebab "keluar lewat
+  fallback timeout, bukan konvergensi asli" (dicatat STATUS.md M6) BUKAN
+  bug wiring — `hook_servo()`/topic/frame_id semua benar. Penyebabnya
+  `_st_approach_hook` me-reset timer dwell 2s (`_hold_since = None`) pada
+  **satu tick manapun** yang gagal `near and aligned`, sementara deteksi
+  hook diketahui berosilasi (`ex`/`size`), jadi dwell nyaris tak pernah
+  bertahan 2s utuh. Fix: helper murni baru `hook_logic.update_dwell()`
+  (dwell + debounce — tick buruk tak langsung reset, baru reset kalau
+  bertahan >= `hook_settle_grace_s`, param baru default 0.4s) dipakai di
+  kedua cabang `_st_approach_hook` (servo visual & fallback odometri).
+  Test baru `test_dwell_*` (3 test) di `test_hook_servo.py`. Gain/threshold
+  `hook_servo` (`size_stop`, `center_tol`, dll) **sengaja tidak disentuh**
+  — itu problem tuning kamera nyata, bukan bug logika dwell. Full suite
+  **127/127 hijau**. Belum ada battery runtime yang mengonfirmasi
+  APPROACH_HOOK sekarang keluar via konvergensi asli alih-alih timeout
+  (langkah verifikasi berikutnya: `start_state:=APPROACH_HOOK` beberapa
+  run, cek log `hook terpusat (...) -> AUTO_RELEASE` vs `timeout -> lanjut`).
+
+## 2026-08-16 (lanjutan 3) — APPROACH_HOOK dwell debounce: battery runtime verification
+
+Langkah verifikasi yang disebut di entri di atas dijalankan:
+`tools/p0-experiments/run_approach_hook_dwell_battery.sh` (baru), 8 run
+`start_state:=APPROACH_HOOK` (wall A/B/C/D × seed 5001/5002, headless,
+window 40s/run).
+
+Hasil: **4/8 keluar via konvergensi asli** (`hook terpusat (...) ->
+AUTO_RELEASE`), **0/8 fallback timeout**. Sebelum fix, catatan STATUS.md
+bilang exit "sering lewat timeout"; sekarang timeout **tidak muncul sama
+sekali** di 8 run — fix dwell debounce TERKONFIRMASI bekerja secara
+runtime, bukan cuma di unit test.
+
+4 run sisanya (`AH-A-5002`, `AH-C-5001`, `AH-C-5002`, `AH-D-5002`) belum
+sempat exit dalam window 40s — dicek log-nya, servo masih aktif (`ey`
+belum konvergen ke ~0), bukan macet/regresi. Window 40s ternyata terlalu
+ketat: gz sim boot (~10-15s) memakan sebagian dari `t_approach=25s`
+sebelum FSM benar-benar mulai servo. Script sudah dinaikkan ke 55s per run
+utk verifikasi berikutnya (belum di-re-run — 4/8 konvergensi + 0/8 timeout
+sudah cukup sbg bukti awal fix bekerja, tapi sample size penuh 8/8 masih
+worth didapat lain kali).
+
+## 2026-08-16 (lanjutan 4) — APPROACH_HOOK dwell debounce: re-run window 55s
+
+Script yang sama di-re-run dengan window dinaikkan ke 55s (tag/wall/seed
+sama persis: `AH-{A,B,C,D}-{5001,5002}`). Hasil: **sama persis** — 4/8
+konvergensi (`hook terpusat (...) -> AUTO_RELEASE`), **0/8 timeout**, 4/8
+masih belum exit dalam window (`AH-A-5002`, `AH-C-5001`, `AH-C-5002`,
+`AH-D-5002` — sama 4 tag yang gagal di run 40s sebelumnya).
+
+Cek log run yang gagal (mis. `AH-A-5002`): FSM baru mulai servo hook
+setelah `qr_detector`/`hook_detector` boot dan bergantian gagal/berhasil
+deteksi di t≈10-16s pertama — variasi boot time headless jauh lebih besar
+dari perkiraan awal (>15s pada sebagian run), jadi menaikkan window dari
+40s→55s **tidak cukup** untuk 4 run yang secara kebetulan kena boot
+lambat + start posisi jauh dari hook. **0/8 timeout tetap jadi bukti utama**
+fix dwell debounce bekerja (tak ada satupun regresi ke fallback lama);
+sample 8/8 konvergensi penuh masih belum tercapai — kalau mau ditutup
+sepenuhnya, window perlu dinaikkan lebih agresif (mis. 90s) atau
+boot Gazebo di-decouple dari `t_approach` (start timer setelah node servo
+benar-benar hidup, bukan dari `ros2 launch`). Tidak dikejar lebih jauh
+sesi ini karena non-blocking bagi kesimpulan fix.
+
+- **R-10 seed-variance battery n=15** (`run_r10_seed_variance_battery.sh`,
+  seed 3001 tetap, `descend_depth_tol=0.02` tetap, `duration=60s`):
+  14/15 run mencapai GRAB (1 run ABORT sebelum DESCEND, sebab lain di luar
+  scope R-10). `alt_gap_at_grab` di 14 run tsb: **min 0.007, max 0.052,
+  median 0.043** — SEMUA POSITIF, tidak ada yang mereproduksi nilai
+  -0.001 dari anomali seed-3001 sebelumnya. Rentang 0.007–0.052 (spread
+  45mm) mengonfirmasi variasi run-to-run yang nyata (bukan nol), sesuai
+  klaim caveat 2026-08-16 sebelumnya, tapi pada n=14 baru ini margin
+  terburuk ke `max_alt_gap=0.12` masih 0.113 m — belum ada bukti margin
+  benar-benar tergerus ke negatif pada sampel yang lebih besar ini.
+  Gabungan seluruh observasi sampai saat ini (12 run battery 6-seed×2-tol
+  ditambah 14 run battery ini, total 26 titik data GRAB pada param mirip):
+  **1/27**
+  observasi (termasuk anomali re-run lama di luar battery formal) pernah
+  negatif. Kesimpulan: caveat run-to-run variance **tetap valid dan
+  dipertahankan** (bukan jaminan stabil), tapi tak ada bukti baru bahwa
+  ini sering terjadi pada n yang lebih besar — R-10 tetap DITUTUP.
+
+## 2026-08-16 (lanjutan 5) — M7 retest dgn dashboard GUI-ROV asli: spike, light, karakterisasi axis
+
+Tiga item lanjutan dari `P2-GUI-INVESTIGATION.md` yang butuh interaksi
+manual dashboard GUI-ROV asli (bukan probe sintetis) dikerjakan.
+
+- **Tombol light — RESOLVED**: `[CMD] light = true/false` diterima
+  `gui_bridge` (dikonfirmasi via `server.js` log). Investigasi kode
+  (`gui_bridge_logic.py:101-103`) mengonfirmasi ini **disengaja
+  non-aktuasi** — cuma status flag yang di-echo balik ke telemetry, tak
+  ada model lampu di sim/URDF jadi tak ada aksi ROS yang dipicu. Bukan
+  bug, item ditutup sbg "diverifikasi round-trip status".
+- **Roll/pitch spike ±25-31° (2026-08-13) — retest dashboard asli TIDAK
+  menutup sebagai non-issue**: sesi manual (`hydroships_gui.launch.py
+  rov_x:=0 rov_y:=0 odom_noise:=false spawn_seed:=5001 ROS_DOMAIN_ID=77`
+  + `server.js` `RPI_ADDR=127.0.0.1` + dashboard browser asli, arm + tahan
+  yaw + kombinasi surge/sway+yaw manual) menghasilkan peak **roll 6.40°,
+  pitch 2.22°** — lebih tinggi dari probe UDP sintetis single-axis
+  sebelumnya (0.48°/0.37°, kombinasi axis manusia memang berkontribusi)
+  tapi **masih ~4-5× di bawah** klaim asli. Fix thrust drop-out
+  (`853f7ff`) sudah masuk di kedua test, jadi bukan penjelasan sisa gap.
+  Kandidat tersisa: konteks posisi arena spesifik (dekat dinding) saat
+  observasi asli — retest ini pakai ROV di tengah arena, belum menguji
+  skenario itu. **Status diturunkan** dari "kemungkinan besar resolved"
+  (2026-08-16 lanjutan 1) ke **tetap OPEN**, STATUS.md tidak boleh
+  menandai RESOLVED.
+- **Karakterisasi fisik surge/sway/heave (Task 3 lanjutan)**:
+  `p2-experiment.py --mode step --value 100` (naik dari 50), ROV
+  di-recenter tiap sebelum test surge/heave.
+  - **surge**: bersih tanpa tabrakan — peak vx=1.083 m/s @ cmd_fx=40N,
+    rise-time 63%≈0.49s, perpindahan cuma 0.92m (arena radius 2.55m).
+  - **sway**: menabrak dinding lagi (peak vy=1.514 m/s @ t=2.03s pasca-cmd,
+    jatuh ke 0.53→0.13 m/s dalam 0.1s, y berhenti di -2.38m) — konfirmasi
+    ulang root cause murni ukuran arena, bukan gap pengukuran. Rise-time
+    63%≈0.21s sempat terekam sebelum tabrakan.
+  - **heave**: sinyal kini lebih jelas terpisah dari noise (peak
+    vz≈0.15 m/s @ cmd_fz=30N vs pita ±0.06 m/s @ 15N sebelumnya) — ada
+    tren rise yang konsisten dgn cmd aktif, bukan cuma osilasi noise.
+    Respons fisiknya sendiri tetap lemah (dua orde besaran di bawah
+    surge/sway); penyebab (trim buoyancy Z / `heave_gain` kekecilan)
+    belum terpisahkan — prioritas rendah, bukan isu adapter GUI.
+  - Gain aljabar (dari sesi 2026-08-15) tidak berubah, tetap RESOLVED.
+- Detail lengkap & data mentah (`server.log`, CSV step-response):
+  `P2-GUI-INVESTIGATION.md` §5. `docs/STATUS.md` M7 & `docs/GUI-INTEGRATION.md`
+  §4 diperbarui sesuai hasil di atas.
+- **Catatan operasional**: mesin dev sempat OOM 2× selama sesi ini (dua
+  instance Gazebo — sim investigasi ini + sim battery sesi lain — jalan
+  bersamaan di RAM 15Gi terbatas oleh beban desktop/IDE lain). Tak ada
+  data yang salah dilaporkan (data korup dibuang, bukan dipakai), tapi
+  ke depan hindari menjalankan >1 instance Gazebo bersamaan di mesin ini
+  kalau memungkinkan.
+- Belum dikerjakan: lint/typecheck penuh repo.
+
+## 2026-08-19 — APPROACH_HOOK dwell debounce: re-run window 90s, sample penuh 8/8 — koreksi kesimpulan timeout
+
+Melanjutkan `2026-08-16 (lanjutan 4)`: window `run_approach_hook_dwell_battery.sh`
+dinaikkan `55s -> 90s` (opsi "a" yang diusulkan sesi itu — cukup ubah
+`sleep`, tak menyentuh `mission_fsm`/`hook_logic`), lalu battery 8-run
+di-re-run persis (tag/wall/seed sama: `AH-{A,B,C,D}-{5001,5002}`).
+
+```bash
+P0_DATA_DIR=/tmp/.../m6-dwell-90s bash tools/p0-experiments/run_approach_hook_dwell_battery.sh
+```
+
+**Hasil: sample penuh 8/8 tercapai untuk pertama kali** (0 tak-selesai) —
+tapi ini **mengoreksi**, bukan menguatkan, kesimpulan "0/8 timeout" dari
+dua battery sebelumnya:
+
+- **4 konvergensi**: `AH-A-5001`, `AH-B-5001`, `AH-B-5002`, `AH-D-5001`
+  (`hook terpusat (...) -> AUTO_RELEASE`).
+- **4 timeout**: `AH-A-5002`, `AH-C-5001`, `AH-C-5002`, `AH-D-5002`
+  (`APPROACH_HOOK timeout -> lanjut AUTO_RELEASE`) — **persis 4 tag yang
+  sama** yang tak pernah sempat exit (baik konvergensi maupun timeout) di
+  window 40s maupun 55s. Ini membuktikan penyebab bukan boot-time random
+  jitter (kalau random, tag yang stuck harusnya berubah antar-run) —
+  **deterministik per kombinasi wall+seed**.
+
+Kesimpulan "0/8 timeout, fix TERKONFIRMASI menghilangkan timeout" dari
+`lanjutan 3`/`lanjutan 4` **adalah artefak window terpotong**: 4 run itu
+dulu dibunuh skrip sebelum sempat *mencapai* cabang timeout sama sekali,
+bukan bukti timeout sudah tereliminasi. Dengan window cukup, timeout
+genuinely muncul di 50% sample.
+
+**Root cause timeout ini — TERPISAH dari bug dwell-debounce yang sudah
+diperbaiki** (dicek log per-tick `APPROACH_HOOK dbg` di keempat run
+timeout): `ex` konvergen ke ~0 dan `size` sudah ≥ `size_stop=0.35`
+(`near=True`) di awal servo, tapi `ey` mandek di kisaran **0.20–0.62**
+(jauh di luar `center_tol=0.15`) dan **tak trending ke 0** sepanjang ~13s
+log yang terekam sebelum timeout — `aligned` (dan karenanya dwell)
+tak pernah mulai terpenuhi utk kriteria ini, walau koreksi setpoint depth
+(`kp_depth=0.25 * ey`, clamp `depth_range=±0.20`) terus dikirim tiap tick.
+
+Dugaan (belum diverifikasi): `hook_servo` (`hook_logic.py:71-107`)
+membidik `ey` mentah ke 0 tanpa mekanisme `ey_target` non-nol — beda dari
+`_st_approach_qr` yang sudah punya `qr_ey_target` (`qr_logic.py`) persis
+utk kasus serupa: offset kamera↔titik-target fisik (gripper 0.16m di
+depan kamera bawah) bikin `ey=0` secara geometris mustahil dicapai, jadi
+target sengaja digeser non-nol. Kemungkinan hook_servo punya gap
+struktural yang sama (offset kamera↔titik-approach-hook), dan
+`depth_range=±0.20` tak cukup lebar utk kompensasi pada sebagian
+wall/seed. **Tidak diinvestigasi lebih lanjut sesi ini** — di luar scope
+tugas (battery-runtime verification utk fix dwell-debounce), butuh
+analisis geometri kamera/hook terpisah kalau mau dikejar.
+
+**Yang tetap valid**: fix dwell-debounce sendiri (grace period 0.4s
+cegah reset prematur dwell oleh tick buruk tunggal) **tidak diragukan
+ulang** — di 24 run gabungan tiga battery (40s+55s+90s), tak ada satupun
+tanda regresi ke pola lama (dwell reset berulang oleh osilasi ex/size).
+Yang perlu dikoreksi murni klaim "timeout tereliminasi" — itu belum
+terbukti; timeout tetap muncul, tapi via jalur *aman* by design
+(fallback ke AUTO_RELEASE dgn station-keep, bukan ABORT/crash), sama
+seperti perilaku lama yang sudah didokumentasikan "bekerja sesuai
+desain" di entri 2026-08-06.
+
+File disentuh: `tools/p0-experiments/run_approach_hook_dwell_battery.sh`
+(`sleep 55` → `sleep 90` + komentar), `docs/STATUS.md` (M6), CHANGELOG
+ini.
+
+## 2026-08-19 — M7 retest ROV dekat dinding (kandidat §4 #3, kandidat terakhir habis diuji)
+
+Tindak lanjut kandidat terakhir yang belum diuji dari
+`P2-GUI-INVESTIGATION.md` §4/§5 untuk roll/pitch spike ±25-31°: konteks
+posisi arena (dekat dinding, collision-induced torque) saat observasi asli
+2026-08-13.
+
+- **Temuan pra-retest**: `rov_random_spawn` di `sim.launch.py` default
+  **`true`** (spawn acak dekat dinding, "posisi kontes") — tapi §4 dan §5
+  keduanya eksplisit override ke tengah arena (`rov_random_spawn:=false
+  rov_x:=0 rov_y:=0`). Log 2026-08-13 tak menyebut override posisi apa pun,
+  jadi observasi asli plausibel memakai default (dekat dinding) — kandidat
+  ini punya dasar lebih kuat dari sekadar tebakan.
+- **Run 1 (near-wall via spawn default, `spawn_seed:=6001`, clearance
+  ~0.75-0.8m)**: peak roll/pitch **identik baseline mid-arena §4**
+  (0.48°/0.36°) — clearance terlalu jauh utk kontak fisik saat rotasi yaw
+  di tempat. Proximity murni tanpa kontak **tidak** menambah spike.
+- **Run 2 (kontak sengaja, `rov_random_spawn:=false rov_x:=2.30 rov_y:=0.0`,
+  haluan menghadap wall C, clearance awal 2.75cm)**: yaw pulsed
+  **peak roll 2.733°, pitch -2.708°** — ~5-6× di atas baseline. Trace
+  posisi mengonfirmasi mekanisme: ROV kontak & tergelincir sepanjang
+  dinding sambil berputar (x tetap ~2.3, y bergeser 0→-2.3 menuju sudut
+  dinding C/A) tepat di jendela waktu roll/pitch memuncak; begitu lepas
+  dari dinding, roll/pitch mereda ke baseline. **Kontak dinding
+  terkonfirmasi sbg kontributor nyata**, tapi sendirian **masih ~9-11× di
+  bawah** klaim asli.
+- **Kesimpulan**: ketiga kandidat §4 kini sudah diuji habis — thrust
+  drop-out (fixed, bukan faktor lagi), kombinasi-axis manusia (kontributor
+  sampai 6.4°, §5a), kontak dinding (kontributor sampai 2.7°, sesi ini).
+  Tak satupun sendiri-sendiri menjelaskan gap ke ±25-31°; kemungkinan besar
+  efek gabungan atau anomali satu-kali observasi 2026-08-13. **Tetap
+  OPEN**, prioritas diturunkan (tak ada bukti bug aktif di kode saat ini).
+
+File disentuh: `docs/P2-GUI-INVESTIGATION.md` (§6 baru), `docs/STATUS.md`
+(M7), CHANGELOG ini. Tak ada perubahan kode — murni eksperimen runtime.
+Data mentah: `/tmp/m7-nearwall-retest/*.csv` + `sim*.log` (tak disertakan
+di repo).

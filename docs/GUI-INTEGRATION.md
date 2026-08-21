@@ -6,9 +6,9 @@ yang dipakai untuk menjembatani keduanya **tanpa mengubah node inti** (stabilize
 mission_fsm, thruster_allocator).
 
 > Status: kode adapter & detektor hook **sudah diverifikasi end-to-end dengan
-> dashboard GUI-ROV asli (2026-08-13)** untuk arm/disarm, yaw, dan gripper —
-> lihat [`STATUS.md`](STATUS.md) untuk detail & item yang masih terbuka
-> (light, surge/sway, gain/tanda/offset kompas).
+> dashboard GUI-ROV asli (2026-08-13, retest 2026-08-16)** untuk arm/disarm,
+> yaw, gripper, dan light — lihat [`STATUS.md`](STATUS.md) untuk detail &
+> item yang masih terbuka (roll/pitch spike, offset kompas).
 
 ## 1. Temuan utama: GUI-ROV bukan ROS 2
 
@@ -84,22 +84,39 @@ wall) menggantikan gerak *timed*; **fallback timed** tetap ada bila deteksi tak 
 ## 4. Yang BELUM (VERIFY/OPEN)
 - **Live test 2026-08-13** (dashboard GUI-ROV asli, `server.js` lokal via
   `RPI_ADDR=127.0.0.1`) membuktikan arm/disarm, yaw, dan gripper open/close
-  round-trip. **Belum** terverifikasi pada run itu: tombol **light** (tak ada
-  command terkirim), dan efek gerak sim dari surge/sway (command sampai ke
-  adapter, tapi pergerakan ROV tak dicek via `/hydroships/odom`).
-- Kalibrasi gain persen→N, offset heading kompas, dan tanda sumbu — masih OPEN;
-  ROV bergerak sesuai perintah tapi skala/tanda belum divalidasi terhadap
-  gerak yang diharapkan.
-- **[OPEN, ditemukan di run 2026-08-13]** Roll/pitch melonjak besar (±25-31°)
-  selama yaw ditahan lama lewat pulsa kontrol keyboard (bukan stick kontinu),
-  redam pelan setelah yaw berhenti. Belum jelas apakah ini karakter fisik wajar
-  dari pola pulsa keyboard atau indikasi allocator/gain perlu ditinjau — perlu
-  run pembanding dengan joystick asli.
-- **[RESOLVED 2026-08-15]** Timer telemetri UDP dipacing steady/wall clock,
-  bukan ROS/Gazebo simulation clock. Ini mencegah beban headless membuat rate
-  GUI turun bersama real-time factor. Verifikasi rate: jalankan receiver UDP
-  pada port 14551 selama >=10 s dan hitung datagram per detik; target nominal
-  `telem_hz=10` (deviasi praktis mengikuti scheduler OS).
+  round-trip.
+- **[RESOLVED 2026-08-16]** Tombol **light**: diverifikasi via dashboard GUI-ROV
+  asli — `[CMD] light = true/false` diterima `gui_bridge`. Investigasi kode
+  (`gui_bridge_logic.py:101-103`) mengonfirmasi ini **disengaja non-aktuasi**:
+  cuma disimpan sbg status flag & di-echo balik ke telemetry, tak ada model
+  lampu di sim/URDF saat ini jadi tak ada aksi ROS yang dipicu. Bukan bug.
+  Detail: `P2-GUI-INVESTIGATION.md` §5b.
+- Kalibrasi gain persen→N: **RESOLVED 2026-08-16** (`P2-GUI-INVESTIGATION.md`
+  §3) — terverifikasi benar secara aljabar (`cmd = gain × value` exact) utk
+  keempat axis. Offset heading kompas & tanda sumbu tetap OPEN (butuh ROV
+  fisik utk validasi).
+- **[⚠️ 2026-08-16, retest dgn dashboard asli TIDAK menutup sebagai
+  non-issue]** Roll/pitch melonjak besar (±25-31°) yang tercatat di run
+  2026-08-13: probe UDP sintetis single-axis (`p2-experiment.py`, mode
+  `sustained`/`pulsed`, yaw 100%) tidak mereproduksi (peak 0.48°/0.37°) —
+  tapi retest lanjutan dgn **dashboard GUI-ROV asli** (browser + input
+  manual, kombinasi surge+yaw/sway+yaw, `ROS_DOMAIN_ID=77`) menghasilkan
+  peak **6.40°/2.22°** — lebih tinggi dari probe sintetis (kombinasi axis
+  manusia memang berkontribusi) tapi **masih ~4-5× di bawah** klaim asli.
+  Fix thrust drop-out (`853f7ff`) sudah masuk di kedua test ini, jadi
+  bukan penjelasan sisa gap. Kandidat tersisa: posisi/konteks arena
+  spesifik (dekat dinding) saat observasi asli 2026-08-13 — retest ini
+  pakai ROV di tengah arena (`rov_x:=0 rov_y:=0`), belum menguji skenario
+  dekat-dinding. **Tetap OPEN**, jangan tandai RESOLVED. Detail eksperimen
+  & angka lengkap: `P2-GUI-INVESTIGATION.md` §4 & §5a.
+- **[RESOLVED 2026-08-15, dikonfirmasi ulang 2026-08-16]** Timer telemetri UDP
+  dipacing steady/wall clock, bukan ROS/Gazebo simulation clock. Ini mencegah
+  beban headless membuat rate GUI turun bersama real-time factor. Live test
+  2026-08-13 sempat mengukur ~3 Hz aktual vs target 10 Hz (sebelum fix).
+  Profil ulang 2026-08-16 (`tools/p2-gui-telem-profile.py`, port 14551, 15s,
+  paralel dengan eksperimen roll/pitch di atas): **10.07 Hz efektif, 151
+  paket, interval median 99.99ms, 93.8% window 1-detik tepat 10 paket** — gap
+  3Hz-vs-10Hz **tidak lagi terlihat**, fix pacing terkonfirmasi bekerja.
 - Tuning ambang deteksi hook di render kamera sim (nilai default = uji-meja).
 - Servo hook = PD holonomik IBVS (sway+surge+koreksi-depth, image-based tanpa kalibrasi);
   pose-based (solvePnP/PBVS) menyusul bila kalibrasi kamera fisik hook tersedia.

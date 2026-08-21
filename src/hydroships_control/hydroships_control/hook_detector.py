@@ -54,7 +54,7 @@ def _to_gray_clahe(frame):
     return clahe.apply(gray)
 
 
-def _score_contour(cnt, min_area):
+def _score_contour(cnt, min_area, aspect_min=HOOK_ASPECT_MIN, aspect_max=HOOK_ASPECT_MAX):
     area = float(cv2.contourArea(cnt))
     if area < min_area:
         return None
@@ -62,18 +62,18 @@ def _score_contour(cnt, min_area):
     if w <= 0 or h <= 0:
         return None
     aspect = w / float(h)
-    if not (HOOK_ASPECT_MIN <= aspect <= HOOK_ASPECT_MAX):
+    if not (aspect_min <= aspect <= aspect_max):
         return None
     solidity = area / float(w * h)
     conf = float(np.clip(0.6 * solidity + 0.4 * min(1.0, area / 4000.0), 0.0, 1.0))
     return area, (x + w / 2.0, y + h / 2.0), conf
 
 
-def _best_contour(mask, min_area):
+def _best_contour(mask, min_area, aspect_min=HOOK_ASPECT_MIN, aspect_max=HOOK_ASPECT_MAX):
     cnts, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     best = None
     for cnt in cnts:
-        scored = _score_contour(cnt, min_area)
+        scored = _score_contour(cnt, min_area, aspect_min, aspect_max)
         if scored is None:
             continue
         if best is None or scored[2] > best[2]:
@@ -81,16 +81,17 @@ def _best_contour(mask, min_area):
     return best
 
 
-def detect_hook(frame, min_area=HOOK_MIN_AREA):
+def detect_hook(frame, min_area=HOOK_MIN_AREA, canny_lo=HOOK_CANNY_LO, canny_hi=HOOK_CANNY_HI,
+                 aspect_min=HOOK_ASPECT_MIN, aspect_max=HOOK_ASPECT_MAX):
     """Deteksi hook -> (center, area) atau None. Jenjang: contour/CLAHE lalu Hough.
     (Jalur warna GUI-ROV dilewati: warna PVC hook tak pasti — lihat catatan asli.)"""
     if not CV2_OK or frame is None:
         return None
     gray = _to_gray_clahe(frame)
-    edges = cv2.Canny(gray, HOOK_CANNY_LO, HOOK_CANNY_HI)
+    edges = cv2.Canny(gray, canny_lo, canny_hi)
     edges = cv2.dilate(edges, np.ones((3, 3), np.uint8), iterations=2)
     edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
-    best = _best_contour(edges, min_area)
+    best = _best_contour(edges, min_area, aspect_min, aspect_max)
     if best is not None:
         area, center, _conf = best
         return center, area
@@ -115,6 +116,10 @@ class HookDetector(Node):
         self.declare_parameter('image_topic', '/hydroships/camera_front/image_raw')
         self.declare_parameter('max_rate', 5.0)
         self.declare_parameter('min_area', HOOK_MIN_AREA)
+        self.declare_parameter('canny_lo', HOOK_CANNY_LO)
+        self.declare_parameter('canny_hi', HOOK_CANNY_HI)
+        self.declare_parameter('aspect_min', HOOK_ASPECT_MIN)
+        self.declare_parameter('aspect_max', HOOK_ASPECT_MAX)
         topic = self.get_parameter('image_topic').value
         self.pub = self.create_publisher(PointStamped, '/hydroships/hook_offset', 10)
         self.create_subscription(Image, topic, self._on_image, 5)
@@ -154,7 +159,13 @@ class HookDetector(Node):
         img = self._to_cv(msg)
         if img is None:
             return
-        det = detect_hook(img, min_area=float(self.get_parameter('min_area').value))
+        det = detect_hook(
+            img,
+            min_area=float(self.get_parameter('min_area').value),
+            canny_lo=float(self.get_parameter('canny_lo').value),
+            canny_hi=float(self.get_parameter('canny_hi').value),
+            aspect_min=float(self.get_parameter('aspect_min').value),
+            aspect_max=float(self.get_parameter('aspect_max').value))
         if det is None:
             # Sebelumnya return senyap -> kegagalan deteksi tak terlihat sama
             # sekali di log. Throttle agar tak spam saat hook memang di luar frame.

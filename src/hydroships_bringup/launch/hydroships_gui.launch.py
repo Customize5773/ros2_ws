@@ -44,6 +44,12 @@ def generate_launch_description():
     cmd_port = LaunchConfiguration('cmd_port')
     telem_port = LaunchConfiguration('telem_port')
     telem_hz = LaunchConfiguration('telem_hz')
+    spawn_seed = LaunchConfiguration('spawn_seed')
+    rov_random_spawn = LaunchConfiguration('rov_random_spawn')
+    rov_x = LaunchConfiguration('rov_x')
+    rov_y = LaunchConfiguration('rov_y')
+    rov_z = LaunchConfiguration('rov_z')
+    rov_wall_margin = LaunchConfiguration('rov_wall_margin')
     camera_dropout = LaunchConfiguration('camera_dropout')
     camera_drop_prob = LaunchConfiguration('camera_drop_prob')
     camera_dropout_seed = LaunchConfiguration('camera_dropout_seed')
@@ -54,6 +60,10 @@ def generate_launch_description():
             PathJoinSubstitution([pkg_gazebo, 'launch', 'sim.launch.py'])),
         launch_arguments={
             'headless': headless, 'world': world,
+            'spawn_seed': spawn_seed,
+            'rov_random_spawn': rov_random_spawn,
+            'rov_x': rov_x, 'rov_y': rov_y, 'rov_z': rov_z,
+            'rov_wall_margin': rov_wall_margin,
             'camera_dropout': camera_dropout,
             'camera_drop_prob': camera_drop_prob,
             'camera_dropout_seed': camera_dropout_seed,
@@ -103,6 +113,20 @@ def generate_launch_description():
                               description='R-8: seed dropout kamera (0=random).'),
         DeclareLaunchArgument('tether_latency_ms', default_value='0.0',
                               description='R-8: latency uplink/downlink UDP dalam ms.'),
+        DeclareLaunchArgument('spawn_seed', default_value='',
+                              description='Fix seed pose spawn ROV untuk reproducible '
+                                          'experimen; kosong = acak penuh tiap launch.'),
+        DeclareLaunchArgument('rov_random_spawn', default_value='true',
+                              description='true = spawn ROV acak dekat dinding kolam.'),
+        DeclareLaunchArgument('rov_x', default_value='0.0',
+                              description='Pos X spawn ROV (m) bila rov_random_spawn=false.'),
+        DeclareLaunchArgument('rov_y', default_value='0.0',
+                              description='Pos Y spawn ROV (m) bila rov_random_spawn=false.'),
+        DeclareLaunchArgument('rov_z', default_value='-0.5',
+                              description='Kedalaman spawn ROV (m, negatif = di bawah permukaan).'),
+        DeclareLaunchArgument('rov_wall_margin', default_value='0.8',
+                              description='Jarak aman ROV dari dinding fisik saat spawn acak '
+                                          '(diperbarui 2026-08-13: 0.5->0.8 untuk cegah clipping).'),
         sim,
         allocator,
         gui_bridge,

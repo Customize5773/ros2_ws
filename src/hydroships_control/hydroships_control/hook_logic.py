@@ -48,6 +48,25 @@ class HookServoGains:
 
 HookServoCmd = namedtuple('HookServoCmd', 'surge sway target_depth aligned near')
 
+DwellState = namedtuple('DwellState', 'hold_since bad_since done')
+
+
+def update_dwell(ok, now, hold_since, bad_since, settle_s, grace_s):
+    """Lacak 'sudah ok terus-menerus selama settle_s' dgn debounce: satu tick
+    buruk tak langsung reset hold_since, baru reset kalau buruk bertahan
+    >= grace_s (cegah osilasi ex/size membatalkan dwell tiap kali kena)."""
+    if ok:
+        bad_since = None
+        if hold_since is None:
+            hold_since = now
+    else:
+        if bad_since is None:
+            bad_since = now
+        elif now - bad_since >= grace_s:
+            hold_since = None
+    done = hold_since is not None and now - hold_since >= settle_s
+    return DwellState(hold_since, bad_since, done)
+
 
 def hook_servo(off, vx, vy, hook_depth, gains):
     """PD visual servo hook -> perintah gerak (fungsi MURNI, testable).

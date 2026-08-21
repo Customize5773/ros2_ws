@@ -120,6 +120,48 @@ yang sama dengan yang dipakai plugin Gazebo** — tidak perlu mengubah `stabiliz
 `/hydroships/depth`, persis seperti `depth_publisher.py` di sim. Lihat tabel topic
 lengkap di `docs/ARCHITECTURE.md` dan `docs/CONFIG_REFERENCE.md`.
 
+## 4. Validasi geometri hook fisik & retuning deteksi (M4, OPEN)
+
+**Status: prosedur siap, belum dieksekusi** (butuh hook PVC fisik + kolam —
+sejajar §3, kalibrasi mentah sudah ada tapi belum divalidasi hardware).
+
+1. **Cek geometri.** Hook di `worlds/kki_arena.sdf` adalah PVC ¾" (Ø25mm,
+   `radius=0.0125m`) bentuk J: stub atas 60mm, batang vertikal 550mm, lengkung
+   bawah 80mm. Ukur hook fisik tim terhadap angka ini. Konfirmasi juga tinggi
+   pasang **0,45 m dari dasar kolam** (`docs/GUIDEBOOK.md` §4.7.1, "Layout &
+   Konsep GUI ROV") cocok dengan pose hook di SDF.
+2. **Retuning threshold deteksi.** `hook_detector.py` docstring menandai
+   default threshold-nya "titik-awal uji-meja, WAJIB di-tuning ulang di
+   kolam" — `min_area`, `canny_lo`, `canny_hi`, `aspect_min`, `aspect_max`
+   kini semua **declared ROS param** (bukan cuma konstanta module), jadi bisa
+   diubah tanpa edit-kode-lalu-rebuild:
+
+   ```bash
+   ros2 run hydroships_control hook_detector --ros-args \
+       -p canny_lo:=40 -p canny_hi:=120 -p aspect_min:=0.2 -p aspect_max:=5.0
+   # atau live saat node jalan:
+   ros2 param set /hook_detector canny_lo 40
+   ```
+
+   Jalankan terhadap footage/rosbag kamera front di kolam nyata (atau
+   rekaman uji-meja hook fisik dulu bila kolam belum tersedia), sesuaikan
+   sampai deteksi stabil (`/hydroships/hook_offset` konsisten, bukan
+   berosilasi hilang-muncul), lalu catat nilai final balik ke konstanta
+   default di `hook_detector.py` (`HOOK_CANNY_LO`, dst., baris ~40-46) supaya
+   default besok tak perlu di-set ulang tiap run.
+3. **Warna PVC (opsional, catatan tambahan).** `detect_hook()` sengaja
+   melewati jalur deteksi warna GUI-ROV — komentar di kode: "warna PVC hook
+   tak pasti". Sesi retuning poolside adalah momen tepat untuk
+   mengonfirmasi/membantah asumsi ini dengan warna hook asli; kalau warnanya
+   ternyata konsisten & kontras dari background kolam, jalur warna bisa
+   diaktifkan lagi sebagai optimisasi terpisah — bukan bagian wajib validasi
+   ini.
+4. **Setelah threshold deteksi stabil**: gain servo `hook_logic.py`
+   (`size_stop`, `center_tol`, `kp_surge`/`kd_surge`, dst.) kemungkinan besar
+   juga perlu re-tuning — sama seperti gain visual servo QR di §3 poin 3 —
+   tapi itu tuning parameter kontrol, terpisah dari validasi geometri hook
+   ini.
+
 ## 5. Referensi silang
 
 - Spesifikasi komponen fisik lengkap (part number, harga, datasheet ringkas):

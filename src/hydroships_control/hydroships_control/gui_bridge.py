@@ -122,15 +122,17 @@ class GuiBridge(Node):
             self._uplink.push(msg, now)
         for msg in self._uplink.pop_ready(now):
             self._handle(msg)
+        # thruster_allocator zeroes thrust if cmd_vel stops arriving (0.5s
+        # watchdog) — GUI commands are one-shot UDP, so re-publish the held
+        # wrench every tick, not just on new commands.
+        fx, fy, fz, mz = self.logic.wrench()
+        t = Twist()
+        t.linear.x = float(fx); t.linear.y = float(fy); t.linear.z = float(fz)
+        t.angular.z = float(mz)
+        self.pub_cmd.publish(t)
 
     def _handle(self, msg):
         action = self.logic.on_command(msg.get('name'), msg.get('value'))
-        if 'wrench' in action:
-            fx, fy, fz, mz = action['wrench']
-            t = Twist()
-            t.linear.x = float(fx); t.linear.y = float(fy); t.linear.z = float(fz)
-            t.angular.z = float(mz)
-            self.pub_cmd.publish(t)
         if 'gripper' in action:
             s = String(); s.data = action['gripper']; self.pub_grip.publish(s)
 
