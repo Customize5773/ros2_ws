@@ -1263,3 +1263,69 @@ File disentuh: `docs/STATUS.md` (M6), CHANGELOG ini. Tak ada perubahan
 kode. Data mentah: `/tmp/claude-*/scratchpad/ah-battery2/`,
 `/tmp/claude-*/scratchpad/ah-fix53a/`, `/tmp/claude-*/scratchpad/mission_grab_full.log`
 (tak disertakan di repo, session-scoped).
+
+## 2026-08-24 (lanjutan) — Battery depth-clamp 8 cm: aman, tetapi under-powered
+
+Battery pasca-fix depth-clamp dijalankan ulang pada 8 kombinasi yang sama
+(`APPROACH_HOOK`, wall A-D × seed 5001/5002). Hasil aktual:
+
+- **1 konvergensi visual**: `AH-A-5001`.
+- **1 fallback odometri**: `AH-B-5001` dengan dwell-debounce normal.
+- **6 timeout**: `AH-A-5002`, `AH-B-5002`, `AH-C-5001`,
+  `AH-C-5002`, `AH-D-5001`, `AH-D-5002`.
+
+Pada `AH-C-5001` dan `AH-D-5002`, depth mencapai ceiling clamp
+`0.22 m` sesuai desain. Clamp 8 cm terbukti aman karena tidak membawa
+ROV ke wilayah `hook_depth=0.32 m`, tetapi koreksinya tidak cukup untuk
+menutup gap `ey` sekitar `0.3-0.7 m` dengan `center_tol=0.15`.
+`AH-D-5001` juga menunjukkan `ey_tgt` ter-clamp ke `+0.79`,
+sehingga geometri ekstrem tidak terselesaikan oleh clamp saat ini.
+
+Dua timeout lain berada di luar scope depth-clamp: `AH-B-5002` macet
+pada `size=0.267 < size_stop=0.35` (`near=False`), sedangkan
+`AH-C-5002` kehilangan deteksi hook (`off=None`). Dibanding baseline
+pra-fix di `docs/STATUS.md` (7/18 exit bersih, sekitar 39%), sampel ini
+hanya 2/8 (25%); sampel kecil ini tidak menunjukkan perbaikan, dan belum
+menjadi bukti regresi maupun perbaikan.
+
+Keputusan awal: opsi menaikkan clamp perlu stall-detector/descent terkontrol
+(risiko fisik lebih tinggi); opsi kalibrasi `hang_approach_depth` per-wall
+diuji lanjutan (lihat entri di bawah).
+
+## 2026-08-24 (lanjutan 2) — Kalibrasi hang_approach_depth per-wall: DITUTUP, tak viable
+
+`hang_approach_depth` diekspos sbg launch arg baru di
+`hydroships_mission.launch.py` (default `0.14`, tak mengubah perilaku
+default) supaya bisa disweep dari CLI tanpa rebuild param default.
+
+Sweep 8 run (`start_state:=APPROACH_HOOK`, wall A-D, seed 5001,
+`hang_approach_depth:=0.14` vs `0.30`, window 35s — 2 run tak sempat
+tersample krn variasi boot Gazebo, sesuai catatan lama):
+
+- **Wall A, B**: konvergen bersih di kedua depth — bukan wall bermasalah,
+  tak butuh koreksi apapun.
+- **Wall C**: `ey` = `0.435` @ depth=0.14 vs `0.406` @ depth=0.30 —
+  **hampir tak bergerak** (Δey 0.03 utk Δdepth 0.24m nyata). Model
+  `hook_ey_target()` memprediksi koreksi jauh lebih besar; data real
+  membantahnya.
+- Depth setpoint `0.30` di wall C overshoot ke depth REAL `0.38` —
+  sudah masuk wilayah dekat `hook_depth=0.32`, mengonfirmasi risiko fisik
+  "macet di bawah hook" dari insiden lama itu nyata, bukan teoretis.
+
+Kesimpulan: root cause `ey` besar di wall C/D **bukan** soal
+depth/geometri kamera-hook seperti diasumsikan `hook_ey_target()` —
+kandidat lain (attitude ROV, `hook_z` per-hook, proyeksi `dist_forward`)
+belum diinvestigasi. Tidak ada nilai `hang_approach_depth`, per-wall atau
+tidak, yang bisa menutup gap ini secara aman.
+
+Perubahan kode: **depth-clamp 8cm (entri di atas) DIREVERT** —
+`_st_approach_hook` kembali ke `self._set_depth(self.hang_approach_depth)`
+murni, param `hook_descend_clamp` dihapus (tak terpakai lagi). Param
+`hang_approach_depth` launch-arg **TETAP** dipertahankan (berguna utk
+eksperimen lanjutan, tak berefek pada perilaku default). Test unit hook
+(17/17) tetap hijau pasca-revert.
+
+File disentuh: `src/hydroships_control/hydroships_control/mission_fsm.py`,
+`src/hydroships_bringup/launch/hydroships_mission.launch.py`,
+`docs/STATUS.md`. Data mentah: `/tmp/claude-*/scratchpad/hook-sweep/`
+(tak disertakan di repo, session-scoped).
