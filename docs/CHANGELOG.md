@@ -1255,9 +1255,16 @@ pernah diuji runtime), (2) sanity-check ulang mekanisme retry/ack GRAB
   dalam jangkauan)` → `GRAB terverifikasi (+15) -- ack attached`. Retry-
   on-rejection R-9 (2026-08-13) **terkonfirmasi tetap bekerja**, tak ada
   regresi. Run yang sama lanjut `NAV_WALL -> HANG` normal lalu **`HANG
-  timeout (dist 0.075, yaw_err 0.3°) -> ABORT`** meski posisi sudah dalam
-  toleransi — gejala baru, di luar scope sesi ini, **belum diinvestigasi**
-  (kemungkinan kriteria exit HANG butuh dwell/settle selain posisi/yaw).
+  timeout (dist 0.075, yaw_err 0.3°) -> ABORT`**. **[KOREKSI 2026-08-24]**
+  klaim "meski posisi sudah dalam toleransi" SALAH — `dist=0.075` (75mm)
+  adalah 3× di atas `hang_tol=0.025` (25mm, sengaja ketat, lihat
+  `mission_fsm.py:132`) sehingga gate posisi memang gagal jujur, bukan bug.
+  Investigasi lanjutan menemukan bug lain (tak terkait) di `mission_run3.log`:
+  posisi `(x,y,yaw)` terlogging melompat ~4.4 m antar-tick selama HANG
+  (mustahil fisik) — dugaan dua publisher `/hydroships/odom` interleaved dari
+  proses Gazebo lama yg belum mati saat run baru start; detail & status di
+  `docs/STATUS.md` ("HANG timeout meski posisi sudah toleransi — investigasi
+  2026-08-24"), **belum diverifikasi**, sesi terpisah.
 
 File disentuh: `docs/STATUS.md` (M6), CHANGELOG ini. Tak ada perubahan
 kode. Data mentah: `/tmp/claude-*/scratchpad/ah-battery2/`,
