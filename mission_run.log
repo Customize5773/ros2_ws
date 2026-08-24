@@ -1,0 +1,116 @@
+[INFO] [launch]: All log files can be found below /home/rasya/.ros/log/2026-08-24-09-22-13-494507-rasya-Latitude-3450-26013
+[INFO] [launch]: Default logging verbosity is set to INFO
+[sim.launch] ROV spawn (random=True) di (1.216, -2.05, -0.5) yaw=1.7532 rad
+[sim.launch] world file "kki_arena.sdf" -> world name "kki_arena"
+[INFO] [ign gazebo-1]: process started with pid [26128]
+[INFO] [parameter_bridge-2]: process started with pid [26131]
+[INFO] [robot_state_publisher-3]: process started with pid [26133]
+[INFO] [odom_injector-4]: process started with pid [26135]
+[INFO] [camera_dropout_injector-5]: process started with pid [26137]
+[INFO] [depth_publisher-6]: process started with pid [26139]
+[INFO] [qr_detector-7]: process started with pid [26141]
+[INFO] [gripper_controller-8]: process started with pid [26143]
+[INFO] [hook_detector-9]: process started with pid [26145]
+[INFO] [payload_spawner-10]: process started with pid [26147]
+[INFO] [thruster_allocator-11]: process started with pid [26149]
+[INFO] [stabilizer-12]: process started with pid [26153]
+[INFO] [mission_fsm-13]: process started with pid [26162]
+[INFO] [joy_node-14]: process started with pid [26165]
+[INFO] [joy_mission_trigger-15]: process started with pid [26167]
+[robot_state_publisher-3] [WARN] [1787538133.957823255] [kdl_parser]: The root link base_link has an inertia specified in the URDF, but KDL does not support a root link with an inertia.  As a workaround, you can add an extra dummy link to your URDF.
+[robot_state_publisher-3] [INFO] [1787538133.957963909] [robot_state_publisher]: got segment base_link
+[robot_state_publisher-3] [INFO] [1787538133.958034660] [robot_state_publisher]: got segment camera_bottom_link
+[robot_state_publisher-3] [INFO] [1787538133.958045932] [robot_state_publisher]: got segment camera_front_link
+[robot_state_publisher-3] [INFO] [1787538133.958055057] [robot_state_publisher]: got segment depth_link
+[robot_state_publisher-3] [INFO] [1787538133.958062959] [robot_state_publisher]: got segment gripper_base
+[robot_state_publisher-3] [INFO] [1787538133.958070391] [robot_state_publisher]: got segment gripper_finger_left
+[robot_state_publisher-3] [INFO] [1787538133.958077769] [robot_state_publisher]: got segment gripper_finger_right
+[robot_state_publisher-3] [INFO] [1787538133.958085456] [robot_state_publisher]: got segment imu_link
+[robot_state_publisher-3] [INFO] [1787538133.958092677] [robot_state_publisher]: got segment thruster_1
+[robot_state_publisher-3] [INFO] [1787538133.958099397] [robot_state_publisher]: got segment thruster_2
+[robot_state_publisher-3] [INFO] [1787538133.958106195] [robot_state_publisher]: got segment thruster_3
+[robot_state_publisher-3] [INFO] [1787538133.958112963] [robot_state_publisher]: got segment thruster_4
+[robot_state_publisher-3] [INFO] [1787538133.958119597] [robot_state_publisher]: got segment thruster_5
+[robot_state_publisher-3] [INFO] [1787538133.958126405] [robot_state_publisher]: got segment thruster_6
+[joy_mission_trigger-15] [INFO] [1787538134.725145605] [joy_mission_trigger]: Joy trigger siap: tombol index [0] -> /hydroships/mission/start_autonomous (tekan utk lewati WAIT_TRIGGER)
+[camera_dropout_injector-5] [INFO] [1787538134.970770731] [camera_dropout_injector]: camera_dropout_injector siap (dropout=False drop_prob=0.050)
+[payload_spawner-10] [INFO] [1787538134.989689983] [payload_spawner]: payload_spawner siap (spawn dalam 3.5s)
+[parameter_bridge-2] [INFO] [1787538134.991758445] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/clock (gz.msgs.Clock) -> /clock (rosgraph_msgs/msg/Clock)] (Lazy 0)
+[parameter_bridge-2] [INFO] [1787538135.004700805] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/model/hydroships/odometry (gz.msgs.Odometry) -> /hydroships/odom_raw (nav_msgs/msg/Odometry)] (Lazy 0)
+[hook_detector-9] [INFO] [1787538135.008034811] [hook_detector]: hook_detector siap (subscribe /hydroships/camera_front/image_raw)
+[parameter_bridge-2] [INFO] [1787538135.016365368] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/world/kki_arena/pose/info (gz.msgs.Pose_V) -> /hydroships/world_pose_tf (tf2_msgs/msg/TFMessage)] (Lazy 0)
+[parameter_bridge-2] [INFO] [1787538135.028731484] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/hydroships/imu (gz.msgs.IMU) -> /hydroships/imu (sensor_msgs/msg/Imu)] (Lazy 0)
+[parameter_bridge-2] [INFO] [1787538135.032331834] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/hydroships/camera_front/image (gz.msgs.Image) -> /hydroships/camera_front/image_raw_gt (sensor_msgs/msg/Image)] (Lazy 0)
+[parameter_bridge-2] [INFO] [1787538135.038203206] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/hydroships/camera_bottom/image (gz.msgs.Image) -> /hydroships/camera_bottom/image_raw_gt (sensor_msgs/msg/Image)] (Lazy 0)
+[thruster_allocator-11] [INFO] [1787538135.042104752] [thruster_allocator]: Thruster allocator siap. TAM rank = 6 / 6, cond = 20, damping = 0.1.
+[qr_detector-7] [INFO] [1787538135.050657417] [qr_detector]: qr_detector siap (subscribe /hydroships/camera_bottom/image_raw, /hydroships/camera_front/image_raw)
+[parameter_bridge-2] [INFO] [1787538135.060540160] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/hydroships/camera_front/camera_info (gz.msgs.CameraInfo) -> /hydroships/camera_front/camera_info (sensor_msgs/msg/CameraInfo)] (Lazy 0)
+[gripper_controller-8] [INFO] [1787538135.060985954] [gripper_controller]: gripper_controller siap (DetachableJoint; detach saat payload spawn)
+[parameter_bridge-2] [INFO] [1787538135.067982366] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/hydroships/camera_bottom/camera_info (gz.msgs.CameraInfo) -> /hydroships/camera_bottom/camera_info (sensor_msgs/msg/CameraInfo)] (Lazy 0)
+[parameter_bridge-2] [INFO] [1787538135.068907109] [ros_gz_bridge]: Creating ROS->GZ Bridge: [/hydroships/thruster_1/thrust (std_msgs/msg/Float64) -> /hydroships/thruster_1/thrust (gz.msgs.Double)] (Lazy 0)
+[stabilizer-12] [INFO] [1787538135.070552092] [stabilizer]: Stabilizer aktif. depth_hold=True heading_hold=True pitch_hold=True roll_hold=True target_depth=-0.1 m.
+[parameter_bridge-2] [INFO] [1787538135.074747644] [ros_gz_bridge]: Creating ROS->GZ Bridge: [/hydroships/thruster_2/thrust (std_msgs/msg/Float64) -> /hydroships/thruster_2/thrust (gz.msgs.Double)] (Lazy 0)
+[parameter_bridge-2] [INFO] [1787538135.076619098] [ros_gz_bridge]: Creating ROS->GZ Bridge: [/hydroships/thruster_3/thrust (std_msgs/msg/Float64) -> /hydroships/thruster_3/thrust (gz.msgs.Double)] (Lazy 0)
+[parameter_bridge-2] [INFO] [1787538135.078135785] [ros_gz_bridge]: Creating ROS->GZ Bridge: [/hydroships/thruster_4/thrust (std_msgs/msg/Float64) -> /hydroships/thruster_4/thrust (gz.msgs.Double)] (Lazy 0)
+[parameter_bridge-2] [INFO] [1787538135.079380988] [ros_gz_bridge]: Creating ROS->GZ Bridge: [/hydroships/thruster_5/thrust (std_msgs/msg/Float64) -> /hydroships/thruster_5/thrust (gz.msgs.Double)] (Lazy 0)
+[parameter_bridge-2] [INFO] [1787538135.080284399] [ros_gz_bridge]: Creating ROS->GZ Bridge: [/hydroships/thruster_6/thrust (std_msgs/msg/Float64) -> /hydroships/thruster_6/thrust (gz.msgs.Double)] (Lazy 0)
+[parameter_bridge-2] [INFO] [1787538135.081713896] [ros_gz_bridge]: Creating ROS->GZ Bridge: [/hydroships/gripper_left/cmd (std_msgs/msg/Float64) -> /hydroships/gripper_left/cmd (gz.msgs.Double)] (Lazy 0)
+[parameter_bridge-2] [INFO] [1787538135.083109621] [ros_gz_bridge]: Creating ROS->GZ Bridge: [/hydroships/gripper_right/cmd (std_msgs/msg/Float64) -> /hydroships/gripper_right/cmd (gz.msgs.Double)] (Lazy 0)
+[parameter_bridge-2] [INFO] [1787538135.084308359] [ros_gz_bridge]: Creating ROS->GZ Bridge: [/hydroships/gripper/attach (std_msgs/msg/Empty) -> /hydroships/gripper/attach (gz.msgs.Empty)] (Lazy 0)
+[parameter_bridge-2] [INFO] [1787538135.085479405] [ros_gz_bridge]: Creating ROS->GZ Bridge: [/hydroships/gripper/detach (std_msgs/msg/Empty) -> /hydroships/gripper/detach (gz.msgs.Empty)] (Lazy 0)
+[mission_fsm-13] [INFO] [1787538135.088269911] [mission_fsm]: Urutan wall: ['D', 'C', 'B', 'A']
+[mission_fsm-13] [INFO] [1787538135.088695256] [mission_fsm]: mission_fsm siap — mulai dalam 3s (start=DIVE)
+[odom_injector-4] [INFO] [1787538135.099306887] [odom_injector]: odom_injector siap (noise=False pos_std=0.030m vel_std=0.020m/s heading_std=1.00deg/√s)
+[parameter_bridge-2] [INFO] [1787538135.234231149] [ros_gz_bridge]: Passing message from ROS std_msgs/msg/Float64 to Gazebo gz.msgs.Double (showing msg only once per type)
+[qr_detector-7] [INFO] [1787538136.590000204] [qr_detector]: camera_info camera_bottom_link: fx=381.4 fy=381.4 cx=320.0 cy=240.0 (640x480) [intrinsics SIM, bukan kalibrasi hardware]
+[qr_detector-7] [INFO] [1787538136.703015252] [qr_detector]: camera_info camera_front_link: fx=381.4 fy=381.4 cx=320.0 cy=240.0 (640x480) [intrinsics SIM, bukan kalibrasi hardware]
+[qr_detector-7] [INFO] [1787538136.729231094] [qr_detector]: FRAME PERTAMA dari /hydroships/camera_bottom/image_raw (640x480 enc=rgb8 step=1920)
+[hook_detector-9] [INFO] [1787538136.783485473] [hook_detector]: FRAME PERTAMA dari /hydroships/camera_front/image_raw (640x480 enc=rgb8 step=1920)
+[hook_detector-9] [INFO] [1787538136.802699559] [hook_detector]: hook terdeteksi: center=(320,322) area=109549
+[INFO] [create-16]: process started with pid [26491]
+[qr_detector-7] [WARN] [1787538136.968860793] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[qr_detector-7] [INFO] [1787538136.972013358] [qr_detector]: FRAME PERTAMA dari /hydroships/camera_front/image_raw (640x480 enc=rgb8 step=1920)
+[create-16] [INFO] [1787538137.510903826] [ros_gz_sim]: Requested creation of entity.
+[create-16] [INFO] [1787538137.511381229] [ros_gz_sim]: OK creation of entity.
+[INFO] [create-16]: process has finished cleanly [pid 26491]
+[qr_detector-7] [WARN] [1787538142.429324522] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_front/image_raw]
+[mission_fsm-13] [INFO] [1787538145.474665098] [mission_fsm]: ===== MISI KKI 2026 DIMULAI =====
+[mission_fsm-13] [INFO] [1787538145.481357515] [mission_fsm]: [FSM] IDLE -> DIVE
+[mission_fsm-13] [INFO] [1787538145.936609823] [mission_fsm]: DIVE: kedalaman OK, menunggu /hydroships/payload_pose...
+[mission_fsm-13] [INFO] [1787538146.291396006] [mission_fsm]: DIVE: kedalaman OK, menunggu /hydroships/payload_pose...
+[mission_fsm-13] [INFO] [1787538146.704310859] [mission_fsm]: DIVE: kedalaman OK, menunggu /hydroships/payload_pose...
+[payload_spawner-10] [INFO] [1787538147.179764542] [payload_spawner]: Spawn payload QR=A pos=(0.40, 0.04, -0.90)
+[qr_detector-7] [WARN] [1787538148.148821627] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_front/image_raw]
+[payload_spawner-10] [INFO] [1787538149.081257525] [payload_spawner]: Payload QR=A spawned OK
+[payload_spawner-10] [INFO] [1787538149.082827062] [payload_spawner]: Sinyal /hydroships/payload/spawned diterbitkan
+[parameter_bridge-2] [INFO] [1787538149.085458114] [ros_gz_bridge]: Passing message from ROS std_msgs/msg/Empty to Gazebo gz.msgs.Empty (showing msg only once per type)
+[gripper_controller-8] [INFO] [1787538149.087348725] [gripper_controller]: gripper open: auto-detach startup (lepas attach bawaan gz Fortress) [pemicu: payload spawn terdeteksi]
+[gripper_controller-8] [INFO] [1787538151.382118965] [gripper_controller]: gripper open: auto-detach startup (lepas attach bawaan gz Fortress) [pemicu: payload spawn terdeteksi]
+[mission_fsm-13] [INFO] [1787538152.589383185] [mission_fsm]: Kedalaman scan tercapai (0.29m), payload_pose siap
+[mission_fsm-13] [INFO] [1787538152.590992104] [mission_fsm]: [FSM] DIVE -> APPROACH_QR
+[mission_fsm-13] [INFO] [1787538152.986358627] [mission_fsm]: APPROACH_QR dbg: dist=1.823 x=-1.58 y=0.15 yaw=23.4 target=(0.23,-0.03) ex=-- ey=-- ey_target=-0.61 h_cam=0.42 servo=0 qr=-
+[mission_fsm-13] [INFO] [1787538153.525902870] [mission_fsm]: APPROACH_QR dbg: dist=1.802 x=-1.56 y=0.15 yaw=35.4 target=(0.23,-0.03) ex=-- ey=-- ey_target=-0.61 h_cam=0.42 servo=0 qr=-
+[mission_fsm-13] [INFO] [1787538154.151427936] [mission_fsm]: APPROACH_QR dbg: dist=1.467 x=0.92 y=-1.33 yaw=163.5 target=(0.23,-0.03) ex=-- ey=-- ey_target=-0.61 h_cam=0.42 servo=0 qr=-
+[mission_fsm-13] [INFO] [1787538154.570730697] [mission_fsm]: APPROACH_QR dbg: dist=1.742 x=-1.50 y=0.17 yaw=33.8 target=(0.23,-0.03) ex=-- ey=-- ey_target=-0.61 h_cam=0.42 servo=0 qr=-
+[mission_fsm-13] [INFO] [1787538155.202547075] [mission_fsm]: APPROACH_QR dbg: dist=1.722 x=-1.47 y=0.19 yaw=41.1 target=(0.23,-0.03) ex=-- ey=-- ey_target=-0.61 h_cam=0.42 servo=0 qr=-
+[qr_detector-7] [WARN] [1787538155.592983758] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[qr_detector-7] [WARN] [1787538161.716873957] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_front/image_raw]
+[ERROR] [joy_mission_trigger-15]: process has died [pid 26167, exit code -9, cmd '/home/rasya/ros2_ws/install/hydroships_control/lib/hydroships_control/joy_mission_trigger --ros-args --params-file /tmp/launch_params_ui2mag86'].
+[ERROR] [depth_publisher-6]: process has died [pid 26139, exit code -9, cmd '/home/rasya/ros2_ws/install/hydroships_control/lib/hydroships_control/depth_publisher --ros-args --params-file /tmp/launch_params_3f5tehkj'].
+[ERROR] [thruster_allocator-11]: process has died [pid 26149, exit code -9, cmd '/home/rasya/ros2_ws/install/hydroships_control/lib/hydroships_control/thruster_allocator --ros-args --params-file /tmp/launch_params_go0cxut1'].
+[ERROR] [stabilizer-12]: process has died [pid 26153, exit code -9, cmd '/home/rasya/ros2_ws/install/hydroships_control/lib/hydroships_control/stabilizer --ros-args --params-file /home/rasya/ros2_ws/install/hydroships_control/share/hydroships_control/config/gains.yaml --params-file /tmp/launch_params_g9ykk58_'].
+[ERROR] [odom_injector-4]: process has died [pid 26135, exit code -9, cmd '/home/rasya/ros2_ws/install/hydroships_control/lib/hydroships_control/odom_injector --ros-args --params-file /tmp/launch_params_an43548u'].
+[ERROR] [hook_detector-9]: process has died [pid 26145, exit code -9, cmd '/home/rasya/ros2_ws/install/hydroships_control/lib/hydroships_control/hook_detector --ros-args --params-file /tmp/launch_params_hgbnb15b'].
+[ERROR] [mission_fsm-13]: process has died [pid 26162, exit code -9, cmd '/home/rasya/ros2_ws/install/hydroships_control/lib/hydroships_control/mission_fsm --ros-args --params-file /tmp/launch_params_2au1_ylz'].
+[ERROR] [camera_dropout_injector-5]: process has died [pid 26137, exit code -9, cmd '/home/rasya/ros2_ws/install/hydroships_control/lib/hydroships_control/camera_dropout_injector --ros-args --params-file /tmp/launch_params_lhkw8udl'].
+[ERROR] [qr_detector-7]: process has died [pid 26141, exit code -9, cmd '/home/rasya/ros2_ws/install/hydroships_control/lib/hydroships_control/qr_detector --ros-args --params-file /tmp/launch_params_4lchr_dm'].
+[ERROR] [gripper_controller-8]: process has died [pid 26143, exit code -9, cmd '/home/rasya/ros2_ws/install/hydroships_control/lib/hydroships_control/gripper_controller --ros-args --params-file /tmp/launch_params_8g48xt3h'].
+[payload_spawner-10] [INFO] [1787538261.008244147] [payload_spawner]: Spawn payload BARU utk siklus berikutnya (QR=C)
+[payload_spawner-10] [INFO] [1787538261.710544815] [payload_spawner]: Payload lama dihapus dari dunia
+[payload_spawner-10] [INFO] [1787538262.713224126] [payload_spawner]: Spawn payload QR=C pos=(0.40, 0.04, -0.90)
+[payload_spawner-10] [INFO] [1787538263.781589263] [payload_spawner]: Payload QR=C spawned OK
+[payload_spawner-10] [INFO] [1787538263.783305475] [payload_spawner]: Sinyal /hydroships/payload/spawned diterbitkan
+[ERROR] [ign gazebo-1]: process has died [pid 26128, exit code -9, cmd 'ruby /usr/bin/ign gazebo -r -s /home/rasya/ros2_ws/install/hydroships_gazebo/share/hydroships_gazebo/worlds/kki_arena.sdf --force-version 6'].
+[ERROR] [payload_spawner-10]: process has died [pid 26147, exit code -9, cmd '/home/rasya/ros2_ws/install/hydroships_gazebo/lib/hydroships_gazebo/payload_spawner --ros-args --params-file /tmp/launch_params_dbp591sl'].
+[ERROR] [parameter_bridge-2]: process has died [pid 26131, exit code -9, cmd '/opt/ros/humble/lib/ros_gz_bridge/parameter_bridge --ros-args --params-file /tmp/launch_params_4iy2eidk'].
+[ERROR] [robot_state_publisher-3]: process has died [pid 26133, exit code -9, cmd '/opt/ros/humble/lib/robot_state_publisher/robot_state_publisher --ros-args --params-file /tmp/launch_params_f1t972is'].

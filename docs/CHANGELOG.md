@@ -1208,3 +1208,58 @@ File disentuh: `docs/P2-GUI-INVESTIGATION.md` (§6 baru), `docs/STATUS.md`
 (M7), CHANGELOG ini. Tak ada perubahan kode — murni eksperimen runtime.
 Data mentah: `/tmp/m7-nearwall-retest/*.csv` + `sim*.log` (tak disertakan
 di repo).
+
+## 2026-08-24 — Verifikasi runtime fix `53a494f` (hook `ey_target`) + re-verify grab-ack R-9
+
+Dua item runtime-verification: (1) validasi fix `53a494f` (`hook_ey_target()`
++ gerbang `|ey-ey_tgt|` di `_st_approach_hook`, commit 2026-08-21, belum
+pernah diuji runtime), (2) sanity-check ulang mekanisme retry/ack GRAB
+(R-9, closed 2026-08-13) via satu run misi natural.
+
+- **Battery APPROACH_HOOK, 18 run gabungan** (`start_state:=APPROACH_HOOK`,
+  wall A-D berbagai seed, window 90s, dua script: `run_approach_hook_dwell_battery.sh`
+  8 run A-D×2seed + `run_approach_hook_fix_battery.sh` 10 run B/C/D):
+  **5 konvergensi visual** ("hook terpusat"), **2 fallback odometri**,
+  **11 timeout**. Bukan PASS bersih — jauh dari klaim "PASS jika ≥7/10"
+  yang tertulis di script WIP `run_approach_hook_fix_battery.sh` (klaim itu
+  tak diverifikasi ulang di sini, hasil aktual 5/10 pada battery itu saja).
+- **Root cause timeout ditemukan** (bukan hipotesis lama "ey mentah tanpa
+  ey_target" — itu sudah diperbaiki `53a494f`): `_st_approach_hook`
+  (`mission_fsm.py`) memanggil `hook_servo(..., ey_target=ey_tgt)` yang
+  menghitung `cmd.target_depth` dengan benar, TAPI baris setelahnya
+  `self._set_depth(self.hang_approach_depth)` **mengabaikan** `cmd.target_depth`
+  dan memaksa depth konstan (keputusan desain lama, cegah overshoot turun
+  macet di bawah hook). Akibatnya tak ada loop aktif mendorong `ey` menuju
+  `ey_tgt` — di run timeout (mis. `AH-fix53a-B-5001`), `ey` diam di ~0.40
+  vs `ey_tgt=+0.09` sepanjang window (bukan berosilasi, memang tak
+  bergerak). Konvergensi terjadi hanya bila geometri wall/seed kebetulan
+  membuat `ey` natural pada `hang_approach_depth` tetap sudah dekat
+  `ey_tgt`. **Belum diperbaiki** — butuh keputusan desain: aktifkan
+  `cmd.target_depth` dgn descent terkontrol (stall-detector, pola sama
+  spt HANG/AUTO_RELEASE fase 2), atau kalibrasi `hang_approach_depth`
+  per-wall.
+- **Catatan lingkungan**: run pertama battery ini (dibuang, tak dipakai
+  sbg data) terkontaminasi `ModuleNotFoundError: rclpy._rclpy_pybind11`
+  pada `payload_spawner` — `PATH` shell sesi ini punya `.venv-1/bin`
+  duluan dari `/usr/bin`, python3 resolve ke interpreter uv (3.14) tanpa
+  build rclpy Humble (3.10). Bukan bug repo; perbaikan: `PATH` di-strip
+  `.venv-1/bin` sebelum rerun. Dicatat di sini supaya sesi berikutnya tak
+  salah diagnosis "regresi kode" utk gejala serupa.
+- **Grab-ack (R-9) re-verified**: 1 run natural (seed 1001, tanpa QR
+  injection — tooling WIP `inject_qr_and_run.py`/`run_mission_with_qr_inject.sh`
+  ditemukan tapi tak dipakai, mission mencapai GRAB sendiri via jalur
+  normal `DESCEND: kedalaman grasp tercapai, QR tak terlihat (stale) ->
+  GRAB`). Log gate: `close` pertama ditolak (`GATEDBG close: BELUM ADA
+  qr_offset sama sekali -> tolak`), `_st_grab` retry, `close` kedua lolos
+  gerbang (`x=+0.000 y=+0.000` dst semua `ok=True`) → `attach (payload
+  dalam jangkauan)` → `GRAB terverifikasi (+15) -- ack attached`. Retry-
+  on-rejection R-9 (2026-08-13) **terkonfirmasi tetap bekerja**, tak ada
+  regresi. Run yang sama lanjut `NAV_WALL -> HANG` normal lalu **`HANG
+  timeout (dist 0.075, yaw_err 0.3°) -> ABORT`** meski posisi sudah dalam
+  toleransi — gejala baru, di luar scope sesi ini, **belum diinvestigasi**
+  (kemungkinan kriteria exit HANG butuh dwell/settle selain posisi/yaw).
+
+File disentuh: `docs/STATUS.md` (M6), CHANGELOG ini. Tak ada perubahan
+kode. Data mentah: `/tmp/claude-*/scratchpad/ah-battery2/`,
+`/tmp/claude-*/scratchpad/ah-fix53a/`, `/tmp/claude-*/scratchpad/mission_grab_full.log`
+(tak disertakan di repo, session-scoped).
