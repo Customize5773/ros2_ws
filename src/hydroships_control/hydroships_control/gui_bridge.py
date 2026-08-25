@@ -28,9 +28,9 @@ import time
 import rclpy
 from rclpy.clock import Clock, ClockType
 from rclpy.node import Node
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import PointStamped, Twist
 from nav_msgs.msg import Odometry
-from std_msgs.msg import Float64, String
+from std_msgs.msg import Empty, Float64, String
 
 from hydroships_control.gui_bridge_logic import DelayLine, GuiBridgeLogic
 
@@ -75,10 +75,24 @@ class GuiBridge(Node):
         # ROS keluar (ke sim) & masuk (telemetri).
         self.pub_cmd = self.create_publisher(Twist, '/hydroships/cmd_vel', 10)
         self.pub_grip = self.create_publisher(String, '/hydroships/gripper/command', 10)
+        self.pub_mission_start = self.create_publisher(
+            Empty, '/hydroships/mission/start_autonomous', 10)
+        self.pub_mission_abort = self.create_publisher(Empty, '/hydroships/mission/abort', 10)
         self._depth = 0.0
         self._rpy = (0.0, 0.0, 0.0)
+        self._mission_state = None
+        self._qr_result = ''
+        self._hook_off = None
+        self._hook_time = None
+        self._grip_status = ''
+        self._grip_state = ''
         self.create_subscription(Odometry, '/hydroships/odom', self._on_odom, 10)
         self.create_subscription(Float64, '/hydroships/depth', self._on_depth, 10)
+        self.create_subscription(String, '/hydroships/mission/state', self._on_mission_state, 10)
+        self.create_subscription(String, '/hydroships/qr_result', self._on_qr_result, 10)
+        self.create_subscription(PointStamped, '/hydroships/hook_offset', self._on_hook, 10)
+        self.create_subscription(String, '/hydroships/gripper/status', self._on_grip_status, 10)
+        self.create_subscription(String, '/hydroships/gripper/state', self._on_grip_state, 10)
 
         # UDP: dengar perintah GUI (non-blocking) + kirim telemetri.
         self._telem_dest = (str(g('telem_host')), int(g('telem_port')))
@@ -106,6 +120,22 @@ class GuiBridge(Node):
 
     def _on_odom(self, msg: Odometry):
         self._rpy = _yaw_rpy(msg.pose.pose.orientation)
+
+    def _on_mission_state(self, msg: String):
+        self._mission_state = msg.data
+
+    def _on_qr_result(self, msg: String):
+        self._qr_result = msg.data
+
+    def _on_hook(self, msg: PointStamped):
+        self._hook_off = (msg.point.x, msg.point.y, msg.point.z)
+        self._hook_time = time.monotonic()
+
+    def _on_grip_status(self, msg: String):
+        self._grip_status = msg.data
+
+    def _on_grip_state(self, msg: String):
+        self._grip_state = msg.data
 
     def _poll_cmd(self):
         now = time.monotonic()
@@ -135,11 +165,20 @@ class GuiBridge(Node):
         action = self.logic.on_command(msg.get('name'), msg.get('value'))
         if 'gripper' in action:
             s = String(); s.data = action['gripper']; self.pub_grip.publish(s)
+        if action.get('mission_start'):
+            self.pub_mission_start.publish(Empty())
+        if action.get('mission_abort'):
+            self.pub_mission_abort.publish(Empty())
 
     def _send_telem(self):
         roll, pitch, yaw = self._rpy
+        hook_age = (time.monotonic() - self._hook_time
+                    if self._hook_time is not None else None)
         telem = self.logic.build_telemetry(
-            yaw_rad=yaw, depth_m=self._depth, roll=roll, pitch=pitch)
+            yaw_rad=yaw, depth_m=self._depth, roll=roll, pitch=pitch,
+            mission_state=self._mission_state, qr_result=self._qr_result,
+            hook_offset=self._hook_off, hook_age=hook_age,
+            gripper_status=self._grip_status, gripper_state=self._grip_state)
         self._downlink.push(telem, time.monotonic())
 
     def _drain_downlink(self):

@@ -392,8 +392,12 @@ class MissionFSM(Node):
             QoSProfile(depth=1, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL))
         self.create_subscription(Empty, '/hydroships/mission/start_autonomous',
                                   self._on_trigger, 10)
+        self.create_subscription(Empty, '/hydroships/mission/abort',
+                                  self._on_abort_trigger, 10)
         self.create_subscription(String, '/hydroships/gripper/status',
                                   self._on_gripper_status, 10)
+        # Ekspos state FSM ke luar (dipakai gui_bridge -> GUI-ROV telemetry).
+        self.pub_state = self.create_publisher(String, '/hydroships/mission/state', 10)
 
         # payload sudah nempel ke ROV sejak spawn (DetachableJoint).
         # Detach = publish Empty ke topic ini.
@@ -708,8 +712,14 @@ class MissionFSM(Node):
                 'Trigger autonomous diabaikan (state saat ini: %s, bukan WAIT_TRIGGER)'
                 % self.state.name)
 
+    def _on_abort_trigger(self, _msg):
+        if self.state not in (St.DONE, St.ABORT):
+            self.get_logger().warn('Abort dipicu via /hydroships/mission/abort (GUI)')
+            self._to(St.ABORT)
+
     # ---- main tick ----
     def _tick(self):
+        self.pub_state.publish(String(data=self.state.name))
         if not self._started:
             if self._now() - self._t0 >= self._start_delay and self.depth is not None:
                 self._started = True

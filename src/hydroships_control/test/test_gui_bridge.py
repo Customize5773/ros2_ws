@@ -30,18 +30,19 @@ def test_delay_line_fifo_order():
 
 def test_disarmed_wrench_zero():
     g = GuiBridgeLogic()
-    g.on_command('surge', 100)
+    g.on_command('surge', 1000)
     # belum armed -> gerak nol (failsafe)
     assert g.wrench() == (0.0, 0.0, 0.0, 0.0)
 
 
 def test_armed_axis_to_wrench():
+    # value dalam skala kawat GUI-ROV (-1000..1000, lihat server.js clampAxis).
     g = GuiBridgeLogic(surge_gain=0.4, sway_gain=0.4, heave_gain=0.3, yaw_gain=0.12)
     g.on_command('arm', True)
-    g.on_command('surge', 100)
-    g.on_command('sway', -50)
-    g.on_command('heave', 100)
-    g.on_command('yaw', 50)
+    g.on_command('surge', 1000)
+    g.on_command('sway', -500)
+    g.on_command('heave', 1000)
+    g.on_command('yaw', 500)
     fx, fy, fz, mz = g.wrench()
     assert math.isclose(fx, 40.0)
     assert math.isclose(fy, -20.0)
@@ -52,14 +53,14 @@ def test_armed_axis_to_wrench():
 def test_axis_clamped_to_percent():
     g = GuiBridgeLogic(surge_gain=0.4)
     g.on_command('arm', True)
-    g.on_command('surge', 999)      # di-clamp ke 100
+    g.on_command('surge', 9999)      # di luar rentang kawat -> tetap clamp ke 100%
     assert math.isclose(g.wrench()[0], 40.0)
 
 
 def test_stop_neutralizes_and_disarms():
     g = GuiBridgeLogic()
     g.on_command('arm', True)
-    g.on_command('surge', 100)
+    g.on_command('surge', 1000)
     act = g.on_command('stop', None)
     assert act['wrench'] == (0.0, 0.0, 0.0, 0.0)
     assert g.armed is False
@@ -68,7 +69,7 @@ def test_stop_neutralizes_and_disarms():
 def test_disarm_neutralizes():
     g = GuiBridgeLogic()
     g.on_command('arm', True)
-    g.on_command('surge', 80)
+    g.on_command('surge', 800)
     act = g.on_command('arm', False)
     assert act['wrench'] == (0.0, 0.0, 0.0, 0.0)
     assert g.armed is False
@@ -109,6 +110,45 @@ def test_telemetry_none_safe():
     g = GuiBridgeLogic()
     t = g.build_telemetry()      # semua None
     assert t['heading'] == 0.0 and t['depth'] == 0.0
+    assert t['mission_state'] == 'IDLE'
+    assert t['qr_result'] == '' and t['gripper_status'] == '' and t['gripper_state'] == ''
+    assert t['hook_ex'] == 0.0 and t['hook_fresh'] is False
+
+
+def test_start_abort_mission_commands():
+    g = GuiBridgeLogic()
+    assert g.on_command('start_mission', None) == {'mission_start': True}
+    assert g.on_command('abort_mission', None) == {'mission_abort': True}
+
+
+def test_mission_state_drives_mode():
+    g = GuiBridgeLogic()
+    assert g.build_telemetry(mission_state='DIVE')['mode'] == 'auto'
+    for s in (None, 'IDLE', 'DONE', 'ABORT'):
+        assert g.build_telemetry(mission_state=s)['mode'] == 'manual'
+
+
+def test_build_telemetry_new_fields_passthrough():
+    g = GuiBridgeLogic()
+    t = g.build_telemetry(mission_state='GRAB', qr_result='B',
+                          hook_offset=(0.1, -0.2, 0.3), hook_age=0.5,
+                          gripper_status='attached', gripper_state='closed')
+    assert t['mission_state'] == 'GRAB'
+    assert t['qr_result'] == 'B'
+    assert math.isclose(t['hook_ex'], 0.1)
+    assert math.isclose(t['hook_ey'], -0.2)
+    assert math.isclose(t['hook_size'], 0.3)
+    assert t['hook_fresh'] is True
+    assert t['gripper_status'] == 'attached'
+    assert t['gripper_state'] == 'closed'
+
+
+def test_hook_freshness_threshold():
+    g = GuiBridgeLogic()
+    fresh = g.build_telemetry(hook_offset=(0.1, 0.2, 0.3), hook_age=0.5)
+    stale = g.build_telemetry(hook_offset=(0.1, 0.2, 0.3), hook_age=5.0)
+    assert fresh['hook_fresh'] is True
+    assert stale['hook_fresh'] is False
 
 
 # ---- hook offset normalization (dipakai APPROACH_HOOK visual servo) ----

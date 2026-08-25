@@ -1623,3 +1623,85 @@ File disentuh: `src/hydroships_gazebo/scripts/payload_spawner.py`,
 `src/hydroships_control/test/test_qr_logic.py`,
 `tools/p0-experiments/run_hang_wall_battery.sh`, `docs/HARDWARE.md`,
 `docs/STATUS.md`, `docs/P2-GUI-INVESTIGATION.md`, CHANGELOG ini.
+
+## 2026-08-25 (lanjutan 3) — M7: kandidat saturasi allocator diuji runtime & dibantah
+
+Lanjutan re-audit kode `allocation.py` (§7 `P2-GUI-INVESTIGATION.md`,
+ditulis sesi sebelumnya tapi belum diuji runtime): kandidat "clipping
+per-thruster tanpa redistribusi membocorkan momen pitch tak-terkomando
+saat saturasi" akhirnya diuji lewat sim sungguhan, bukan hitung offline
+lagi.
+
+**Perubahan kode**: `tools/p2-experiment.py` diberi dukungan combo
+dua-axis (`--axis2`/`--value2`, mode `sustained`) supaya bisa kirim
+`surge=100 yaw=100` bersamaan lewat `gui_bridge` — sebelumnya cuma
+bisa satu axis per run.
+
+**Run**: `hydroships_gui.launch.py headless:=true rov_random_spawn:=false`
+(ROV mid-arena), command combo aktif 8s. **Saturasi terkonfirmasi
+persis seperti prediksi analitik offline**: `t3=50.0000` (pinned tepat
+di `MAX_THRUST`) sepanjang window aktif. **Tapi respons attitude yang
+dihasilkan tidak signifikan**: `pitch` tetap -0.0115..-0.0068°
+sepanjang window (nyaris nol), dan `roll` justru **meluruh** dari
+-0.71° (sisa settling dari spawn, SEBELUM command dikirim — bukan
+disebabkan command) turun ke -0.04° selama command aktif — command
+tidak menambah roll sama sekali.
+
+**Kandidat DIBANTAH**: mekanisme kode (clipping per-thruster) nyata
+terjadi di sim, tapi residual `my` yang diprediksi (0.36-0.77 N·m)
+terlalu kecil untuk terlihat di attitude ROV nyata setelah diserap
+massa/inersia/damping hidrodinamik — jauh di bawah bahkan baseline
+air-bebas 0.4-0.5° dari investigasi §5a, apalagi klaim asli ±25-31°.
+
+**Keempat kandidat kode kini habis diuji** (thrust drop-out: fixed &
+bukan faktor; kombinasi-axis manusia: kontributor nyata s.d. 6.4°;
+kontak dinding: kontributor nyata s.d. 2.7°; saturasi allocator:
+dibantah). Ruang pencarian kandidat KODE sudah tuntas — kandidat baru
+kalau ada harus datang dari observasi lapangan tambahan, bukan
+re-audit kode lagi. **M7 spike tetap OPEN**, prioritas rendah, jangan
+tandai RESOLVED.
+
+File disentuh: `tools/p2-experiment.py`, `docs/P2-GUI-INVESTIGATION.md`,
+`docs/STATUS.md`, CHANGELOG ini. Data mentah:
+`/tmp/claude-*/scratchpad/p2-combo/combo_surge100_yaw100.csv`
+(session-scoped, tak disertakan repo).
+
+## 2026-08-25 (lanjutan 4) — M7: gui_bridge expose mission FSM & kontrol autonomous
+
+Tujuan awal repo ini adalah agar sim ROS 2 bisa dipakai sistem autonomous
+di [Customize5773/GUI-ROV](https://github.com/Customize5773/GUI-ROV) —
+tapi `gui_bridge` sejauh ini cuma menjembatani teleop manual, GUI tak
+punya visibilitas maupun kontrol atas `mission_fsm` autonomous.
+
+**Perubahan**:
+
+- `mission_fsm.py`: publish state (`St.name`) tiap tick ke topic baru
+  `/hydroships/mission/state` (String); subscribe topic baru
+  `/hydroships/mission/abort` (Empty) → paksa `_to(St.ABORT)` dari state
+  manapun kecuali `DONE`/`ABORT`.
+- `gui_bridge_logic.py`: `on_command()` menangani command UDP baru
+  `start_mission`/`abort_mission`; `build_telemetry()` menerima
+  `mission_state`, `qr_result`, `hook_offset`/`hook_age`,
+  `gripper_status`, `gripper_state` dan menurunkan field `mode`
+  (auto/manual) dari `mission_state`, bukan hardcoded lagi.
+- `gui_bridge.py`: subscribe `/hydroships/mission/state`,
+  `/hydroships/qr_result`, `/hydroships/hook_offset`,
+  `/hydroships/gripper/status`, `/hydroships/gripper/state`; publish
+  `/hydroships/mission/start_autonomous` & `/hydroships/mission/abort`
+  saat command UDP baru diterima; teruskan semua ke `build_telemetry()`.
+
+`start_mission` hanya berefek bila FSM sedang di `WAIT_TRIGGER` (perilaku
+`_on_trigger` existing, tak diubah) — belum bisa cold-start dari `IDLE`.
+
+Kontrak wire protocol baru didokumentasikan di
+[GUI-INTEGRATION.md](GUI-INTEGRATION.md) §3c supaya tim GUI-ROV bisa
+menyesuaikan `rov_agent.py`/`server.js`/dashboard.
+
+Teruji headless: 6 test baru + 14 existing, 20/20 lolos
+(`test/test_gui_bridge.py`). **Belum live-tested dengan dashboard GUI-ROV
+asli** — tandai 🧪 di `STATUS.md` M7.
+
+File disentuh: `src/hydroships_control/hydroships_control/gui_bridge.py`,
+`gui_bridge_logic.py`, `mission_fsm.py`,
+`src/hydroships_control/test/test_gui_bridge.py`,
+`docs/GUI-INTEGRATION.md`, `docs/STATUS.md`, CHANGELOG ini.

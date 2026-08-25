@@ -23,6 +23,9 @@ Dashboard web (public/js) ──WebSocket──► server.js (Node) ──UDP JS
   (dari `rov_agent.py` `command_listener`)
 - **Telemetri ROV → GUI**: UDP JSON `{heading, depth, roll, pitch, temp, voltage,
   armed, light, mode, ts}`.
+- **[BARU 2026-08-25] Observability & kontrol mission autonomous** (untuk
+  pengembangan sistem autonomous GUI-ROV): dua command baru dan tujuh field
+  telemetri baru — lihat §3c.
 - **Kontrol**: axis joystick **persen −100..100** (`surge/sway/yaw/heave`) →
   MAVLink `MANUAL_CONTROL` (x/y/z/r). Gripper & lampu = servo PWM
   (`MAV_CMD_DO_SET_SERVO`, open 1900 / close 1100).
@@ -70,6 +73,31 @@ ros2 launch hydroships_bringup hydroships_gui.launch.py \
 (sim + thruster_allocator + gui_bridge; `gui_host` = laptop GUI/server.js.)
 Atau node adapter saja: `ros2 run hydroships_control gui_bridge` (default dengar
 UDP :14550, telemetri → 127.0.0.1:14551). Node inti tak disentuh.
+
+### 3c. [BARU 2026-08-25] Observability & kontrol mission autonomous
+Ditambahkan supaya sistem **autonomous** di sisi GUI-ROV punya visibilitas &
+kontrol terhadap `mission_fsm`, bukan cuma teleop manual.
+
+**Command baru GUI→ROV** (`{"name": ..., "value": ...}`, `value` diabaikan):
+| name | efek |
+|---|---|
+| `start_mission` | publish `Empty` → `/hydroships/mission/start_autonomous`. **Hanya berefek bila FSM sedang di state `WAIT_TRIGGER`** (perilaku `_on_trigger` yang sudah ada) — tidak bisa cold-start dari `IDLE`; start awal tetap via launch-param `start_state`. |
+| `abort_mission` | publish `Empty` → topic baru `/hydroships/mission/abort`. Paksa FSM ke `ABORT` dari state manapun kecuali `DONE`/`ABORT`. |
+
+**Field telemetri baru ROV→GUI** (ditambahkan ke JSON existing):
+| field | tipe | arti |
+|---|---|---|
+| `mission_state` | str | nama enum `St` mission_fsm saat ini (`IDLE`, `DIVE`, ..., `DONE`, `ABORT`); `IDLE` bila mission_fsm belum publish (mis. hanya `hydroships_gui.launch.py` tanpa mission_fsm berjalan) |
+| `mode` | str | **berubah dari hardcoded `"manual"`**: sekarang `"auto"` bila `mission_state` bukan `{IDLE, DONE, ABORT}`, selain itu `"manual"` |
+| `qr_result` | str | huruf QR terakhir terdeteksi (`/hydroships/qr_result`) atau `""` |
+| `hook_ex`, `hook_ey`, `hook_size` | float | offset hook terakhir dari `/hydroships/hook_offset` (0.0 bila belum pernah terdeteksi) |
+| `hook_fresh` | bool | `true` bila deteksi hook terakhir ≤1.0s yang lalu |
+| `gripper_status` | str | ack terakhir `/hydroships/gripper/status` (`attached`/`detached`/`rejected`/``) |
+| `gripper_state` | str | state terakhir `/hydroships/gripper/state` (`open`/`closed`) |
+
+Diimplementasikan di `gui_bridge.py`/`gui_bridge_logic.py`, teruji headless
+(`test/test_gui_bridge.py`). **Belum live-tested dengan dashboard GUI-ROV
+asli** — lihat `STATUS.md` M7.
 
 ### 3b. Node `hook_detector` (port GUI-ROV) untuk APPROACH_HOOK
 `autonomy/vision/hook_detect.py` (`detect_hook`, contour/CLAHE→Hough, murni cv2)

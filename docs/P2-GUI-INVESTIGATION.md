@@ -345,14 +345,31 @@ kebocoran yang sudah ada di semua kombinasi axis, bukan mekanisme terpisah.
 Tak ada validasi berapa N·m residual dibutuhkan utk spike 2-6° (butuh
 massa/inertia & damping hidrodinamik ROV, tak tersedia dari kode saja).
 
-**Status kandidat #4: teridentifikasi & diverifikasi analitik (offline),
-BELUM diuji runtime/sim.** Konsisten arah dengan kandidat #2 (kombinasi-axis
-manusia) di §5a — kemungkinan besar mekanisme YANG SAMA yang mendasarinya
-(pinv teredam tak pernah sempurna decouple axis, saturasi memperparah), bukan
-kandidat kelima yang berdiri sendiri. Tidak mengubah status OPEN M7 di
-STATUS.md; ditambahkan sebagai mekanisme kode konkret utk sesi lanjutan yang
-punya akses simulasi/hardware untuk uji langsung (mis. command surge=100%
-yaw=100% sustained via `gui_bridge`, ukur roll/pitch peak).
+**[UPDATE 2026-08-25] Kandidat #4 DIUJI RUNTIME & DIBANTAH.** `tools/p2-experiment.py`
+diberi dukungan combo dua-axis (`--axis2`/`--value2`, sustained mode) supaya bisa
+mengirim `surge=100 yaw=100` bersamaan lewat `gui_bridge` sungguhan (bukan hitung
+offline lagi). Run: ROV mid-arena (`rov_random_spawn:=false`), `headless:=true`,
+window aktif command 8s.
+
+**Saturasi terkonfirmasi terjadi persis seperti prediksi analitik**: `t3=50.0000`
+(pinned tepat di `MAX_THRUST`) sepanjang window command aktif — bukan spekulasi,
+benar-benar saturasi di sim nyata. **Tapi respons roll/pitch yang dihasilkan tidak
+signifikan**: `pitch` tetap di rentang -0.0115..-0.0068° sepanjang window aktif
+(nyaris nol, jauh di bawah bahkan baseline air-bebas 0.4-0.5° dari §5a) — residual
+`my` 0.36-0.77 N·m yang diprediksi offline **tidak menghasilkan spike pitch yang
+terukur** begitu diserap dinamika ROV nyata (massa/inertia/damping hidrodinamik).
+`roll` justru **meluruh** dari -0.71° (nilai SEBELUM command dikirim, sisa settling
+dari spawn — bukan disebabkan command) turun ke -0.04° selama window aktif —
+command tidak menambah roll, kalau ada efek malah meredam.
+
+**Kandidat #4 DIBANTAH sbg penjelas spike**: mekanisme kode (clipping per-thruster
+tanpa redistribusi) nyata terjadi, tapi besarnya efek pada attitude ROV terlalu
+kecil untuk menjelaskan bahkan baseline 0.4-0.5°, apalagi klaim asli ±25-31°.
+Konsisten dengan kandidat #2 (kombinasi-axis) — sama-sama kontributor real tapi
+kecil, tak satupun (sendiri atau gabungan #1-#4) mendekati skala klaim asli.
+
+Data: `/tmp/claude-*/scratchpad/p2-combo/combo_surge100_yaw100.csv`
+(session-scoped, tak disertakan repo).
 
 ## Status ringkas
 
@@ -367,14 +384,22 @@ yaw=100% sustained via `gui_bridge`, ukur roll/pitch peak).
 - ✅ M7 light — **diverifikasi round-trip via dashboard asli** (§5b):
   command diterima `gui_bridge`, **disengaja non-aktuasi** (tak ada model
   lampu di sim) — bukan bug, bukan lagi item "belum dites".
-- ⚠️ M7 roll/pitch spike — **ketiga kandidat §4 sudah diuji habis** (§6):
+- ⚠️ M7 roll/pitch spike — **keempat kandidat §4/§7 sudah diuji habis** (§6-7):
   kontak fisik dgn dinding selama yaw **terkonfirmasi sebagai kontributor
   nyata** (peak 2.73°/2.71°, ~5-6× di atas baseline air-bebas 0.48°/0.37°,
   mekanisme teramati langsung — hull tergelincir sepanjang dinding sambil
   berputar), tapi sendirian **masih ~9-11× di bawah** klaim asli ±25-31°;
-  kombinasi-axis manusia (§5a) berkontribusi sampai 6.40°/2.22°. Tak
-  satupun kandidat, sendiri-sendiri, mendekati klaim asli — kemungkinan
-  besar efek gabungan beberapa kandidat sekaligus, atau anomali satu-kali
-  yang tak sepenuhnya reproducible. **Tetap OPEN** (turunkan prioritas,
-  tak ada bukti bug aktif di kode), jangan tandai RESOLVED di STATUS.md.
+  kombinasi-axis manusia (§5a) berkontribusi sampai 6.40°/2.22°; **saturasi
+  allocator (§7) DIUJI RUNTIME 2026-08-25 (`surge=100 yaw=100` combo via
+  `gui_bridge` sungguhan, thruster_3 terkonfirmasi saturasi persis 50N) dan
+  DIBANTAH** — pitch yang dihasilkan cuma ~0.01°, roll malah meluruh
+  (bukan naik) selama command aktif, jauh di bawah bahkan baseline. Tak
+  satupun dari keempat kandidat, sendiri-sendiri, mendekati klaim asli —
+  kemungkinan besar efek gabungan kontak-dinding + kombinasi-axis manusia
+  (dua kandidat yg terbukti berkontribusi nyata), atau anomali satu-kali
+  observasi asli 2026-08-13 yang tak sepenuhnya reproducible. **Tetap
+  OPEN** (turunkan prioritas, tak ada bukti bug aktif di kode; ruang
+  pencarian kandidat kode sudah habis — kandidat baru harus datang dari
+  observasi lapangan tambahan, bukan re-audit kode), jangan tandai
+  RESOLVED di STATUS.md.
 - Belum dikerjakan: lint/typecheck penuh repo.
