@@ -47,6 +47,7 @@ from hydroships_control.hook_logic import HookServoGains, hook_ey_target, hook_s
 # terpicu. Di-re-export di sini agar `mission_fsm.qr_ey_target` tetap resolve
 # (dipakai test/test_qr_ey_target.py dan reduce_approach_qr.py).
 from hydroships_control.qr_logic import qr_ey_target  # noqa: F401 (re-export)
+from hydroships_control.stabilizer import roll_pitch_from_quaternion
 
 
 def yaw_from_quaternion(q):
@@ -413,6 +414,8 @@ class MissionFSM(Node):
         # State
         self.depth = None
         self.yaw = None
+        self.roll = None
+        self.pitch = None
         self.x = None
         self.y = None
         self.vx = 0.0
@@ -646,6 +649,7 @@ class MissionFSM(Node):
 
     def _on_odom(self, msg):
         self.yaw = yaw_from_quaternion(msg.pose.pose.orientation)
+        self.roll, self.pitch = roll_pitch_from_quaternion(msg.pose.pose.orientation)
         self.x = msg.pose.pose.position.x
         self.y = msg.pose.pose.position.y
         self.vx = msg.twist.twist.linear.x
@@ -1516,8 +1520,10 @@ class MissionFSM(Node):
                 max(0.5, dist_fwd if off is not None else 0.8),
                 self.cam_vfov_half_tan, self.hook_ey_max) if 'dist_fwd' in locals() else 0.0
             self.get_logger().info(
-                'APPROACH_HOOK dbg: off=%s ey_tgt=%+.2f depth=%.2f'
-                % (off, ey_tgt_dbg, self.depth if self.depth is not None else -99.0))
+                'APPROACH_HOOK dbg: off=%s ey_tgt=%+.2f depth=%.2f roll=%+.1f pitch=%+.1f'
+                % (off, ey_tgt_dbg, self.depth if self.depth is not None else -99.0,
+                   math.degrees(self.roll) if self.roll is not None else -99.0,
+                   math.degrees(self.pitch) if self.pitch is not None else -99.0))
         if self._elapsed() > self.T['approach']:
             # Jangan abort: AUTO_RELEASE punya station-keep sendiri sebelum detach.
             self.get_logger().warn('APPROACH_HOOK timeout -> lanjut AUTO_RELEASE')

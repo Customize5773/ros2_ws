@@ -1407,3 +1407,57 @@ selidiki kandidat lain (attitude ROV per-wall, `hook_z` per-hook tak
 presisi, proyeksi `dist_forward`).
 
 File disentuh: `docs/STATUS.md`, CHANGELOG ini. Tak ada perubahan kode.
+
+## 2026-08-25 — APPROACH_HOOK C/D: kandidat attitude/hook_z/dist_forward DIBANTAH
+
+Investigasi lanjutan atas 3 kandidat yang diajukan sesi 2026-08-24 (bias
+attitude ROV, `hook_z` per-hook tak presisi, proyeksi `dist_forward`).
+
+**Instrumentasi ditambah** (permanen, murah): `mission_fsm._on_odom`
+merekam `self.roll`/`self.pitch` lewat `stabilizer.roll_pitch_from_quaternion`
+(reuse, bukan kode baru), dan baris log `APPROACH_HOOK dbg` yang sudah
+ada sekarang menyertakan `roll=%+.1f pitch=%+.1f` (derajat) di samping
+`off`/`ey_tgt`/`depth`.
+
+**Attitude bias DIBANTAH**: run bersih (`start_wall:=C spawn_seed:=7001
+hang_approach_depth:=0.30`, window 100s, satu proses saja, dijalankan
+setelah `load average` mesin turun ke ~4 dari ~18) menunjukkan
+`|roll|,|pitch| < 0.2°` sepanjang jendela penuh — ROV tetap level,
+bukan miring, bahkan saat hook tak terdeteksi & akhirnya timeout
+fallback.
+
+**`hook_z` per-hook DIBANTAH lewat kode**: `hook_z=-0.39` adalah satu
+konstanta global (`mission_fsm.py:280`), dipakai sama untuk keempat
+wall, dan sudah cocok byte-persis dengan `tip_collision` di SDF —
+tidak ada nilai "per-hook" untuk jadi tak presisi.
+
+**Proyeksi `dist_forward` DIBANTAH lewat kode**: dihitung
+`hypot(tip_x-self.x, tip_y-self.y)`, formula generik sama untuk semua
+wall lewat `_tip_xy()`, tidak ada cabang khusus per-wall.
+
+**Catatan metodologi penting**: run pertama sesi ini (wall A yang
+lanjut otomatis ke wall C dalam satu proses, ditambah proses sim lain
+yang belum mati sepenuhnya dari percobaan sebelumnya, `load average`
+15-18 saat itu) menghasilkan `roll`/`pitch` berosilasi liar ±1-5°
+dalam <100ms dan `depth` melompat bolak-balik dalam interval sama —
+pola RTF-collapse identik dengan bug freeze-odom yang sudah ditutup di
+entri HANG 2026-08-24. Data ini dibuang, tidak dipakai untuk
+kesimpulan. Pelajaran: satu run sim per waktu, tunggu `load average`
+turun sebelum menjalankan probe APPROACH_HOOK manapun.
+
+**Akar asimetri C/D tetap OPEN.** Ketiga kandidat sesi lalu semua
+terbantah. Fakta yang bertahan: deteksi hook sendiri sangat rapuh
+(`HOOK TAK TERDETEKSI` mendominasi log di SEMUA wall, bukan cuma C/D),
+dan saat berhasil deteksi, `ey` yang terbaca sangat bervariasi antar
+run (0.167 di satu sesi vs 0.406-0.435 di battery lain) — kemungkinan
+besar sumber "bias" yang diamati sebelumnya adalah variansi deteksi
+cv2 (`_best_contour` memilih satu kontur berdasar skor confidence,
+gampang salah pilih fitur), bukan bias geometris sistematis per-wall.
+Sesi lanjutan sebaiknya kumpulkan sample lebih besar (n≥5 run per
+wall, `ex,ey,size` mentah) sebelum mencari kandidat baru — n=1 per
+wall tidak cukup memisahkan noise deteksi dari bias asli.
+
+File disentuh: `src/hydroships_control/hydroships_control/mission_fsm.py`
+(instrumentasi roll/pitch), `docs/STATUS.md`, CHANGELOG ini. Data
+mentah run: `/tmp/claude-*/scratchpad/hook-ac-compare/` (tak
+disertakan di repo, session-scoped).
