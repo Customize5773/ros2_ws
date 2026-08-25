@@ -91,7 +91,9 @@ def generate_launch_description():
                       'approach_min_fmax_frac': ParameterValue(
                           LaunchConfiguration('approach_min_fmax_frac'), value_type=float),
                       'approach_dwell_ticks': ParameterValue(
-                          LaunchConfiguration('approach_dwell_ticks'), value_type=int)}],
+                          LaunchConfiguration('approach_dwell_ticks'), value_type=int),
+                      'hang_approach_depth': ParameterValue(
+                          LaunchConfiguration('hang_approach_depth'), value_type=float)}],
     )
 
     return LaunchDescription([
@@ -188,6 +190,10 @@ def generate_launch_description():
         DeclareLaunchArgument('approach_dwell_ticks', default_value='1',
                               description='Tick dwell (10Hz) sebelum transisi GRAB '
                                           'benar2 dipicu di APPROACH_QR.'),
+        DeclareLaunchArgument('hang_approach_depth', default_value='0.14',
+                              description='m kedalaman posisi lubang di atas tip '
+                                          'saat HANG/APPROACH_HOOK/AUTO_RELEASE fase 1 '
+                                          '(dieksos utk kalibrasi per-wall).'),
         stabilized,
         mission,
         joy_trigger,

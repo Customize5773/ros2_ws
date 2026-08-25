@@ -1,0 +1,190 @@
+[INFO] [launch]: All log files can be found below /home/rasya/.ros/log/2026-08-24-10-01-00-513451-rasya-Latitude-3450-63930
+[INFO] [launch]: Default logging verbosity is set to INFO
+[sim.launch] ROV spawn (random=True) di (1.216, -2.05, -0.5) yaw=1.7532 rad
+[sim.launch] world file "kki_arena.sdf" -> world name "kki_arena"
+[INFO] [ign gazebo-1]: process started with pid [63932]
+[INFO] [parameter_bridge-2]: process started with pid [63934]
+[INFO] [robot_state_publisher-3]: process started with pid [63937]
+[INFO] [odom_injector-4]: process started with pid [63939]
+[INFO] [camera_dropout_injector-5]: process started with pid [63941]
+[INFO] [depth_publisher-6]: process started with pid [63943]
+[INFO] [qr_detector-7]: process started with pid [63945]
+[INFO] [gripper_controller-8]: process started with pid [63947]
+[INFO] [hook_detector-9]: process started with pid [63949]
+[INFO] [payload_spawner-10]: process started with pid [63951]
+[INFO] [thruster_allocator-11]: process started with pid [63953]
+[INFO] [stabilizer-12]: process started with pid [63955]
+[INFO] [mission_fsm-13]: process started with pid [63959]
+[robot_state_publisher-3] [WARN] [1787540461.626000440] [kdl_parser]: The root link base_link has an inertia specified in the URDF, but KDL does not support a root link with an inertia.  As a workaround, you can add an extra dummy link to your URDF.
+[robot_state_publisher-3] [INFO] [1787540461.626269405] [robot_state_publisher]: got segment base_link
+[robot_state_publisher-3] [INFO] [1787540461.626399769] [robot_state_publisher]: got segment camera_bottom_link
+[robot_state_publisher-3] [INFO] [1787540461.626424904] [robot_state_publisher]: got segment camera_front_link
+[robot_state_publisher-3] [INFO] [1787540461.626444659] [robot_state_publisher]: got segment depth_link
+[robot_state_publisher-3] [INFO] [1787540461.626462897] [robot_state_publisher]: got segment gripper_base
+[robot_state_publisher-3] [INFO] [1787540461.626480439] [robot_state_publisher]: got segment gripper_finger_left
+[robot_state_publisher-3] [INFO] [1787540461.626497825] [robot_state_publisher]: got segment gripper_finger_right
+[robot_state_publisher-3] [INFO] [1787540461.626515233] [robot_state_publisher]: got segment imu_link
+[robot_state_publisher-3] [INFO] [1787540461.626532492] [robot_state_publisher]: got segment thruster_1
+[robot_state_publisher-3] [INFO] [1787540461.626549399] [robot_state_publisher]: got segment thruster_2
+[robot_state_publisher-3] [INFO] [1787540461.626566133] [robot_state_publisher]: got segment thruster_3
+[robot_state_publisher-3] [INFO] [1787540461.626582909] [robot_state_publisher]: got segment thruster_4
+[robot_state_publisher-3] [INFO] [1787540461.626599611] [robot_state_publisher]: got segment thruster_5
+[robot_state_publisher-3] [INFO] [1787540461.626615886] [robot_state_publisher]: got segment thruster_6
+[thruster_allocator-11] [INFO] [1787540461.967915108] [thruster_allocator]: Thruster allocator siap. TAM rank = 6 / 6, cond = 20, damping = 0.1.
+[odom_injector-4] [INFO] [1787540462.139326505] [odom_injector]: odom_injector siap (noise=False pos_std=0.030m vel_std=0.020m/s heading_std=1.00deg/√s)
+[hook_detector-9] [INFO] [1787540462.166789251] [hook_detector]: hook_detector siap (subscribe /hydroships/camera_front/image_raw)
+[payload_spawner-10] [INFO] [1787540462.564783984] [payload_spawner]: payload_spawner siap (spawn dalam 3.5s)
+[qr_detector-7] [INFO] [1787540462.575490173] [qr_detector]: qr_detector siap (subscribe /hydroships/camera_bottom/image_raw, /hydroships/camera_front/image_raw)
+[parameter_bridge-2] [INFO] [1787540462.585344421] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/clock (gz.msgs.Clock) -> /clock (rosgraph_msgs/msg/Clock)] (Lazy 0)
+[gripper_controller-8] [INFO] [1787540462.590617694] [gripper_controller]: gripper_controller siap (DetachableJoint; detach saat payload spawn)
+[stabilizer-12] [INFO] [1787540462.609116644] [stabilizer]: Stabilizer aktif. depth_hold=True heading_hold=True pitch_hold=True roll_hold=True target_depth=-0.1 m.
+[parameter_bridge-2] [INFO] [1787540462.611586262] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/model/hydroships/odometry (gz.msgs.Odometry) -> /hydroships/odom_raw (nav_msgs/msg/Odometry)] (Lazy 0)
+[gripper_controller-8] [INFO] [1787540462.619383446] [gripper_controller]: gripper open: auto-detach startup (lepas attach bawaan gz Fortress) [pemicu: fallback timer (topik spawned tak tiba)]
+[parameter_bridge-2] [INFO] [1787540462.622770649] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/world/kki_arena/pose/info (gz.msgs.Pose_V) -> /hydroships/world_pose_tf (tf2_msgs/msg/TFMessage)] (Lazy 0)
+[parameter_bridge-2] [INFO] [1787540462.625989519] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/hydroships/imu (gz.msgs.IMU) -> /hydroships/imu (sensor_msgs/msg/Imu)] (Lazy 0)
+[parameter_bridge-2] [INFO] [1787540462.632468998] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/hydroships/camera_front/image (gz.msgs.Image) -> /hydroships/camera_front/image_raw_gt (sensor_msgs/msg/Image)] (Lazy 0)
+[parameter_bridge-2] [INFO] [1787540462.636612503] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/hydroships/camera_bottom/image (gz.msgs.Image) -> /hydroships/camera_bottom/image_raw_gt (sensor_msgs/msg/Image)] (Lazy 0)
+[parameter_bridge-2] [INFO] [1787540462.643198205] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/hydroships/camera_front/camera_info (gz.msgs.CameraInfo) -> /hydroships/camera_front/camera_info (sensor_msgs/msg/CameraInfo)] (Lazy 0)
+[parameter_bridge-2] [INFO] [1787540462.647069885] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/hydroships/camera_bottom/camera_info (gz.msgs.CameraInfo) -> /hydroships/camera_bottom/camera_info (sensor_msgs/msg/CameraInfo)] (Lazy 0)
+[camera_dropout_injector-5] [INFO] [1787540462.650955001] [camera_dropout_injector]: camera_dropout_injector siap (dropout=False drop_prob=0.050)
+[parameter_bridge-2] [INFO] [1787540462.652342516] [ros_gz_bridge]: Creating ROS->GZ Bridge: [/hydroships/thruster_1/thrust (std_msgs/msg/Float64) -> /hydroships/thruster_1/thrust (gz.msgs.Double)] (Lazy 0)
+[parameter_bridge-2] [INFO] [1787540462.654279239] [ros_gz_bridge]: Creating ROS->GZ Bridge: [/hydroships/thruster_2/thrust (std_msgs/msg/Float64) -> /hydroships/thruster_2/thrust (gz.msgs.Double)] (Lazy 0)
+[parameter_bridge-2] [INFO] [1787540462.658252058] [ros_gz_bridge]: Creating ROS->GZ Bridge: [/hydroships/thruster_3/thrust (std_msgs/msg/Float64) -> /hydroships/thruster_3/thrust (gz.msgs.Double)] (Lazy 0)
+[parameter_bridge-2] [INFO] [1787540462.661831334] [ros_gz_bridge]: Creating ROS->GZ Bridge: [/hydroships/thruster_4/thrust (std_msgs/msg/Float64) -> /hydroships/thruster_4/thrust (gz.msgs.Double)] (Lazy 0)
+[parameter_bridge-2] [INFO] [1787540462.663938021] [ros_gz_bridge]: Creating ROS->GZ Bridge: [/hydroships/thruster_5/thrust (std_msgs/msg/Float64) -> /hydroships/thruster_5/thrust (gz.msgs.Double)] (Lazy 0)
+[mission_fsm-13] [INFO] [1787540462.666351315] [mission_fsm]: Urutan wall: ['D', 'A', 'B', 'C']
+[parameter_bridge-2] [INFO] [1787540462.667371659] [ros_gz_bridge]: Creating ROS->GZ Bridge: [/hydroships/thruster_6/thrust (std_msgs/msg/Float64) -> /hydroships/thruster_6/thrust (gz.msgs.Double)] (Lazy 0)
+[mission_fsm-13] [INFO] [1787540462.667540708] [mission_fsm]: mission_fsm siap — mulai dalam 3s (start=DIVE)
+[parameter_bridge-2] [INFO] [1787540462.671346023] [ros_gz_bridge]: Creating ROS->GZ Bridge: [/hydroships/gripper_left/cmd (std_msgs/msg/Float64) -> /hydroships/gripper_left/cmd (gz.msgs.Double)] (Lazy 0)
+[qr_detector-7] [INFO] [1787540462.673057921] [qr_detector]: camera_info camera_front_link: fx=381.4 fy=381.4 cx=320.0 cy=240.0 (640x480) [intrinsics SIM, bukan kalibrasi hardware]
+[parameter_bridge-2] [INFO] [1787540462.677409536] [ros_gz_bridge]: Creating ROS->GZ Bridge: [/hydroships/gripper_right/cmd (std_msgs/msg/Float64) -> /hydroships/gripper_right/cmd (gz.msgs.Double)] (Lazy 0)
+[parameter_bridge-2] [INFO] [1787540462.679401587] [ros_gz_bridge]: Creating ROS->GZ Bridge: [/hydroships/gripper/attach (std_msgs/msg/Empty) -> /hydroships/gripper/attach (gz.msgs.Empty)] (Lazy 0)
+[parameter_bridge-2] [INFO] [1787540462.682655206] [ros_gz_bridge]: Creating ROS->GZ Bridge: [/hydroships/gripper/detach (std_msgs/msg/Empty) -> /hydroships/gripper/detach (gz.msgs.Empty)] (Lazy 0)
+[parameter_bridge-2] [INFO] [1787540462.689449231] [ros_gz_bridge]: Passing message from ROS std_msgs/msg/Float64 to Gazebo gz.msgs.Double (showing msg only once per type)
+[hook_detector-9] [INFO] [1787540462.713610168] [hook_detector]: FRAME PERTAMA dari /hydroships/camera_front/image_raw (640x480 enc=rgb8 step=1920)
+[hook_detector-9] [INFO] [1787540462.727280207] [hook_detector]: hook terdeteksi: center=(410,392) area=22480
+[qr_detector-7] [INFO] [1787540462.760792851] [qr_detector]: camera_info camera_bottom_link: fx=381.4 fy=381.4 cx=320.0 cy=240.0 (640x480) [intrinsics SIM, bukan kalibrasi hardware]
+[payload_spawner-10] [INFO] [1787540463.130998119] [payload_spawner]: Spawn payload QR=A pos=(0.40, 0.04, -0.90)
+[mission_fsm-13] [INFO] [1787540463.258270015] [mission_fsm]: ===== MISI KKI 2026 DIMULAI =====
+[mission_fsm-13] [INFO] [1787540463.258973763] [mission_fsm]: [FSM] IDLE -> DIVE
+[qr_detector-7] [INFO] [1787540463.283653431] [qr_detector]: FRAME PERTAMA dari /hydroships/camera_front/image_raw (640x480 enc=rgb8 step=1920)
+[qr_detector-7] [WARN] [1787540463.853634494] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_front/image_raw]
+[qr_detector-7] [INFO] [1787540463.855847754] [qr_detector]: FRAME PERTAMA dari /hydroships/camera_bottom/image_raw (640x480 enc=rgb8 step=1920)
+[INFO] [create-14]: process started with pid [64170]
+[payload_spawner-10] [INFO] [1787540464.302797922] [payload_spawner]: Payload QR=A spawned OK
+[payload_spawner-10] [INFO] [1787540464.304323535] [payload_spawner]: Sinyal /hydroships/payload/spawned diterbitkan
+[parameter_bridge-2] [INFO] [1787540464.304700902] [ros_gz_bridge]: Passing message from ROS std_msgs/msg/Empty to Gazebo gz.msgs.Empty (showing msg only once per type)
+[gripper_controller-8] [INFO] [1787540464.305555580] [gripper_controller]: gripper open: auto-detach startup (lepas attach bawaan gz Fortress) [pemicu: payload spawn terdeteksi]
+[create-14] [INFO] [1787540464.353186685] [ros_gz_sim]: Requested creation of entity.
+[create-14] [INFO] [1787540464.353437108] [ros_gz_sim]: OK creation of entity.
+[INFO] [create-14]: process has finished cleanly [pid 64170]
+[mission_fsm-13] [INFO] [1787540465.862794567] [mission_fsm]: Kedalaman scan tercapai (0.25m), payload_pose siap
+[mission_fsm-13] [INFO] [1787540465.863578269] [mission_fsm]: [FSM] DIVE -> APPROACH_QR
+[mission_fsm-13] [INFO] [1787540466.050714184] [mission_fsm]: APPROACH_QR dbg: dist=2.591 x=1.58 y=2.27 yaw=-7.1 target=(0.22,0.06) ex=-- ey=-- ey_target=-0.61 h_cam=0.42 servo=0 qr=-
+[mission_fsm-13] [INFO] [1787540466.246217508] [mission_fsm]: APPROACH_QR dbg: dist=2.591 x=1.59 y=2.26 yaw=-7.8 target=(0.22,0.06) ex=-- ey=-- ey_target=-0.61 h_cam=0.42 servo=0 qr=-
+[mission_fsm-13] [INFO] [1787540466.410032367] [mission_fsm]: APPROACH_QR dbg: dist=2.579 x=1.59 y=2.25 yaw=-8.7 target=(0.22,0.06) ex=-- ey=-- ey_target=-0.61 h_cam=0.42 servo=0 qr=-
+[mission_fsm-13] [INFO] [1787540466.598583621] [mission_fsm]: APPROACH_QR dbg: dist=2.548 x=1.58 y=2.22 yaw=-10.1 target=(0.22,0.06) ex=-- ey=-- ey_target=-0.61 h_cam=0.42 servo=0 qr=-
+[mission_fsm-13] [INFO] [1787540466.780864768] [mission_fsm]: APPROACH_QR dbg: dist=2.503 x=1.56 y=2.18 yaw=-12.5 target=(0.22,0.06) ex=-- ey=-- ey_target=-0.61 h_cam=0.42 servo=0 qr=-
+[qr_detector-7] [WARN] [1787540469.156333534] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[mission_fsm-13] [INFO] [1787540474.081267096] [mission_fsm]: CONVERGEDBG: centered=False dist=0.057 approach_tol=0.060 wall_scored=False qr=- ex=-- ey=--
+[mission_fsm-13] [INFO] [1787540474.082557170] [mission_fsm]: QR tidak ter-decode, wall urutan D dipilih (+15) [urutan ke-1] (gripper_err=0.094 m base_err=0.134 m (gripper@0.41,0.13 payload@0.40,0.04)) [jarak XY]
+[mission_fsm-13] [INFO] [1787540474.086038700] [mission_fsm]: [FSM] APPROACH_QR -> DESCEND
+[mission_fsm-13] [INFO] [1787540474.265155581] [mission_fsm]: DESCEND dbg: depth=0.71/0.70 dist=0.031 ey_target=-0.80 centered=False off_fresh=0
+[qr_detector-7] [WARN] [1787540474.343106372] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[mission_fsm-13] [INFO] [1787540474.448420468] [mission_fsm]: DESCEND dbg: depth=0.69/0.70 dist=0.008 ey_target=-0.80 centered=False off_fresh=0
+[mission_fsm-13] [INFO] [1787540474.632932882] [mission_fsm]: DESCEND dbg: depth=0.75/0.70 dist=0.440 ey_target=-0.80 centered=False off_fresh=0
+[mission_fsm-13] [INFO] [1787540474.791708902] [mission_fsm]: DESCEND dbg: depth=0.76/0.70 dist=0.428 ey_target=-0.80 centered=False off_fresh=0
+[mission_fsm-13] [INFO] [1787540475.123308071] [mission_fsm]: DESCEND: kedalaman grasp tercapai, QR tak terlihat (stale) -> GRAB
+[mission_fsm-13] [INFO] [1787540475.124403574] [mission_fsm]: [FSM] DESCEND -> GRAB
+[mission_fsm-13] [INFO] [1787540475.298129277] [mission_fsm]: GRAB: perintah "close" -> gripper_controller
+[gripper_controller-8] [INFO] [1787540475.298889339] [gripper_controller]: GATEDBG close: BELUM ADA qr_offset sama sekali -> tolak
+[gripper_controller-8] [INFO] [1787540475.300513774] [gripper_controller]: gripper closed: tutup TAPI payload di luar jangkauan -> tak attach
+[mission_fsm-13] [INFO] [1787540475.469062703] [mission_fsm]: GRAB: perintah "close" -> gripper_controller
+[gripper_controller-8] [INFO] [1787540475.472083117] [gripper_controller]: GATEDBG close: result=True | x=+0.000 (ok=True) y=+0.000 ey_target=+0.000 |y-ey|=0.000 (ok=True) size=0.200 (ok=True) alt_gap=n/a (ok=True) age=0.10s (fresh=True) arm_age=0.10s (armed=True) | batas: max_offset=0.30 min_size=0.06 max_alt_gap=0.12 offset_timeout=1.5 arm_timeout=8.0
+[gripper_controller-8] [INFO] [1787540475.991821306] [gripper_controller]: payload teleport ke gripper: (0.763, 0.231, -0.918)
+[gripper_controller-8] [INFO] [1787540475.992912298] [gripper_controller]: gripper closed: attach (payload dalam jangkauan)
+[mission_fsm-13] [INFO] [1787540476.119238026] [mission_fsm]: GRAB terverifikasi (+15) -- ack attached
+[mission_fsm-13] [INFO] [1787540476.122026365] [mission_fsm]: [FSM] GRAB -> NAV_WALL
+[mission_fsm-13] [INFO] [1787540476.314128569] [mission_fsm]: NAV_WALL dbg: dist=2.26 x=0.10 y=0.22 yaw=33.0 target_yaw=-174.5 target=(-2.15,0.00)
+[mission_fsm-13] [INFO] [1787540476.514155122] [mission_fsm]: NAV_WALL dbg: dist=2.25 x=0.09 y=0.22 yaw=33.5 target_yaw=-174.4 target=(-2.15,0.00)
+[mission_fsm-13] [INFO] [1787540476.711659711] [mission_fsm]: NAV_WALL dbg: dist=2.26 x=0.10 y=0.22 yaw=34.5 target_yaw=-174.4 target=(-2.15,0.00)
+[mission_fsm-13] [INFO] [1787540476.926576583] [mission_fsm]: NAV_WALL dbg: dist=2.26 x=0.10 y=0.22 yaw=35.1 target_yaw=-174.3 target=(-2.15,0.00)
+[mission_fsm-13] [INFO] [1787540477.165554647] [mission_fsm]: NAV_WALL dbg: dist=2.28 x=0.12 y=0.23 yaw=37.5 target_yaw=-174.3 target=(-2.15,0.00)
+[qr_detector-7] [WARN] [1787540479.347437032] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[qr_detector-7] [WARN] [1787540484.483620529] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[hook_detector-9] [WARN] [1787540489.755699479] [hook_detector]: HOOK TAK TERDETEKSI (kontur & Hough gagal / area < min_area=150) shape=(480, 640, 3)
+[qr_detector-7] [WARN] [1787540490.087454411] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[hook_detector-9] [INFO] [1787540490.836575863] [hook_detector]: hook terdeteksi: center=(320,245) area=65868
+[mission_fsm-13] [INFO] [1787540493.510898109] [mission_fsm]: NAV_WALL dbg: dist=3.82 x=1.63 y=0.54 yaw=56.0 target_yaw=-171.8 target=(-2.15,0.00)
+[mission_fsm-13] [INFO] [1787540493.686684630] [mission_fsm]: NAV_WALL dbg: dist=3.84 x=1.66 y=0.52 yaw=56.9 target_yaw=-172.2 target=(-2.15,0.00)
+[mission_fsm-13] [INFO] [1787540493.874770328] [mission_fsm]: NAV_WALL dbg: dist=3.86 x=1.68 y=0.51 yaw=57.5 target_yaw=-172.4 target=(-2.15,0.00)
+[mission_fsm-13] [INFO] [1787540494.047462490] [mission_fsm]: NAV_WALL dbg: dist=2.62 x=-0.53 y=-2.06 yaw=159.6 target_yaw=128.1 target=(-2.15,0.00)
+[mission_fsm-13] [INFO] [1787540494.212488500] [mission_fsm]: NAV_WALL dbg: dist=3.92 x=1.74 y=0.47 yaw=59.2 target_yaw=-173.1 target=(-2.15,0.00)
+[qr_detector-7] [WARN] [1787540495.194745194] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[qr_detector-7] [WARN] [1787540500.615417412] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[hook_detector-9] [WARN] [1787540504.212268014] [hook_detector]: HOOK TAK TERDETEKSI (kontur & Hough gagal / area < min_area=150) shape=(480, 640, 3)
+[hook_detector-9] [INFO] [1787540504.923214098] [hook_detector]: hook terdeteksi: center=(44,74) area=990
+[qr_detector-7] [WARN] [1787540505.758660676] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[mission_fsm-13] [INFO] [1787540510.628058533] [mission_fsm]: NAV_WALL dbg: dist=1.32 x=-1.86 y=-1.29 yaw=145.3 target_yaw=102.6 target=(-2.15,0.00)
+[mission_fsm-13] [INFO] [1787540510.794197969] [mission_fsm]: NAV_WALL dbg: dist=1.27 x=-1.88 y=-1.24 yaw=142.6 target_yaw=102.1 target=(-2.15,0.00)
+[mission_fsm-13] [INFO] [1787540510.959559701] [mission_fsm]: NAV_WALL dbg: dist=1.24 x=-1.90 y=-1.21 yaw=140.8 target_yaw=101.8 target=(-2.15,0.00)
+[qr_detector-7] [WARN] [1787540511.113826513] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[mission_fsm-13] [INFO] [1787540511.136404351] [mission_fsm]: NAV_WALL dbg: dist=4.52 x=2.33 y=0.60 yaw=106.4 target_yaw=-172.4 target=(-2.15,0.00)
+[mission_fsm-13] [INFO] [1787540511.297812724] [mission_fsm]: NAV_WALL dbg: dist=1.14 x=-1.94 y=-1.12 yaw=150.7 target_yaw=100.6 target=(-2.15,0.00)
+[qr_detector-7] [WARN] [1787540516.166883720] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[qr_detector-7] [WARN] [1787540521.438440263] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[qr_detector-7] [WARN] [1787540526.664662140] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[mission_fsm-13] [INFO] [1787540527.127789490] [mission_fsm]: Tiba di standoff wall D (dist 0.20m, v 0.30m/s) -> HANG
+[mission_fsm-13] [INFO] [1787540527.129750055] [mission_fsm]: [FSM] NAV_WALL -> HANG
+[mission_fsm-13] [INFO] [1787540527.315608910] [mission_fsm]: HANG dbg: dist=4.240 l_err=4156.0mm x=2.07 y=1.65 yaw=146.5 target=(-2.09,-0.00)
+[mission_fsm-13] [INFO] [1787540527.491741739] [mission_fsm]: HANG dbg: dist=0.325 l_err=46.4mm x=-2.13 y=-0.13 yaw=121.4 target=(-2.09,-0.00)
+[mission_fsm-13] [INFO] [1787540527.673092948] [mission_fsm]: HANG dbg: dist=4.227 l_err=4133.2mm x=2.05 y=1.67 yaw=147.1 target=(-2.09,-0.00)
+[mission_fsm-13] [INFO] [1787540527.883214934] [mission_fsm]: HANG dbg: dist=4.207 l_err=4108.8mm x=2.02 y=1.68 yaw=147.3 target=(-2.09,-0.00)
+[qr_detector-7] [WARN] [1787540531.768873044] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[qr_detector-7] [WARN] [1787540536.800737439] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[qr_detector-7] [WARN] [1787540542.276069011] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[mission_fsm-13] [INFO] [1787540544.516067360] [mission_fsm]: HANG dbg: dist=1.030 l_err=163.5mm x=-2.25 y=0.94 yaw=40.9 target=(-2.09,-0.00)
+[mission_fsm-13] [INFO] [1787540544.666890978] [mission_fsm]: HANG dbg: dist=1.080 l_err=199.9mm x=-2.29 y=0.98 yaw=49.6 target=(-2.09,-0.00)
+[mission_fsm-13] [INFO] [1787540544.859106359] [mission_fsm]: HANG dbg: dist=0.563 l_err=284.7mm x=-2.37 y=0.18 yaw=80.0 target=(-2.09,-0.00)
+[mission_fsm-13] [INFO] [1787540545.057886370] [mission_fsm]: HANG dbg: dist=1.170 l_err=276.0mm x=-2.36 y=1.04 yaw=72.4 target=(-2.09,-0.00)
+[mission_fsm-13] [INFO] [1787540545.282456519] [mission_fsm]: HANG dbg: dist=0.563 l_err=286.8mm x=-2.37 y=0.17 yaw=79.9 target=(-2.09,-0.00)
+[qr_detector-7] [WARN] [1787540547.418118270] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[qr_detector-7] [WARN] [1787540552.975673435] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[qr_detector-7] [WARN] [1787540558.227714258] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[mission_fsm-13] [INFO] [1787540562.270496441] [mission_fsm]: HANG dbg: dist=0.558 l_err=287.0mm x=-2.37 y=0.15 yaw=80.0 target=(-2.09,-0.00)
+[mission_fsm-13] [INFO] [1787540562.460609507] [mission_fsm]: HANG dbg: dist=0.557 l_err=286.1mm x=-2.37 y=0.15 yaw=80.3 target=(-2.09,-0.00)
+[mission_fsm-13] [INFO] [1787540562.627589798] [mission_fsm]: HANG dbg: dist=0.556 l_err=285.7mm x=-2.37 y=0.15 yaw=80.4 target=(-2.09,-0.00)
+[mission_fsm-13] [INFO] [1787540562.807938121] [mission_fsm]: HANG dbg: dist=0.557 l_err=286.7mm x=-2.37 y=0.15 yaw=80.2 target=(-2.09,-0.00)
+[mission_fsm-13] [INFO] [1787540562.987308911] [mission_fsm]: HANG dbg: dist=1.039 l_err=234.1mm x=-2.32 y=0.92 yaw=103.0 target=(-2.09,-0.00)
+[qr_detector-7] [WARN] [1787540563.262293360] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[qr_detector-7] [WARN] [1787540568.310389415] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[qr_detector-7] [WARN] [1787540573.663463523] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[qr_detector-7] [WARN] [1787540579.192327046] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[mission_fsm-13] [INFO] [1787540579.591685740] [mission_fsm]: HANG dbg: dist=0.556 l_err=287.3mm x=-2.37 y=0.14 yaw=80.1 target=(-2.09,-0.00)
+[mission_fsm-13] [ERROR] [1787540579.593030493] [mission_fsm]: HANG timeout (posisi, dist 0.556, yaw_err 99.9°)
+[mission_fsm-13] [INFO] [1787540579.597028454] [mission_fsm]: [FSM] HANG -> ABORT
+[qr_detector-7] [WARN] [1787540584.319168781] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[qr_detector-7] [WARN] [1787540589.396891313] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[qr_detector-7] [WARN] [1787540594.643043501] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[qr_detector-7] [WARN] [1787540600.284936754] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[qr_detector-7] [WARN] [1787540605.686726224] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[qr_detector-7] [WARN] [1787540610.899944900] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[qr_detector-7] [WARN] [1787540615.992242906] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[qr_detector-7] [WARN] [1787540621.347162527] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[qr_detector-7] [WARN] [1787540626.717350388] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[qr_detector-7] [WARN] [1787540631.919804094] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[hook_detector-9] [WARN] [1787540635.127727770] [hook_detector]: HOOK TAK TERDETEKSI (kontur & Hough gagal / area < min_area=150) shape=(480, 640, 3)
+[hook_detector-9] [INFO] [1787540635.560405606] [hook_detector]: hook terdeteksi: center=(320,254) area=239748
+[qr_detector-7] [WARN] [1787540637.263192332] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[hook_detector-9] [INFO] [1787540637.871157266] [hook_detector]: hook terdeteksi: center=(320,240) area=236091
+[hook_detector-9] [INFO] [1787540639.092194689] [hook_detector]: hook terdeteksi: center=(320,240) area=241879
+[hook_detector-9] [INFO] [1787540640.282881452] [hook_detector]: hook terdeteksi: center=(320,378) area=3350
+[qr_detector-7] [WARN] [1787540642.400346350] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[qr_detector-7] [WARN] [1787540647.781169468] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[qr_detector-7] [WARN] [1787540652.953037683] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[qr_detector-7] [WARN] [1787540658.061077951] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[qr_detector-7] [WARN] [1787540663.219670058] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[qr_detector-7] [WARN] [1787540668.472678033] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[qr_detector-7] [WARN] [1787540673.661416193] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[qr_detector-7] [WARN] [1787540678.695133813] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]
+[qr_detector-7] [WARN] [1787540683.726822913] [qr_detector]: DECODE GAGAL: QR tak terdeteksi (pts=None) shape=(480, 640, 3) [/hydroships/camera_bottom/image_raw]

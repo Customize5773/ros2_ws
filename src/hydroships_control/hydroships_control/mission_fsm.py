@@ -1464,8 +1464,13 @@ class MissionFSM(Node):
             # hook_servo (hook_depth + kp*(ey-ey_tgt), bisa sampai +0.20 m) dulu bikin
             # ROV menyelam melewati titik berhenti plat dan macet di bawah
             # hook. Descent dilakukan TERKONTROL di AUTO_RELEASE fase 2 (dgn
-            # stall detector), sama seperti HANG. cmd.target_depth diabaikan;
-            # surge/sway tetap dipakai utk koreksi lateral.
+            # stall detector), sama seperti HANG. cmd.target_depth diabaikan.
+            # [Dicoba 2026-08-24: clamp turun kecil ke [hang_approach_depth,
+            # +0.08]. DIBATALKAN -- sweep depth 0.14 vs 0.30 di wall C
+            # menunjukkan ey REAL nyaris tak bergerak (0.435 -> 0.406) walau
+            # depth berubah besar, jadi clamp kecil pasti tak berefek & cuma
+            # nambah kompleksitas. Root cause ey tinggi di wall C/D BUKAN
+            # soal depth/geometri hook_ey_target -- lihat STATUS.md.]
             self._set_depth(self.hang_approach_depth)
             # Sudah dekat tapi belum terpusat: stop maju, koreksi lateral saja.
             self._set_surge(0.0 if cmd.near else cmd.surge, cmd.sway)

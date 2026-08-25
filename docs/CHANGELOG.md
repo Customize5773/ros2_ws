@@ -1209,46 +1209,201 @@ File disentuh: `docs/P2-GUI-INVESTIGATION.md` (§6 baru), `docs/STATUS.md`
 Data mentah: `/tmp/m7-nearwall-retest/*.csv` + `sim*.log` (tak disertakan
 di repo).
 
-## 2026-08-20 — Regresi descend_settle_dwell + saldo verifikasi
+## 2026-08-24 — Verifikasi runtime fix `53a494f` (hook `ey_target`) + re-verify grab-ack R-9
 
-Sesi `update-v1` di `src/` (belum di-merge ke `origin/main`): `mission_fsm.py`
-di branch menghapus deklarasi `p('descend_settle_dwell', 0.5)` tapi masih memanggil
-`g('descend_settle_dwell')` — `MissionFSM.__init__` melempar
-`ParameterNotDeclaredException`, node FSM crash saat start, tidak pernah
-`DIVE->APPROACH_QR` (stuck "tidak approach QR"). Diretas di WD: deklarasi dipulihkan
-satu baris. Verifikasi compile `py_compile` OK. Commit ditunda di branch (user akan commit manual).
+Dua item runtime-verification: (1) validasi fix `53a494f` (`hook_ey_target()`
++ gerbang `|ey-ey_tgt|` di `_st_approach_hook`, commit 2026-08-21, belum
+pernah diuji runtime), (2) sanity-check ulang mekanisme retry/ack GRAB
+(R-9, closed 2026-08-13) via satu run misi natural.
 
-Saldo verifikasi 08-17→08-20 belum lunas: multi-payload cycling, HANG precision
-(`hang_l_tol` 0.012 + retreat 0.25m), `release_max_retries=3` cuma 1 sesi informal
-`data/2026-08-18/` (run2 loop B→C, run3b ABORT di AUTO_RELEASE depth 0.194). Belum
-battery N-seed — perlu `run_mission_cycle.sh` battery sebelum klaim verified.
+- **Battery APPROACH_HOOK, 18 run gabungan** (`start_state:=APPROACH_HOOK`,
+  wall A-D berbagai seed, window 90s, dua script: `run_approach_hook_dwell_battery.sh`
+  8 run A-D×2seed + `run_approach_hook_fix_battery.sh` 10 run B/C/D):
+  **5 konvergensi visual** ("hook terpusat"), **2 fallback odometri**,
+  **11 timeout**. Bukan PASS bersih — jauh dari klaim "PASS jika ≥7/10"
+  yang tertulis di script WIP `run_approach_hook_fix_battery.sh` (klaim itu
+  tak diverifikasi ulang di sini, hasil aktual 5/10 pada battery itu saja).
+- **Root cause timeout ditemukan** (bukan hipotesis lama "ey mentah tanpa
+  ey_target" — itu sudah diperbaiki `53a494f`): `_st_approach_hook`
+  (`mission_fsm.py`) memanggil `hook_servo(..., ey_target=ey_tgt)` yang
+  menghitung `cmd.target_depth` dengan benar, TAPI baris setelahnya
+  `self._set_depth(self.hang_approach_depth)` **mengabaikan** `cmd.target_depth`
+  dan memaksa depth konstan (keputusan desain lama, cegah overshoot turun
+  macet di bawah hook). Akibatnya tak ada loop aktif mendorong `ey` menuju
+  `ey_tgt` — di run timeout (mis. `AH-fix53a-B-5001`), `ey` diam di ~0.40
+  vs `ey_tgt=+0.09` sepanjang window (bukan berosilasi, memang tak
+  bergerak). Konvergensi terjadi hanya bila geometri wall/seed kebetulan
+  membuat `ey` natural pada `hang_approach_depth` tetap sudah dekat
+  `ey_tgt`. **Belum diperbaiki** — butuh keputusan desain: aktifkan
+  `cmd.target_depth` dgn descent terkontrol (stall-detector, pola sama
+  spt HANG/AUTO_RELEASE fase 2), atau kalibrasi `hang_approach_depth`
+  per-wall.
+- **Catatan lingkungan**: run pertama battery ini (dibuang, tak dipakai
+  sbg data) terkontaminasi `ModuleNotFoundError: rclpy._rclpy_pybind11`
+  pada `payload_spawner` — `PATH` shell sesi ini punya `.venv-1/bin`
+  duluan dari `/usr/bin`, python3 resolve ke interpreter uv (3.14) tanpa
+  build rclpy Humble (3.10). Bukan bug repo; perbaikan: `PATH` di-strip
+  `.venv-1/bin` sebelum rerun. Dicatat di sini supaya sesi berikutnya tak
+  salah diagnosis "regresi kode" utk gejala serupa.
+- **Grab-ack (R-9) re-verified**: 1 run natural (seed 1001, tanpa QR
+  injection — tooling WIP `inject_qr_and_run.py`/`run_mission_with_qr_inject.sh`
+  ditemukan tapi tak dipakai, mission mencapai GRAB sendiri via jalur
+  normal `DESCEND: kedalaman grasp tercapai, QR tak terlihat (stale) ->
+  GRAB`). Log gate: `close` pertama ditolak (`GATEDBG close: BELUM ADA
+  qr_offset sama sekali -> tolak`), `_st_grab` retry, `close` kedua lolos
+  gerbang (`x=+0.000 y=+0.000` dst semua `ok=True`) → `attach (payload
+  dalam jangkauan)` → `GRAB terverifikasi (+15) -- ack attached`. Retry-
+  on-rejection R-9 (2026-08-13) **terkonfirmasi tetap bekerja**, tak ada
+  regresi. Run yang sama lanjut `NAV_WALL -> HANG` normal lalu **`HANG
+  timeout (dist 0.075, yaw_err 0.3°) -> ABORT`**. **[KOREKSI 2026-08-24]**
+  klaim "meski posisi sudah dalam toleransi" SALAH — `dist=0.075` (75mm)
+  adalah 3× di atas `hang_tol=0.025` (25mm, sengaja ketat, lihat
+  `mission_fsm.py:132`) sehingga gate posisi memang gagal jujur, bukan bug.
+  Investigasi lanjutan menemukan bug lain (tak terkait) di `mission_run3.log`:
+  posisi `(x,y,yaw)` terlogging melompat ~4.4 m antar-tick selama HANG
+  (mustahil fisik) — dugaan dua publisher `/hydroships/odom` interleaved dari
+  proses Gazebo lama yg belum mati saat run baru start; detail & status di
+  `docs/STATUS.md` ("HANG timeout meski posisi sudah toleransi — investigasi
+  2026-08-24"), **belum diverifikasi**, sesi terpisah.
 
-## 2026-08-21 — APPROACH_HOOK ey_target + LEAN_RECORD/REVERSE_RETURN + test_qr_logic
+File disentuh: `docs/STATUS.md` (M6), CHANGELOG ini. Tak ada perubahan
+kode. Data mentah: `/tmp/claude-*/scratchpad/ah-battery2/`,
+`/tmp/claude-*/scratchpad/ah-fix53a/`, `/tmp/claude-*/scratchpad/mission_grab_full.log`
+(tak disertakan di repo, session-scoped).
 
-- **APPROACH_HOOK ey_target (M6, 4/8 timeout fix)**: `hook_logic.py` tambah
-  `hook_ey_target(depth, cam_front_dz, hook_z, dist_forward, vfov_half_tan, ey_max)`
-  — hook di dinding `z=-0.39` selalu di bawah pusat kamera depan `z=0` pada
-  `hang_approach_depth=0.14` → ey ideal ~+0.50, bukan 0. Gate lama `|ey|<0.15` tak
-  pernah lolos 50% (deterministik wall+seed, battery 90s 08-19). Fix:
-  `hook_servo(..., ey_target)` pakai `|ey-ey_target|<tol` dan `d_depth=kp*(ey-ey_target)`;
-  `mission_fsm.py` hitung `ey_tgt=hook_ey_target(...)` per tick dan gate `near AND aligned`
-  baru. Param baru `hook_z=-0.39, cam_front_dz=0.0, hook_ey_max=0.8`.
-  Self-check compile + import src headless PASS (`ey_tgt +0.497`).
-  Battery start_state:=APPROACH_HOOK 4-wall×seed dan mission penuh menunggu verifikasi runtime (STATUS M6 masih PARSIAL).
+## 2026-08-24 (lanjutan) — Battery depth-clamp 8 cm: aman, tetapi under-powered
 
-- **LEAN_RECORD/REVERSE_RETURN (gambar wall lean)**: `mission_fsm.py` tambah
-  `St.LEAN_RECORD/REVERSE_RETURN` setelah `WAIT_TRIGGER`. `WAIT_TRIGGER` kini
-  passthrough auto ke `LEAN_RECORD` (tidak menunggu trigger — sesuai "tidak usah dengan trigger",
-  record baru saat trigger pertama sudah diganti auto). LEAN_RECORD mencatat waypoint
-  odom `(x,y)` tiap tick dan `goto_xy` ke `wall_face-lean_wall_offset` sampai
-  `dist<lean_tol`. REVERSE_RETURN playback `reversed(_lean_log)` closed-loop
-  `_goto_xy` tiap waypoint (opsi terbaik, ponytail open-loop `Fx=-Fx` bila odom dropout).
-  Param `t_lean 25s, t_reverse 35s, lean_wall_offset 0.10, lean_tol 0.15, lean_log_cap 300,
-  reverse_step_tol 0.12`. State `HANG/APPROACH_HOOK/AUTO_RELEASE` lain tak diubah.
+Battery pasca-fix depth-clamp dijalankan ulang pada 8 kombinasi yang sama
+(`APPROACH_HOOK`, wall A-D × seed 5001/5002). Hasil aktual:
 
-- **test_qr_logic import fix**: `from qr_logic import ...` tambah `undistort_image`
-  — 2 test `test_undistort_image_*` yang gagal `NameError` kini PASS (2/2).
+- **1 konvergensi visual**: `AH-A-5001`.
+- **1 fallback odometri**: `AH-B-5001` dengan dwell-debounce normal.
+- **6 timeout**: `AH-A-5002`, `AH-B-5002`, `AH-C-5001`,
+  `AH-C-5002`, `AH-D-5001`, `AH-D-5002`.
 
-Battery yang masih menunggu sim nyata (butuh `gz sim`):
-`run_approach_hook_dwell_battery.sh` dengan ey-aware, `run_r9` ack gripper/status end-to-end
-(`_st_grab` retry rejected → ABORT bila tak attached), dan multi-payload/HANG/retry battery.
+Pada `AH-C-5001` dan `AH-D-5002`, depth mencapai ceiling clamp
+`0.22 m` sesuai desain. Clamp 8 cm terbukti aman karena tidak membawa
+ROV ke wilayah `hook_depth=0.32 m`, tetapi koreksinya tidak cukup untuk
+menutup gap `ey` sekitar `0.3-0.7 m` dengan `center_tol=0.15`.
+`AH-D-5001` juga menunjukkan `ey_tgt` ter-clamp ke `+0.79`,
+sehingga geometri ekstrem tidak terselesaikan oleh clamp saat ini.
+
+Dua timeout lain berada di luar scope depth-clamp: `AH-B-5002` macet
+pada `size=0.267 < size_stop=0.35` (`near=False`), sedangkan
+`AH-C-5002` kehilangan deteksi hook (`off=None`). Dibanding baseline
+pra-fix di `docs/STATUS.md` (7/18 exit bersih, sekitar 39%), sampel ini
+hanya 2/8 (25%); sampel kecil ini tidak menunjukkan perbaikan, dan belum
+menjadi bukti regresi maupun perbaikan.
+
+Keputusan awal: opsi menaikkan clamp perlu stall-detector/descent terkontrol
+(risiko fisik lebih tinggi); opsi kalibrasi `hang_approach_depth` per-wall
+diuji lanjutan (lihat entri di bawah).
+
+## 2026-08-24 (lanjutan 2) — Kalibrasi hang_approach_depth per-wall: DITUTUP, tak viable
+
+`hang_approach_depth` diekspos sbg launch arg baru di
+`hydroships_mission.launch.py` (default `0.14`, tak mengubah perilaku
+default) supaya bisa disweep dari CLI tanpa rebuild param default.
+
+Sweep 8 run (`start_state:=APPROACH_HOOK`, wall A-D, seed 5001,
+`hang_approach_depth:=0.14` vs `0.30`, window 35s — 2 run tak sempat
+tersample krn variasi boot Gazebo, sesuai catatan lama):
+
+- **Wall A, B**: konvergen bersih di kedua depth — bukan wall bermasalah,
+  tak butuh koreksi apapun.
+- **Wall C**: `ey` = `0.435` @ depth=0.14 vs `0.406` @ depth=0.30 —
+  **hampir tak bergerak** (Δey 0.03 utk Δdepth 0.24m nyata). Model
+  `hook_ey_target()` memprediksi koreksi jauh lebih besar; data real
+  membantahnya.
+- Depth setpoint `0.30` di wall C overshoot ke depth REAL `0.38` —
+  sudah masuk wilayah dekat `hook_depth=0.32`, mengonfirmasi risiko fisik
+  "macet di bawah hook" dari insiden lama itu nyata, bukan teoretis.
+
+Kesimpulan: root cause `ey` besar di wall C/D **bukan** soal
+depth/geometri kamera-hook seperti diasumsikan `hook_ey_target()` —
+kandidat lain (attitude ROV, `hook_z` per-hook, proyeksi `dist_forward`)
+belum diinvestigasi. Tidak ada nilai `hang_approach_depth`, per-wall atau
+tidak, yang bisa menutup gap ini secara aman.
+
+Perubahan kode: **depth-clamp 8cm (entri di atas) DIREVERT** —
+`_st_approach_hook` kembali ke `self._set_depth(self.hang_approach_depth)`
+murni, param `hook_descend_clamp` dihapus (tak terpakai lagi). Param
+`hang_approach_depth` launch-arg **TETAP** dipertahankan (berguna utk
+eksperimen lanjutan, tak berefek pada perilaku default). Test unit hook
+(17/17) tetap hijau pasca-revert.
+
+File disentuh: `src/hydroships_control/hydroships_control/mission_fsm.py`,
+`src/hydroships_bringup/launch/hydroships_mission.launch.py`,
+`docs/STATUS.md`. Data mentah: `/tmp/claude-*/scratchpad/hook-sweep/`
+(tak disertakan di repo, session-scoped).
+
+## 2026-08-24 (lanjutan 3) — HANG "freeze-odom" root cause: teardown antar-run, bukan race start_state
+
+Investigasi lanjutan atas 2 kegagalan di battery `run_hang_wall_battery.sh`
+(entri sebelumnya, dugaan "`mission_fsm` ambil odom sebelum bridge up").
+Cek langsung 2 log gagal: `HANG-B-6006` ternyata mission tak pernah mulai
+sama sekali dalam window 60s (boot Gazebo lambat, murni soal margin waktu
+skrip). `HANG-A-6002` mission mulai normal, odom sempat terisi sekali
+(`x=1.09 y=-2.05`), lalu **`self._elapsed()` nyaris tak maju** — 5 baris
+debug HANG identik dalam ~250ms wall-time, padahal seharusnya sekali per
+~10s sim-time. Ini bukti **sim clock/physics Gazebo berhenti melangkah**,
+bukan soal `_on_odom` belum terpanggil. `RTPS_TRANSPORT_SHM` error count
+dicek di semua 12 log battery: rata sama di run sukses maupun gagal
+(117-130x/log) — noise startup DDS biasa, bukan penyebab.
+
+**Dugaan direvisi & dikonfirmasi**: kolaps real-time-factor Gazebo headless
+akibat teardown antar-run terlalu cepat (`sleep 3` sebelum launch
+berikutnya di `run_hang_wall_battery.sh`, resource GPU/CPU/RAM belum pulih
+penuh dari 12 launch beruntun). **Fix**: `sleep 3` → `sleep 10` di teardown
+(`1bcabee`). Re-run 12 kombinasi wall/seed yang sama: **11/12 SEATED**
+(naik dari 10/12), **0 pos-timeout, 0 descend-timeout**, 1 tak-selesai
+(`B-6004`) — kali ini odom-nya **bergerak nyata** (`dist` 2.740→0.205
+antar-tick, bukan beku), cuma belum sempat masuk `hang_tol=0.025` dalam
+window 60s.
+
+**DITUTUP**: gejala freeze-odom hilang setelah teardown diperpanjang.
+Sisa kegagalan window-60s murni soal margin waktu skrip (bukan bug FSM
+atau bug HANG), tidak butuh perubahan kode lebih lanjut.
+
+File disentuh: `tools/p0-experiments/run_hang_wall_battery.sh` (`sleep`),
+`docs/STATUS.md`, CHANGELOG ini. Tak ada perubahan kode mission_fsm. Data
+mentah: `/tmp/claude-*/scratchpad/hang-battery/`,
+`/tmp/claude-*/scratchpad/hang-battery2/` (tak disertakan di repo,
+session-scoped).
+
+## 2026-08-24 (lanjutan 4) — APPROACH_HOOK wall C/D: kandidat whole-contour-vs-tip DIBANTAH via analisis geometri
+
+Menindaklanjuti kandidat "belum diuji" di STATUS.md (mismatch antara
+`detect_hook()` yang mengembalikan centroid SELURUH kontur hook terlihat,
+vs `hook_ey_target()` yang memprediksi ey berdasar `hook_z` tip saja).
+Rencana awal: bandingkan log mentah `/hydroships/hook_offset` wall A vs
+wall C pada pose sama. **Live compare gagal dijalankan** — mesin dev
+overload sesi ini (`load average` 15-23 pada 12 core, kontensi CPU dari
+Firefox/VS Code lain yang jalan bersamaan), RTF Gazebo headless kolaps
+separah sehingga `mission_fsm` tak sempat lewat countdown start 3s dalam
+window 150s (2 percobaan, wall A keduanya gagal start). Bukan bug kode,
+kondisi mesin sesi ini.
+
+**Dijawab lewat analisis geometri statis sbg gantinya** (tak butuh
+runtime): cek `kki_arena.sdf` langsung — `hook_a` dan `hook_d`
+(spot-check) punya geometri lokal link **identik byte-per-byte**
+(`mount_collision` z=+0.10 → `riser` → `tip_collision` z=-0.39, span
+collision -0.45..+0.13 relatif ke model), hanya `<pose>` model (x,y,yaw)
+yang beda per wall. Baik centroid whole-contour maupun `hook_ey_target()`
+(tip) sama-sama murni fungsi dari `dist_forward` & `depth` — rotasi yaw
+terhadap sumbu z tidak mengubah profil vertikal yang dilihat kamera
+depan. Konsekuensi: mismatch tip-vs-centroid ini **PASTI menghasilkan
+bias ey yang identik di semua wall** pada dist_forward/depth yang sama.
+**Kandidat ini DIBANTAH sbg penjelas asimetri C/D** (kemungkinan tetap
+berkontribusi sbg bias konstan lintas-wall, tapi bukan akar kenapa
+cuma C/D bermasalah sementara A/B konvergen bersih).
+
+**Akar asimetri C/D tetap OPEN, belum ada kandidat baru diuji.** Saran
+lanjutan: ulangi live A-vs-C compare saat mesin lebih longgar (skrip
+sekali-pakai dibuang, tak disertakan di repo — pola: `start_state:=
+APPROACH_HOOK start_wall:=A/C spawn_seed:=<sama>`, baca log
+"APPROACH_HOOK dbg" yg sudah ada di `mission_fsm.py:1349-1351`), atau
+selidiki kandidat lain (attitude ROV per-wall, `hook_z` per-hook tak
+presisi, proyeksi `dist_forward`).
+
+File disentuh: `docs/STATUS.md`, CHANGELOG ini. Tak ada perubahan kode.
