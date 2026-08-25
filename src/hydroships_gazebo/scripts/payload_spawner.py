@@ -107,6 +107,25 @@ PAYLOAD_SDF_TEMPLATE = '''<?xml version="1.0"?>
         <angular>1.0</angular>
       </velocity_decay>
     </link>
+    <!-- ANCHOR sementara ke lantai (pool::floor, statis): payload non-static
+         goyah di orientasi spawn (roll 90 -> QR menghadap atas) & langsung
+         terguling balik ke identitas (QR menghadap SAMPING) dlm <0.3s begitu
+         fisika jalan (dikonfirmasi 26 Agu via TF isolasi -- BUKAN bug render/
+         CLI, murni ketidakstabilan collision hull di orientasi itu). gz-sim
+         Fortress SELALU attach DetachableJoint saat load (sama seperti anchor
+         gripper<->payload di hydroships.urdf.xacro) -- jadi payload TERKUNCI
+         KAKU di pose spawn (termasuk roll) sejak tick pertama, sebelum sempat
+         terguling. Dilepas oleh payload_spawner begitu gripper BENAR menjepit
+         (subscribe /hydroships/gripper/attach yg sama dipublish
+         gripper_controller._on_cmd) -- payload lalu bebas ikut gripper spt biasa. -->
+    <plugin filename="gz-sim-detachable-joint-system"
+            name="gz::sim::systems::DetachableJoint">
+      <parent_link>payload_link</parent_link>
+      <child_model>pool</child_model>
+      <child_link>floor</child_link>
+      <attach_topic>/hydroships/payload_anchor/attach</attach_topic>
+      <detach_topic>/hydroships/payload_anchor/detach</detach_topic>
+    </plugin>
   </model>
 </sdf>
 '''
@@ -135,6 +154,14 @@ class PayloadSpawner(Node):
         # bawaan gz SETELAH ini (urutan benar). Latched agar tak hilang bila terbit
         # sebelum subscriber terhubung.
         self.pub_spawned = self.create_publisher(Empty, '/hydroships/payload/spawned', qos)
+        # Lepas anchor payload<->lantai (lihat catatan di PAYLOAD_SDF_TEMPLATE)
+        # begitu gripper BENAR menjepit -- subscribe topic attach yg SAMA
+        # dipublish gripper_controller (bukan status ack, supaya lepas anchor
+        # & attach gripper terjadi nyaris serentak, bukan gripper attach dulu
+        # baru anchor lepas belakangan -- hindari sesaat kedua joint aktif).
+        self.pub_anchor_detach = self.create_publisher(Empty, '/hydroships/payload_anchor/detach', 10)
+        self.create_subscription(Empty, '/hydroships/gripper/attach',
+                                 lambda _msg: self.pub_anchor_detach.publish(Empty()), 10)
         self._spawn_delay = float(self.get_parameter('spawn_delay').value)
         self._t0 = self._now()
         self._spawned_initial = False

@@ -25,7 +25,7 @@ Sumber: `hydroships_control/mission_fsm.py` (param `p('nama', default)` di
 | Parameter | mission_fsm.py | mission5.py | Delta | Action |
 |---|---|---|---|---|
 | Kedalaman dasar/grasp | `grab_depth=0.70` | `DEPTH_TARGET_BOTTOM=0.70` | 0 | ✅ match |
-| Kedalaman scan QR | `scan_depth=0.30` | *(tidak ada — 1 fase, sama dgn 0.70)* | 0.40 m | **OPEN, bukan cuma angka**: mission_fsm 2-fase (scan dangkal→FOV lega, lalu `DESCEND` ke grab); mission5 1-fase (dive langsung ke 0.70 lalu scan di situ). Lihat `docs/STATUS.md` M3 soal kenapa 0.30 dipilih (QR 12cm ter-crop di 0.70/0.46). Sebelum align: putuskan apakah hardware perlu fase scan terpisah juga (kemungkinan besar YA, alasan optical framing yang sama berlaku fisik) — bukan tinggal ubah angka mission5.
+| Kedalaman scan QR | `scan_depth=0.30` | *(tidak ada — 1 fase, sama dgn 0.70)* | 0.40 m | **KEPUTUSAN PEMILIK PROYEK (26 Agu 2026): TIDAK diadopsi ke mission5.py.** Alasan sim menambah fase (QR ter-crop di 0.70) murni observasi kamera SIMULASI (FOV lebar, geometri beda — lihat juga [[pbr-rendering-investigation-deferred]] soal isu render kamera sim lain yang serupa sifatnya). Tak ada satu pun catatan dari trial kolam NYATA (autonomy/*.md, Planning/, memory session) yang menyebut QR ke-crop/terlalu dekat di 0.70m — sebaliknya, seluruh investasi robustness QR GUI-ROV (CLAHE, adaptive-threshold, median-stack) menyasar masalah BEDA (riak/kontras air, "riak = 100% penyebab gagal decode" per memory `qr-underwater-robustness-limits`). Menambah state FSM baru utk masalah yang belum terbukti ada = risiko kompleksitas tanpa manfaat terukur, apalagi mendekati uji fisik. Revisit HANYA kalau trial kolam nyata benar2 menunjukkan cropping di 0.70m.
 | Toleransi kedalaman | `depth_tol=0.06` | `DEPTH_TOLERANCE=0.05` | 0.01 m | Dekat; boleh disamakan salah satu arah tanpa investigasi lebih.
 | Ambang "di permukaan" | `depth_surface=0.08` | `DEPTH_TARGET_SURFACE=0.05` | 0.03 m | Dekat; sama seperti di atas.
 | Kedalaman hook | `hook_depth=0.45` | `HOOK_DEPTH=0.45` | 0 | ✅ match
@@ -54,7 +54,7 @@ Sumber: `hydroships_control/mission_fsm.py` (param `p('nama', default)` di
 ## Rekomendasi urutan align (untuk sesi tuning hardware)
 
 1. **Kedalaman** (bagian pertama tabel) — unit & makna identik, paling aman di-align duluan. Delta kecil (`depth_tol`, `depth_surface`) bisa disamakan tanpa risiko.
-2. **`scan_depth` dua-fase** — putuskan dulu apakah hardware butuh fase scan terpisah (mirip alasan framing QR di sim) SEBELUM menambah param baru ke `mission5.py`; kalau ya, ini perubahan STRUKTUR mission5 (state baru), bukan cuma konstanta.
+2. **`scan_depth` dua-fase — DIPUTUSKAN (26 Agu 2026): TIDAK diadopsi.** Lihat catatan keputusan di baris tabel "Kedalaman scan QR" di atas.
 3. **Timeout** — align langsung (unit sama, cuma beda toleransi kesabaran); mulai dari yang deltanya kecil (GRAB/NAV_WALL sudah match).
 4. **Gain servo (N/m vs %/piksel/meter)** — JANGAN disamakan sampai ada karakterisasi thruster N-per-% (lihat catatan unit di atas). Prioritas rendah, butuh data hardware baru, bukan cuma baca dua file ini.
 5. **Navigasi wall tanpa odom absolut (`wall_dist`, `nav_tol`)** — terkait langsung P2-B (odom noise injector) & rencana P2 lain (ground truth break) di `docs/ARCHITECTURE.md`; selesaikan setelah eksperimen odom-noise sim memberi gambaran seberapa robust `mission_fsm.py` tanpa localisasi presisi, baru putuskan pola navigasi mana yang mau diadopsi hardware.
