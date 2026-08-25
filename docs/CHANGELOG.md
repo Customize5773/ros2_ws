@@ -1336,3 +1336,74 @@ File disentuh: `src/hydroships_control/hydroships_control/mission_fsm.py`,
 `src/hydroships_bringup/launch/hydroships_mission.launch.py`,
 `docs/STATUS.md`. Data mentah: `/tmp/claude-*/scratchpad/hook-sweep/`
 (tak disertakan di repo, session-scoped).
+
+## 2026-08-24 (lanjutan 3) — HANG "freeze-odom" root cause: teardown antar-run, bukan race start_state
+
+Investigasi lanjutan atas 2 kegagalan di battery `run_hang_wall_battery.sh`
+(entri sebelumnya, dugaan "`mission_fsm` ambil odom sebelum bridge up").
+Cek langsung 2 log gagal: `HANG-B-6006` ternyata mission tak pernah mulai
+sama sekali dalam window 60s (boot Gazebo lambat, murni soal margin waktu
+skrip). `HANG-A-6002` mission mulai normal, odom sempat terisi sekali
+(`x=1.09 y=-2.05`), lalu **`self._elapsed()` nyaris tak maju** — 5 baris
+debug HANG identik dalam ~250ms wall-time, padahal seharusnya sekali per
+~10s sim-time. Ini bukti **sim clock/physics Gazebo berhenti melangkah**,
+bukan soal `_on_odom` belum terpanggil. `RTPS_TRANSPORT_SHM` error count
+dicek di semua 12 log battery: rata sama di run sukses maupun gagal
+(117-130x/log) — noise startup DDS biasa, bukan penyebab.
+
+**Dugaan direvisi & dikonfirmasi**: kolaps real-time-factor Gazebo headless
+akibat teardown antar-run terlalu cepat (`sleep 3` sebelum launch
+berikutnya di `run_hang_wall_battery.sh`, resource GPU/CPU/RAM belum pulih
+penuh dari 12 launch beruntun). **Fix**: `sleep 3` → `sleep 10` di teardown
+(`1bcabee`). Re-run 12 kombinasi wall/seed yang sama: **11/12 SEATED**
+(naik dari 10/12), **0 pos-timeout, 0 descend-timeout**, 1 tak-selesai
+(`B-6004`) — kali ini odom-nya **bergerak nyata** (`dist` 2.740→0.205
+antar-tick, bukan beku), cuma belum sempat masuk `hang_tol=0.025` dalam
+window 60s.
+
+**DITUTUP**: gejala freeze-odom hilang setelah teardown diperpanjang.
+Sisa kegagalan window-60s murni soal margin waktu skrip (bukan bug FSM
+atau bug HANG), tidak butuh perubahan kode lebih lanjut.
+
+File disentuh: `tools/p0-experiments/run_hang_wall_battery.sh` (`sleep`),
+`docs/STATUS.md`, CHANGELOG ini. Tak ada perubahan kode mission_fsm. Data
+mentah: `/tmp/claude-*/scratchpad/hang-battery/`,
+`/tmp/claude-*/scratchpad/hang-battery2/` (tak disertakan di repo,
+session-scoped).
+
+## 2026-08-24 (lanjutan 4) — APPROACH_HOOK wall C/D: kandidat whole-contour-vs-tip DIBANTAH via analisis geometri
+
+Menindaklanjuti kandidat "belum diuji" di STATUS.md (mismatch antara
+`detect_hook()` yang mengembalikan centroid SELURUH kontur hook terlihat,
+vs `hook_ey_target()` yang memprediksi ey berdasar `hook_z` tip saja).
+Rencana awal: bandingkan log mentah `/hydroships/hook_offset` wall A vs
+wall C pada pose sama. **Live compare gagal dijalankan** — mesin dev
+overload sesi ini (`load average` 15-23 pada 12 core, kontensi CPU dari
+Firefox/VS Code lain yang jalan bersamaan), RTF Gazebo headless kolaps
+separah sehingga `mission_fsm` tak sempat lewat countdown start 3s dalam
+window 150s (2 percobaan, wall A keduanya gagal start). Bukan bug kode,
+kondisi mesin sesi ini.
+
+**Dijawab lewat analisis geometri statis sbg gantinya** (tak butuh
+runtime): cek `kki_arena.sdf` langsung — `hook_a` dan `hook_d`
+(spot-check) punya geometri lokal link **identik byte-per-byte**
+(`mount_collision` z=+0.10 → `riser` → `tip_collision` z=-0.39, span
+collision -0.45..+0.13 relatif ke model), hanya `<pose>` model (x,y,yaw)
+yang beda per wall. Baik centroid whole-contour maupun `hook_ey_target()`
+(tip) sama-sama murni fungsi dari `dist_forward` & `depth` — rotasi yaw
+terhadap sumbu z tidak mengubah profil vertikal yang dilihat kamera
+depan. Konsekuensi: mismatch tip-vs-centroid ini **PASTI menghasilkan
+bias ey yang identik di semua wall** pada dist_forward/depth yang sama.
+**Kandidat ini DIBANTAH sbg penjelas asimetri C/D** (kemungkinan tetap
+berkontribusi sbg bias konstan lintas-wall, tapi bukan akar kenapa
+cuma C/D bermasalah sementara A/B konvergen bersih).
+
+**Akar asimetri C/D tetap OPEN, belum ada kandidat baru diuji.** Saran
+lanjutan: ulangi live A-vs-C compare saat mesin lebih longgar (skrip
+sekali-pakai dibuang, tak disertakan di repo — pola: `start_state:=
+APPROACH_HOOK start_wall:=A/C spawn_seed:=<sama>`, baca log
+"APPROACH_HOOK dbg" yg sudah ada di `mission_fsm.py:1349-1351`), atau
+selidiki kandidat lain (attitude ROV per-wall, `hook_z` per-hook tak
+presisi, proyeksi `dist_forward`).
+
+File disentuh: `docs/STATUS.md`, CHANGELOG ini. Tak ada perubahan kode.

@@ -22,10 +22,11 @@ run_one () {
     sleep 60
     kill -9 "$launch" 2>/dev/null
     for p in $(pgrep -f "kki_arena"); do kill -9 "$p" 2>/dev/null; done
+    pkill -9 -f "gz sim"
     pkill -9 -f "hydroships_control/lib"; pkill -9 -f "hydroships_gazebo/lib"
     pkill -9 -f "parameter_bridge"; pkill -9 -f "robot_state_publisher"
     sleep 10
-    echo "  torn down; gz=$(pgrep -cf '^ign gazebo')"
+    echo "  torn down; gz=$(pgrep -cf 'gz sim')"
 }
 
 tags=()
