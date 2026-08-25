@@ -45,6 +45,7 @@ from geometry_msgs.msg import PointStamped
 
 from hydroships_control.qr_logic import (
     robust_decode, parse_wall, offset_from_points, load_calibration_yaml,
+    calibration_sanity_warnings,
     undistort_image,
 )
 from hydroships_control.image_util import image_msg_to_bgr
@@ -105,6 +106,9 @@ class QRDetector(Node):
                     self.get_logger().info(
                         'kalibrasi HARDWARE dimuat utk %s dari %s (%s)'
                         % (frame, path, rms_str))
+                for w in calibration_sanity_warnings(cal):
+                    self.get_logger().warn(
+                        'kalibrasi HARDWARE %s dari %s — %s' % (frame, path, w))
             except Exception as e:
                 self.get_logger().error(
                     'gagal muat kalibrasi %s dari %s: %s' % (frame, path, e))

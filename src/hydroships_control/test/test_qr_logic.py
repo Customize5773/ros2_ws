@@ -11,7 +11,7 @@ import pytest
 
 from hydroships_control.qr_logic import (
     parse_wall, offset_from_points, robust_decode, load_calibration_yaml,
-    _quiet_zone_ok, undistort_image,
+    calibration_sanity_warnings, _quiet_zone_ok, undistort_image,
 )
 
 cv2 = pytest.importorskip("cv2")
@@ -144,6 +144,25 @@ def test_load_calibration_npz(tmp_path):
     assert cal['image_size'] == (1280, 720)
     assert abs(cal['rms'] - 4.97) < 1e-6
     assert cal['dist'] is not None and cal['dist'].shape == (5,)
+
+
+def test_calibration_sanity_warnings_flags_offcenter_cy():
+    # dwe.npz nyata: cy=458.8 melenceng +13.7% dari pusat (360) -- harus kena flag.
+    cal = {'K': np.array([[608.8, 0.0, 604.8], [0.0, 619.7, 458.8], [0.0, 0.0, 1.0]]),
+           'image_size': (1280, 720)}
+    warnings = calibration_sanity_warnings(cal)
+    assert len(warnings) == 1
+    assert 'cy' in warnings[0]
+
+
+def test_calibration_sanity_warnings_ok_when_centered():
+    cal = {'K': np.array([[600.0, 0.0, 640.0], [0.0, 600.0, 360.0], [0.0, 0.0, 1.0]]),
+           'image_size': (1280, 720)}
+    assert calibration_sanity_warnings(cal) == []
+
+
+def test_calibration_sanity_warnings_no_image_size_is_noop():
+    assert calibration_sanity_warnings({'K': None, 'image_size': None}) == []
 
 
 def test_undistort_image_passthrough_no_dist():

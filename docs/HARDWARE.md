@@ -90,10 +90,50 @@ untuk "misi lomba lengkap"):
       `fx/fy/cx/cy` masuk akal untuk 1280x720, (b) idealnya rekalibrasi dengan lebih
       banyak sudut/jarak papan untuk turunkan RMS, (c) belum ada bukti file ini cocok
       dengan kamera bottom vs front (nama generik `dwe.npz`, tidak per-kamera) — cek
-      dulu sebelum diasumsikan salah satu kamera tertentu. `dist` (distorsi lensa)
+      dulu sebelum diasumsikan salah satu kamera tertentu.
+      **[UPDATE 2026-08-25] Langkah (a) dikerjakan (offline, `np.load`)**:
+      `fx=608.8 fy=619.7 cx=604.8 cy=458.8` untuk `1280x720`. `cx` masuk akal
+      (-2.7% dari lebar/2=640), tapi **`cy` melenceng +13.7% dari tinggi/2=360**
+      (98.8 px) — jauh lebih besar dari sekadar noise RMS-tinggi, indikasi kuat
+      papan checkerboard saat kalibrasi condong ke satu sisi frame (bukan
+      tersebar merata), bukan cuma kurang variasi sudut. `fx/fy` rasio 0.982
+      (dekat 1.0, wajar). Memperkuat kesimpulan (b) — rekalibrasi ulang dengan
+      papan disebar ke seluruh frame (termasuk tepi atas/bawah), bukan cuma
+      lebih banyak foto. `dist` (distorsi lensa)
       disimpan tapi **belum dipakai** di `qr_logic`/`qr_detector` (offset dihitung dari
       corner piksel mentah, tanpa undistort) — gap terpisah, bukan blocking utk
       memuat `K` saja.
+      **[UPDATE 2026-08-25 lanjutan] Ada 2 file kalibrasi lain di root repo,
+      belum tercantum sebelumnya: `dwe_underwater.npz` dan `laptop.npz`.**
+      Sanity-check offline sama (`np.load` + `calibration_sanity_warnings`,
+      `qr_logic.py`) thd ketiganya:
+
+      | file | image_size | rms | cx/cy | catatan |
+      |---|---|---|---|---|
+      | `dwe.npz` | 1280×720 | 4.97 px | **cy off +13.7%** (flagged) | dikalibrasi di udara |
+      | `dwe_underwater.npz` | 4080×3072 | **1.76 px** | cx/cy wajar | dikalibrasi **di air** — cocok kondisi asli, refraksi housing sudah terpotret |
+      | `laptop.npz` | 640×480 | 0.52 px | cx/cy wajar | **kamera webcam laptop, BUKAN DWE ExploreHD** — intrinsics tak berlaku utk kamera ROV sama sekali, jangan dipakai |
+
+      `dwe_underwater.npz` **kandidat terbaik saat ini**: dikalibrasi
+      langsung di air (bukan diekstrapolasi dari kalibrasi udara — refraksi
+      lewat housing/dome mengubah focal length efektif, jadi kalibrasi udara
+      `dwe.npz` punya bias sistematis terpisah dari sekadar RMS-nya), RMS
+      1.76 px jauh lebih baik dari `dwe.npz` (masih di atas ideal <0.5px,
+      jadi `qr_detector` tetap akan log sbg "coarse" krn threshold kode
+      `rms>1.0`), dan cx/cy lolos sanity-check (tak ada tanda papan condong
+      sebelah). **Caveat blocking sebelum dipakai**: resolusinya `4080×3072`
+      (rasio 4:3, kemungkinan foto still-capture penuh) sedangkan target
+      stream sim/live `1280×720` (rasio 16:9) — `undistort_image()`
+      (`qr_logic.py`) menskalakan `K` per-sumbu (`sx`,`sy` independen) bila
+      `image_size` beda dari frame aktual, TAPI itu mengasumsikan rasio
+      aspek sama; 4:3→16:9 berarti stream live kemungkinan crop dari sensor
+      penuh, bukan sekadar resize — belum diverifikasi resolusi asli
+      `v4l2_camera`/driver DWE utk tahu seberapa jauh mismatch-nya sebelum
+      `dwe_underwater.npz` dipakai sbg default. `laptop.npz` **jangan
+      dipakai untuk kamera ROV** — kalibrasi lensa/sensor beda total.
+      `dwe_underwater.npz` sekarang kandidat prioritas utk sesi rekalibrasi
+      lanjutan (idealnya ambil lebih banyak foto papan di air sampai RMS
+      <0.5px, sambil catat resolusi capture = resolusi stream driver).
 4. **Servo gripper driver** — blocking untuk `gripper_controller` menggerakkan
    aktuator fisik. Perlu keputusan desain: PWM langsung dari RPi (mis. via
    PCA9685 I2C) atau lewat Pixhawk AUX output.

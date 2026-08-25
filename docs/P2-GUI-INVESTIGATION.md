@@ -310,6 +310,50 @@ satu-kali yang tak sepenuhnya reproducible secara sistematis dgn probe
 terkontrol. **Tetap OPEN** — turunkan prioritas (tak ada bukti bug aktif di
 kode saat ini), tapi jangan tandai RESOLVED di STATUS.md.
 
+## 7. Kandidat #4 (2026-08-25, dari kode, belum diuji lapangan): clipping saturasi thruster membocorkan momen roll/pitch tak-terkomando
+
+Re-audit `allocation.py`/`thruster_allocator.py` (bukan observasi lapangan)
+mencari mekanisme kode yang belum diuji dari §4-6. `allocate()`
+(`allocation.py:73-76`) meng-clip gaya per-thruster ke `[MIN_THRUST,
+MAX_THRUST]` **setelah** pseudo-inverse teredam menghitung kombinasi gaya
+yang seharusnya menghasilkan wrench komando persis (termasuk membatalkan
+komponen roll/pitch yang tak diminta). Clipping terjadi PER-THRUSTER tanpa
+redistribusi — begitu satu thruster jenuh, kombinasi gaya yang tersisa tak
+lagi membatalkan roll/pitch seperti dirancang TAM, dan wrench yang benar-benar
+terkirim ke sim (`TAM @ forces_clipped`) punya residual `mx`/`my` yang TAK
+pernah dikomando.
+
+**Verifikasi numerik offline** (`allocation.py` langsung, gain default
+`surge_gain=0.40 sway_gain=0.40 heave_gain=0.30 yaw_gain=0.12`, damping=0.1):
+
+| surge% | yaw% | thruster jenuh? | mx terkirim | my terkirim |
+|---|---|---|---|---|
+| 100 | 100 | ya (thruster_3 54.5N > 50N) | -0.007 | **0.568** |
+| 80 | 60 | tidak | -0.005 | 0.589 |
+| 50 | 50 | tidak | -0.003 | 0.359 |
+| 100 | 30 | tidak | -0.005 | 0.769 |
+
+(skrip: `pinv @ wrench` lalu `np.clip` lalu `tam @ forces_clipped`, dibanding
+wrench komando `[fx,0,0,0,0,mz]`.)
+
+Catatan: bahkan TANPA saturasi, `my` residual sudah tak nol (0.36-0.77 N·m) —
+pseudo-inverse teredam (damping=0.1) sendiri sudah tak sempurna membatalkan
+axis lain (trade-off yang disengaja, lihat komentar `build_damped_pinv`).
+Saturasi (baris pertama) menambah my jadi lebih besar tapi BUKAN
+menyebabkannya dari nol — jadi kandidat ini kemungkinan cuma memperbesar
+kebocoran yang sudah ada di semua kombinasi axis, bukan mekanisme terpisah.
+Tak ada validasi berapa N·m residual dibutuhkan utk spike 2-6° (butuh
+massa/inertia & damping hidrodinamik ROV, tak tersedia dari kode saja).
+
+**Status kandidat #4: teridentifikasi & diverifikasi analitik (offline),
+BELUM diuji runtime/sim.** Konsisten arah dengan kandidat #2 (kombinasi-axis
+manusia) di §5a — kemungkinan besar mekanisme YANG SAMA yang mendasarinya
+(pinv teredam tak pernah sempurna decouple axis, saturasi memperparah), bukan
+kandidat kelima yang berdiri sendiri. Tidak mengubah status OPEN M7 di
+STATUS.md; ditambahkan sebagai mekanisme kode konkret utk sesi lanjutan yang
+punya akses simulasi/hardware untuk uji langsung (mis. command surge=100%
+yaw=100% sustained via `gui_bridge`, ukur roll/pitch peak).
+
 ## Status ringkas
 
 - ✅ Task 1 — root cause + fix thrust drop-out GUI: **selesai, terverifikasi**.

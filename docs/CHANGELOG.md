@@ -1461,3 +1461,103 @@ File disentuh: `src/hydroships_control/hydroships_control/mission_fsm.py`
 (instrumentasi roll/pitch), `docs/STATUS.md`, CHANGELOG ini. Data
 mentah run: `/tmp/claude-*/scratchpad/hook-ac-compare/` (tak
 disertakan di repo, session-scoped).
+
+## 2026-08-25 (lanjutan) — PIVOT: live A vs C compare runtuhkan premis vision
+
+Live compare wall A vs C akhirnya berhasil dijalankan penuh (mesin idle,
+`load average` 1.1/12 core, PATH sudah benar). Metode: `start_state:=
+APPROACH_HOOK spawn_seed:=6001`, wall A lalu C, spawn ROV identik di
+kedua run `(1.704, 2.05, -0.5) yaw=-1.9149`, window 160s/run, teardown
+bersih + `sleep 10` antar-run (pola `run_hang_wall_battery.sh`).
+
+**Temuan kunci: deteksi hook = nol sampel valid di KEDUA wall** (`off=
+None` di semua baris `APPROACH_HOOK dbg`, log dibanjiri `HOOK TAK
+TERDETEKSI`). Asimetri A vs C sama sekali tidak lewat jalur vision —
+menjelaskan sekaligus kenapa 4 kandidat kamera/geometri yang diuji
+sesi 2026-08-24/25 (centroid-vs-tip, attitude ROV, `hook_z` per-hook,
+proyeksi `dist_forward`) semua terbantah: tidak ada sinyal kamera yang
+bisa dibiaskan sejak awal untuk sample yang diuji.
+
+Asimetri terjadi murni di jalur odometri + kontrol depth: wall A odom
+approach lancar (4.46→0.57m) dan depth servo tercapai (0.12 vs
+setpoint 0.14) → keluar via fallback presisi (14.6s) → AUTO_RELEASE
+sukses penuh. Wall C odom **berhenti maju** di 2.06m dan depth
+**nyangkut di permukaan** (0.01-0.03 vs setpoint 0.14) → timeout 36.5s
+→ AUTO_RELEASE juga timeout posisi → ABORT. Bonus: siklus ke-2 di log
+wall-A menjangkau hook C lewat jalur normal (bukan `start_wall:=`) dan
+gagal dengan mekanisme BERBEDA lagi — `HANG` XY konvergen sempurna
+(4mm) tapi depth stall di 0.275, tak mau turun ke `hook_depth=0.32` →
+timeout → ABORT.
+
+**Kesimpulan**: akar wall C bukan bias visual servo (dibantah lewat
+data, bukan cuma penalaran geometri kali ini). Dua arah kegagalan
+depth yang berlawanan (nyangkut di permukaan di satu state, stall
+tak-mau-turun di state lain) mengarah ke interaksi fisik/kontrol
+posisi-depth spesifik wall C — mekanisme belum diidentifikasi.
+
+**Akar asimetri C/D tetap OPEN**, ruang pencarian pindah total dari
+vision ke kontrol depth/posisi dekat wall C. Kandidat sesi berikutnya:
+kenapa depth setpoint 0.14 tak tercapai di APPROACH_HOOK wall C, dan
+kenapa depth stall di 0.275 (bukan 0.32) di HANG→AUTO_RELEASE wall C —
+curigai collision arena dekat wall C atau interaksi PID depth dengan
+heading/thrust spesifik wall C (`WALL_HEADING_DEG['C']=0°`).
+
+File disentuh: `docs/STATUS.md`, CHANGELOG ini. Tak ada perubahan
+kode dari temuan ini. Skrip retry (sekali-pakai, tak disertakan
+repo): `/tmp/opencode/run_ac_compare.sh`; log mentah
+`/tmp/opencode/hook-ac-compare/AC-{A,C}.log` (mesin lain, tak
+disertakan repo).
+
+## 2026-08-25 (lanjutan 2) — DITUTUP: asimetri wall C/D bukan properti dinding
+
+6 run tambahan dengan spawn/seed/heading byte-identik (`AC-C`, `R1-c1`,
+`R3-c1`, `R4-c1` = APPROACH_HOOK wall C langsung; `AC-A` siklus-2 &
+`R2` = HANG wall C langsung): hasilnya **3/4 sukses APPROACH_HOOK, 4/4
+seated di HANG** — konfigurasi byte-sama menghasilkan hasil beda
+run-ke-run. Ini membuktikan asimetri A vs C yang teramati sesi lalu
+bukan sifat deterministik wall C.
+
+Dua kandidat kode dari sesi sebelumnya dibantah: **collision arena
+dekat wall C** — SDF `hook_a..d` identik byte-per-byte, dinding pool
+simetris 4 arah, tak ada struktur ekstra di C. **Interaksi PID depth ×
+`WALL_HEADING_DEG['C']=0°`** — 3 run sukses beruntun pakai heading
+target 0° yang sama persis dengan run gagal; kalau coupling
+deterministik, run sukses itu harusnya gagal juga.
+
+**Q1 (depth nyangkut 0.01-0.03 di permukaan)**: akar = degradasi
+RTF/scheduling saat beban mesin tinggi, pola sama dengan bug
+freeze-odom HANG yang sudah ditutup (`33a386c`/`1bcabee`). Run gagal
+mulai saat `load average` 1-menit 12.07 (puncak 13.49 antar-run),
+pipeline persepsi jelas sakit (24× `HOOK TAK TERDETEKSI` vs 5-6× di
+run sukses). Mekanisme dalam (saturasi allocator, coupling Fz→My yang
+`DEFERRED`) belum bisa dipastikan — trace odom saat kejadian tak
+tertangkap (logger sesi itu error 2× salah import `PointStamped`), dan
+begitu mesin tenang gagalan tak muncul lagi di 4 run beruntun.
+
+**Q2 (stall di depth 0.275, bukan 0.32)**: akar = mis-thread mekanis
+lubang↔tiang, bukan setpoint salah. Geometri seat normal (underside
+plat = base_z-0.136) memprediksi stall ≈0.30 + margin tekan 0.02 =
+`hook_depth=0.32` — semua seat sukses (A maupun C) tercatat 0.31-0.33
+✓, setpoint benar. Stall 0.2748 → underside plat di -0.411 =
+menggantung di badan tiang (span -0.45..-0.33), 2.7cm di atas palang —
+lubang tak menembus bersih. Log run itu mencatat `dist=0.031 >
+hang_tol=0.025` saat timeout — offset horizontal 31mm saat menembus,
+padahal clearance tip cuma Ø25mm vs slot ±45mm (sway sering mandek
+~21mm karena kopling yaw-hold, catatan lama di kode). 4 descend
+berikutnya (C langsung + D×3) semua seated mulus.
+
+**Verdict akhir**: bukan 1 bug wall-C-spesifik, melainkan 2 mode gagal
+probabilistik generik yang kebetulan sama-sama nongol di wall C hari
+itu: (a) degradasi depth/navigasi saat mesin dev overload (noise
+environment, bukan bug repo), dan (b) toleransi mis-thread lubang↔
+tiang yang tipis (`hang_tol=0.025` vs clearance efektif ~21-31mm
+sway-lag) — real tapi generik, bisa kena wall manapun, base rate
+rendah (1/8 run descend). **Investigasi asimetri C/D DITUTUP** — tak
+ada bug wall-spesifik ditemukan.
+
+Item terpisah untuk sesi lain kalau mau diperketat (belum dikerjakan,
+prioritas rendah): perkecil `hang_tol` atau perbesar clearance tip vs
+slot untuk toleransi sway-lag saat descend.
+
+File disentuh: `docs/STATUS.md`, CHANGELOG ini. Tak ada perubahan
+kode.

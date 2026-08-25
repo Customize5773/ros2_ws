@@ -45,6 +45,9 @@ PAYLOAD_SDF_TEMPLATE = '''<?xml version="1.0"?>
              bersandar di palang bawah hook saat plat turun (palang hook di
              x +-0.0125, jadi butuh material padat di sana — sayap di x +-0.035
              saja TIDAK menyentuh palang dan plat jatuh menembus hook).
+           slot_* di x +-0.055 (dulu 0.045): +10mm clearance vs r_tip 12.5
+           (28.5mm -> 38.5mm) untuk toleransi sway-lag ROV saat descend
+           (mis-thread fix; hang_tol tetap 25mm, bukan diperketat).
            Tip (silinder tegak r=0.0125 di lubang) menembus lewat celah
            z 0.075..0.11 (bawah body & atas bar_collision kosong) dan lorong
            slot, lalu plat bersandar stabil di palang. -->
@@ -53,11 +56,11 @@ PAYLOAD_SDF_TEMPLATE = '''<?xml version="1.0"?>
         <geometry><box><size>0.05 0.02 0.065</size></box></geometry>
       </collision>
       <collision name="slot_left_collision">
-        <pose>-0.045 -0.003 0.09325 0 0 0</pose>
+        <pose>-0.055 -0.003 0.09325 0 0 0</pose>
         <geometry><box><size>0.008 0.006 0.0135</size></box></geometry>
       </collision>
       <collision name="slot_right_collision">
-        <pose>0.045 -0.003 0.09325 0 0 0</pose>
+        <pose>0.055 -0.003 0.09325 0 0 0</pose>
         <geometry><box><size>0.008 0.006 0.0135</size></box></geometry>
       </collision>
       <collision name="bar_collision">

@@ -256,6 +256,30 @@ def load_calibration_yaml(path):
     return {'K': k, 'dist': None, 'image_size': None, 'rms': None}
 
 
+def calibration_sanity_warnings(cal, off_center_frac=0.10):
+    """Cek kewarasan hasil `load_calibration_yaml` di luar RMS (M3: RMS
+    tinggi tak selalu satu-satunya gejala kalibrasi buruk — papan
+    checkerboard yang condong ke satu sisi frame saat capture bisa
+    menggeser cx/cy jauh dari pusat tanpa RMS ikut ekstrem; lihat dwe.npz,
+    docs/HARDWARE.md §3). Kembalikan list string pesan (kosong = wajar).
+    """
+    warnings = []
+    image_size = cal.get('image_size')
+    K = cal.get('K')
+    if image_size is None or K is None:
+        return warnings
+    w, h = image_size
+    cx, cy = K[0, 2], K[1, 2]
+    for name, c, dim in (('cx', cx, w), ('cy', cy, h)):
+        frac = abs(c - dim / 2.0) / dim
+        if frac > off_center_frac:
+            warnings.append(
+                '%s=%.1f melenceng %.1f%% dari pusat frame (%.1f) — cek '
+                'apakah papan checkerboard tersebar merata saat capture'
+                % (name, c, 100 * frac, dim / 2.0))
+    return warnings
+
+
 def undistort_image(img, K, dist, image_size=None):
     """Kembalikan `img` yang sudah di-undistort, atau img asli bila `dist` None/zeros.
 
