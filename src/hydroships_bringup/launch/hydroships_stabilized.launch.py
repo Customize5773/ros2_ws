@@ -66,7 +66,7 @@ def generate_launch_description():
 
     return LaunchDescription([
         DeclareLaunchArgument('headless', default_value='false'),
-        DeclareLaunchArgument('world', default_value='kki_arena.sdf'),
+        DeclareLaunchArgument('world', default_value='pool_practice_arena.sdf'),
         DeclareLaunchArgument('qr_letter', default_value='',
                               description='Huruf QR payload (A/B/C/D). Kosong = random.'),
         DeclareLaunchArgument('payload_x', default_value='0.4',
@@ -79,7 +79,7 @@ def generate_launch_description():
         DeclareLaunchArgument('rov_y', default_value='0.0'),
         DeclareLaunchArgument('rov_z', default_value='-0.5'),
         DeclareLaunchArgument('rov_wall_margin', default_value='0.5'),
-        DeclareLaunchArgument('rov_arena_half', default_value='2.55'),
+        DeclareLaunchArgument('rov_arena_half', default_value='1.1'),
         DeclareLaunchArgument('spawn_seed', default_value='',
                               description='Isi utk fix seed pose spawn acak '
                                           '(replay/debug); kosong = acak penuh tiap launch.'),

@@ -98,7 +98,7 @@ def generate_launch_description():
 
     return LaunchDescription([
         DeclareLaunchArgument('headless', default_value='false'),
-        DeclareLaunchArgument('world', default_value='kki_arena.sdf'),
+        DeclareLaunchArgument('world', default_value='pool_practice_arena.sdf'),
         DeclareLaunchArgument('gui_host', default_value='127.0.0.1',
                               description='IP tujuan telemetri (laptop GUI/server.js).'),
         DeclareLaunchArgument('cmd_port', default_value='14550',

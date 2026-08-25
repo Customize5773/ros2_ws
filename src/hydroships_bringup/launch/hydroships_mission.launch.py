@@ -105,7 +105,7 @@ def generate_launch_description():
         DeclareLaunchArgument('joy_button_index', default_value='0',
                               description='Index tombol joystick utk trigger '
                                           'WAIT_TRIGGER (0 = A/Cross pada XInput/F310).'),
-        DeclareLaunchArgument('world', default_value='kki_arena.sdf'),
+        DeclareLaunchArgument('world', default_value='pool_practice_arena.sdf'),
         DeclareLaunchArgument('start_state', default_value='DIVE',
                               description='State awal FSM (DIVE/GRAB/NAV_WALL/HANG/SURFACE/'
                                           'WAIT_TRIGGER/APPROACH_HOOK/AUTO_RELEASE).'),
@@ -125,7 +125,7 @@ def generate_launch_description():
         DeclareLaunchArgument('rov_y', default_value='0.0'),
         DeclareLaunchArgument('rov_z', default_value='-0.5'),
         DeclareLaunchArgument('rov_wall_margin', default_value='0.5'),
-        DeclareLaunchArgument('rov_arena_half', default_value='2.55'),
+        DeclareLaunchArgument('rov_arena_half', default_value='1.1'),
         DeclareLaunchArgument('spawn_seed', default_value='',
                               description='Isi utk fix seed pose spawn acak '
                                           '(replay/debug); kosong = acak penuh tiap launch.'),

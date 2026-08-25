@@ -2,12 +2,17 @@
 
 Argumen:
   headless (default: false)  -> jalankan gz sim tanpa GUI (server saja) untuk CI/cloud.
-  world    (default: pool_empty.sdf)
+  world    (default: pool_practice_arena.sdf) -> kolam latihan 2,2x4,4x0,8 m.
+      Ganti ke kki_arena.sdf (5x5 m) atau pool_empty.sdf (kolam kosong) bila perlu.
   rov_random_spawn (default: true) -> spawn ROV acak DEKAT salah satu dinding kolam
       (posisi kontes realistis & bervariasi tiap run). false = pakai rov_x/y/z.
   rov_x,rov_y,rov_z (default: 0 0 -0.5) -> posisi manual bila rov_random_spawn=false.
   rov_wall_margin (default: 0.5) -> jarak aman ROV dari dinding fisik (+-rov_arena_half).
-  rov_arena_half  (default: 2.55) -> setengah lebar kolam (dinding di +-nilai ini).
+  rov_arena_half  (default: 1.1) -> setengah lebar kolam (dinding di +-nilai ini).
+      1.1 = setengah SISI PENDEK kolam latihan (2,2 m); dipakai utk kedua sumbu
+      (asumsi arena persegi) jadi sengaja dipilih sisi pendek supaya ROV tak
+      pernah spawn tembus dinding meski kolam defaultnya persegi panjang.
+      Naikkan ke 2.55 bila world diganti ke kki_arena.sdf (5x5 m).
   spawn_seed      (default: '')   -> isi utk fix seed (replay/debug), kosong = acak penuh.
 """
 
@@ -98,7 +103,7 @@ def _rov_spawn_pose(context, rng):
     if not random_spawn:
         return (str(_f(context, 'rov_x', 0.0)), str(_f(context, 'rov_y', 0.0)), str(z), '0.0')
 
-    arena_half = _f(context, 'rov_arena_half', 2.55)
+    arena_half = _f(context, 'rov_arena_half', 1.1)
     margin = _f(context, 'rov_wall_margin', 0.5)
     lim = max(0.0, arena_half - margin)          # koordinat aman maks (mepet dinding)
     along = rng.uniform(-lim, lim)               # sebaran sepanjang dinding
@@ -327,9 +332,10 @@ def _launch_setup(context, *args, **kwargs):
 
 def generate_launch_description():
     return LaunchDescription([
-        DeclareLaunchArgument('world', default_value='kki_arena.sdf',
+        DeclareLaunchArgument('world', default_value='pool_practice_arena.sdf',
                               description='Nama file world di folder worlds/ '
-                                          '(kki_arena.sdf = arena lomba; pool_empty.sdf = kolam kosong).'),
+                                          '(pool_practice_arena.sdf = kolam latihan 2,2x4,4x0,8 m default; '
+                                          'kki_arena.sdf = arena lomba 5x5 m; pool_empty.sdf = kolam kosong).'),
         DeclareLaunchArgument('headless', default_value='false',
                               description='true = server saja tanpa GUI (cloud/CI).'),
         DeclareLaunchArgument('rov_random_spawn', default_value='true',
@@ -346,8 +352,10 @@ def generate_launch_description():
         DeclareLaunchArgument('spawn_seed', default_value='',
                               description='Isi utk fix seed pose spawn acak '
                                           '(replay/debug); kosong = acak penuh tiap launch.'),
-        DeclareLaunchArgument('rov_arena_half', default_value='2.55',
-                              description='Setengah lebar kolam (dinding di +-nilai ini).'),
+        DeclareLaunchArgument('rov_arena_half', default_value='1.1',
+                              description='Setengah lebar kolam (dinding di +-nilai ini). '
+                                          '1.1 = setengah sisi pendek kolam latihan 2,2x4,4 m; '
+                                          'naikkan ke 2.55 bila world diganti ke kki_arena.sdf (5x5 m).'),
         DeclareLaunchArgument('spawn_delay', default_value='3.0',
                               description='Detik menunda spawn ROV agar server gz '
                                           'siap dulu (naikkan bila mesin lambat).'),

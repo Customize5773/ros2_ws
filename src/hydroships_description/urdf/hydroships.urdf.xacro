@@ -259,7 +259,17 @@
       <visualize>false</visualize>
       <topic>hydroships/camera_front/image</topic>
       <camera>
-        <horizontal_fov>1.3962634</horizontal_fov>
+        <!-- 1.2217 rad (sekitar 70 derajat): disamakan dgn FOV horizontal
+             kamera DWE ExploreHD ASLI (fx=914.06 @ lebar 1280, autonomy/
+             vision/calibration/dwe_trial2.npz, kalibrasi terkini yg dipakai
+             trial kolam GUI-ROV): fov = 2*atan((1280/2)/914.06) = 70.0 deg,
+             resolusi independen jadi berlaku sama persis di 640px sim ini.
+             Sebelumnya 1.3962634 (80 deg, default generik): QR/hook tampak
+             proporsional lebih kecil drpd kamera asli di jarak fisik yg
+             sama, ditemukan 26 Agu saat closed-loop QR-decode di sim butuh
+             clearance jauh lebih dekat drpd config kolam asli (config/
+             gazebo_sim.yaml, GUI-ROV) utk QR cukup besar didecode. -->
+        <horizontal_fov>1.2217</horizontal_fov>
         <image><width>640</width><height>480</height><format>R8G8B8</format></image>
         <clip><near>0.05</near><far>20.0</far></clip>
       </camera>
@@ -274,7 +284,17 @@
       <visualize>false</visualize>
       <topic>hydroships/camera_bottom/image</topic>
       <camera>
-        <horizontal_fov>1.3962634</horizontal_fov>
+        <!-- 1.2217 rad (sekitar 70 derajat): disamakan dgn FOV horizontal
+             kamera DWE ExploreHD ASLI (fx=914.06 @ lebar 1280, autonomy/
+             vision/calibration/dwe_trial2.npz, kalibrasi terkini yg dipakai
+             trial kolam GUI-ROV): fov = 2*atan((1280/2)/914.06) = 70.0 deg,
+             resolusi independen jadi berlaku sama persis di 640px sim ini.
+             Sebelumnya 1.3962634 (80 deg, default generik): QR/hook tampak
+             proporsional lebih kecil drpd kamera asli di jarak fisik yg
+             sama, ditemukan 26 Agu saat closed-loop QR-decode di sim butuh
+             clearance jauh lebih dekat drpd config kolam asli (config/
+             gazebo_sim.yaml, GUI-ROV) utk QR cukup besar didecode. -->
+        <horizontal_fov>1.2217</horizontal_fov>
         <image><width>640</width><height>480</height><format>R8G8B8</format></image>
         <clip><near>0.05</near><far>20.0</far></clip>
       </camera>
