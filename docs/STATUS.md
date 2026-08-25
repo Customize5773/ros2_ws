@@ -182,3 +182,24 @@ ros2 launch hydroships_bringup hydroships_mission.launch.py headless:=true spawn
 # di terminal lain, setelah gripper attached (lihat log GRAB):
 ros2 run hydroships_gazebo validate_grab_lift
 ```
+
+### Update 2026-08-21 — FSM lean+reverse & saldo verifikasi
+
+- **LEAN_RECORD → REVERSE_RETURN (permintaan wall lean)**: setelah `SURFACE→WAIT_TRIGGER`,
+  FSM kini `WAIT_TRIGGER → LEAN_RECORD → REVERSE_RETURN → APPROACH_HOOK` (auto, tanpa
+  trigger pilot — sesuai "tidak usah dengan trigger"). LEAN_RECORD mencatat waypoint odom
+  `(x,y)` tiap tick dan `goto_xy` ke `wall_face-lean_wall_offset` sampai `dist<lean_tol`;
+  REVERSE_RETURN playback `reversed(log)` closed-loop `_goto_xy` (opsi terbaik drift-minimal;
+  ponytail `Fx=-Fx` bila odom dropout). Param `t_lean 25s, t_reverse 35s, lean_wall_offset 0.10,
+  lean_tol 0.15, reverse_step_tol 0.12`. State `HANG/APPROACH_HOOK/AUTO_RELEASE` lain tak diubah.
+- **APPROACH_HOOK ey_target**: `hook_logic.hook_ey_target` baru — ey ideal ~+0.50 di
+  `hang_approach_depth=0.14` (bukan 0). Gate lama `|ey|<0.15` penyebab timeout 4/8 deterministik
+  wall+seed (battery 90s 08-19); fix `|ey-ey_target|<tol`. Battery runtime baru menunggu.
+- **Regresi `descend_settle_dwell`**: `p('descend_settle_dwell',0.5)` sempat hilang di branch
+  `update-v1` (crash `ParameterNotDeclaredException` → tidak approach QR); dipulihkan.
+- **Saldo 08-17→08-20**: `test_qr_logic` import `undistort_image` fixed (2 fail → 2 PASS);
+  battery multi-payload/HANG precision/retries & M6 ey-aware & R-9 ack end-to-end masih
+  menunggu sim nyata — status M6 tetap **PARSIAL / VERIFY**.
+- **Verifikasi yang masih menunggu sim**: `APPROACH_HOOK` 4-wall×seed (cek near AND aligned dalam
+  `t_approach=25s`), `gripper/status` ack end-to-end (`_st_grab` retry→ABORT), multi-payload
+  cycling.

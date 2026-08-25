@@ -33,6 +33,7 @@ setup(
             'teleop_stabilized = hydroships_control.teleop_stabilized:main',
             'joy_teleop = hydroships_control.joy_teleop:main',
             'joy_mission_trigger = hydroships_control.joy_mission_trigger:main',
+            'keyboard_trigger = hydroships_control.keyboard_trigger:main',
             'teleop_gamepad = hydroships_control.teleop_gamepad:main',
             'depth_publisher = hydroships_control.depth_publisher:main',
             'mission_fsm = hydroships_control.mission_fsm:main',
