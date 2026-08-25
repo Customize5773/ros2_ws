@@ -1561,3 +1561,65 @@ slot untuk toleransi sway-lag saat descend.
 
 File disentuh: `docs/STATUS.md`, CHANGELOG ini. Tak ada perubahan
 kode.
+
+## 2026-08-25 — Mis-thread clearance fix + akar joy_node leak di battery HANG
+
+**Fix mis-thread (kandidat (b) di atas, dikerjakan):** slot plat
+(`slot_left/right_collision` di `payload_spawner.py` PAYLOAD_SDF_TEMPLATE
+& `model.sdf` cadangan) dilebarkan `x ±0.045 → ±0.055` — +10mm clearance
+vs `r_tip=12.5mm` (28.5mm → 38.5mm efektif) untuk toleransi sway-lag ROV
+saat descend ke hook. `hang_tol` **sengaja dibiarkan 25mm** — memperketat
+gerbang kontrol dinilai lebih berisiko menambah timeout drpd menambah
+clearance fisik pasif.
+
+**Bug nyata ditemukan saat validasi**: `run_hang_wall_battery.sh` tak
+pernah pass `joy_trigger:=false` ke `hydroships_mission.launch.py` (yang
+default `joy_trigger:=true`), dan pattern teardown-nya tak match
+`joy_node` sama sekali. Efeknya: setiap run battery (dan launch manual
+tanpa override) membocorkan 1 proses `joy_node` yang tak pernah mati.
+**26 proses zombie** ditemukan menumpuk lintas sesi di mesin dev,
+masing² ~5% CPU, bersamaan dengan `load average` 10.93 pada 12 core —
+pola persis sama dengan gejala "RTF collapse Gazebo headless" yang
+didiagnosis 2026-08-24 dan "ditutup" via `sleep 3→10` di teardown
+(`1bcabee`). Kemungkinan besar fix sleep itu cuma meredakan gejala,
+bukan akar. **Fix**: `joy_trigger:=false` eksplisit di `run_one()` +
+`pkill -9 -f joy_node` di teardown (defense-in-depth,
+`run_hang_wall_battery.sh`). 26 zombie lama dibersihkan manual.
+
+**Validasi A/B clearance** (12-run battery, wall A-D × 3 seed,
+`start_state:=HANG`, geometri lama direvert sementara non-destruktif via
+`sed` lalu di-`git checkout` balik ke versi baru — bukan `git reset`):
+
+| geometri | seated | pos-to | descend-to | tak-selesai |
+|---|---|---|---|---|
+| lama (0.045) | 6/12 | 3 | 2 | 1 |
+| baru (0.055) | 6/12 | 1 | 5 | 0 |
+
+Seated rate identik — **no regression**, tapi juga belum ada bukti
+kuat perbaikan pada n=12 (load mesin 5-9 saat itu, bukan idle bersih).
+Sinyal yang konsisten di SEMUA kegagalan kedua geometri: `dist` posisi
+selalu konvergen ke 0.004-0.028m — **nol kegagalan mis-thread XY**
+teramati; semua kegagalan dari fase depth timeout, kelas noise RTF yang
+sama dgn temuan joy-leak, independen dari geometri slot. Base rate
+mis-thread asli (~1/8 descend per catatan 2026-08-24) terlalu jarang
+untuk terbaca bersih di sample n=12 yang didominasi noise mesin —
+battery lanjutan (n≥30, mesin idle `uptime`<2) diperlukan untuk baca
+sinyal sebenarnya.
+
+**Sisi lain dari sesi ini (M3, tak terkait HANG)**: ditambahkan
+`calibration_sanity_warnings()` di `qr_logic.py` (flag `cx`/`cy` >10%
+off-center saat load kalibrasi kamera) — menangkap anomali nyata di
+`dwe.npz` (`cy` +13.7% off-center) yang RMS-only check terlewat.
+Ditemukan pula 2 file kalibrasi lain di root repo yang belum tercatat:
+`dwe_underwater.npz` (dikalibrasi di air, RMS 1.76px, cx/cy bersih —
+kandidat terbaik saat ini, tapi resolusi 4:3 vs stream 16:9 belum
+diverifikasi) dan `laptop.npz` (webcam laptop, bukan kamera DWE, jangan
+dipakai). Detail: `docs/HARDWARE.md` §3, `docs/STATUS.md` M3.
+
+File disentuh: `src/hydroships_gazebo/scripts/payload_spawner.py`,
+`src/hydroships_gazebo/models/payload/model.sdf`,
+`src/hydroships_control/hydroships_control/qr_logic.py`,
+`src/hydroships_control/hydroships_control/qr_detector.py`,
+`src/hydroships_control/test/test_qr_logic.py`,
+`tools/p0-experiments/run_hang_wall_battery.sh`, `docs/HARDWARE.md`,
+`docs/STATUS.md`, `docs/P2-GUI-INVESTIGATION.md`, CHANGELOG ini.
