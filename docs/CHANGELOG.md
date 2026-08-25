@@ -1208,3 +1208,47 @@ File disentuh: `docs/P2-GUI-INVESTIGATION.md` (§6 baru), `docs/STATUS.md`
 (M7), CHANGELOG ini. Tak ada perubahan kode — murni eksperimen runtime.
 Data mentah: `/tmp/m7-nearwall-retest/*.csv` + `sim*.log` (tak disertakan
 di repo).
+
+## 2026-08-20 — Regresi descend_settle_dwell + saldo verifikasi
+
+Sesi `update-v1` di `src/` (belum di-merge ke `origin/main`): `mission_fsm.py`
+di branch menghapus deklarasi `p('descend_settle_dwell', 0.5)` tapi masih memanggil
+`g('descend_settle_dwell')` — `MissionFSM.__init__` melempar
+`ParameterNotDeclaredException`, node FSM crash saat start, tidak pernah
+`DIVE->APPROACH_QR` (stuck "tidak approach QR"). Diretas di WD: deklarasi dipulihkan
+satu baris. Verifikasi compile `py_compile` OK. Commit ditunda di branch (user akan commit manual).
+
+Saldo verifikasi 08-17→08-20 belum lunas: multi-payload cycling, HANG precision
+(`hang_l_tol` 0.012 + retreat 0.25m), `release_max_retries=3` cuma 1 sesi informal
+`data/2026-08-18/` (run2 loop B→C, run3b ABORT di AUTO_RELEASE depth 0.194). Belum
+battery N-seed — perlu `run_mission_cycle.sh` battery sebelum klaim verified.
+
+## 2026-08-21 — APPROACH_HOOK ey_target + LEAN_RECORD/REVERSE_RETURN + test_qr_logic
+
+- **APPROACH_HOOK ey_target (M6, 4/8 timeout fix)**: `hook_logic.py` tambah
+  `hook_ey_target(depth, cam_front_dz, hook_z, dist_forward, vfov_half_tan, ey_max)`
+  — hook di dinding `z=-0.39` selalu di bawah pusat kamera depan `z=0` pada
+  `hang_approach_depth=0.14` → ey ideal ~+0.50, bukan 0. Gate lama `|ey|<0.15` tak
+  pernah lolos 50% (deterministik wall+seed, battery 90s 08-19). Fix:
+  `hook_servo(..., ey_target)` pakai `|ey-ey_target|<tol` dan `d_depth=kp*(ey-ey_target)`;
+  `mission_fsm.py` hitung `ey_tgt=hook_ey_target(...)` per tick dan gate `near AND aligned`
+  baru. Param baru `hook_z=-0.39, cam_front_dz=0.0, hook_ey_max=0.8`.
+  Self-check compile + import src headless PASS (`ey_tgt +0.497`).
+  Battery start_state:=APPROACH_HOOK 4-wall×seed dan mission penuh menunggu verifikasi runtime (STATUS M6 masih PARSIAL).
+
+- **LEAN_RECORD/REVERSE_RETURN (gambar wall lean)**: `mission_fsm.py` tambah
+  `St.LEAN_RECORD/REVERSE_RETURN` setelah `WAIT_TRIGGER`. `WAIT_TRIGGER` kini
+  passthrough auto ke `LEAN_RECORD` (tidak menunggu trigger — sesuai "tidak usah dengan trigger",
+  record baru saat trigger pertama sudah diganti auto). LEAN_RECORD mencatat waypoint
+  odom `(x,y)` tiap tick dan `goto_xy` ke `wall_face-lean_wall_offset` sampai
+  `dist<lean_tol`. REVERSE_RETURN playback `reversed(_lean_log)` closed-loop
+  `_goto_xy` tiap waypoint (opsi terbaik, ponytail open-loop `Fx=-Fx` bila odom dropout).
+  Param `t_lean 25s, t_reverse 35s, lean_wall_offset 0.10, lean_tol 0.15, lean_log_cap 300,
+  reverse_step_tol 0.12`. State `HANG/APPROACH_HOOK/AUTO_RELEASE` lain tak diubah.
+
+- **test_qr_logic import fix**: `from qr_logic import ...` tambah `undistort_image`
+  — 2 test `test_undistort_image_*` yang gagal `NameError` kini PASS (2/2).
+
+Battery yang masih menunggu sim nyata (butuh `gz sim`):
+`run_approach_hook_dwell_battery.sh` dengan ey-aware, `run_r9` ack gripper/status end-to-end
+(`_st_grab` retry rejected → ABORT bila tak attached), dan multi-payload/HANG/retry battery.

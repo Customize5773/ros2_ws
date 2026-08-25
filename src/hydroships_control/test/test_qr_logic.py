@@ -11,7 +11,7 @@ import pytest
 
 from hydroships_control.qr_logic import (
     parse_wall, offset_from_points, robust_decode, load_calibration_yaml,
-    _quiet_zone_ok,
+    _quiet_zone_ok, undistort_image,
 )
 
 cv2 = pytest.importorskip("cv2")
