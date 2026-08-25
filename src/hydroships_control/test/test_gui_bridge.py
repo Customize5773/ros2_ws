@@ -2,8 +2,22 @@
 
 import math
 
-from hydroships_control.gui_bridge_logic import DelayLine, GuiBridgeLogic
+from hydroships_control.gui_bridge_logic import DelayLine, GuiBridgeLogic, parse_extra_dests
 from hydroships_control.hook_logic import normalize_hook_offset
+
+
+def test_parse_extra_dests_empty():
+    assert parse_extra_dests('') == []
+    assert parse_extra_dests(None) == []
+
+
+def test_parse_extra_dests_single():
+    assert parse_extra_dests('127.0.0.1:14552') == [('127.0.0.1', 14552)]
+
+
+def test_parse_extra_dests_multiple_and_whitespace():
+    assert parse_extra_dests(' 127.0.0.1:14552 , 10.0.0.5:9999 ') == [
+        ('127.0.0.1', 14552), ('10.0.0.5', 9999)]
 
 
 def test_delay_line_zero_delay_passthrough():

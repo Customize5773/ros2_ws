@@ -32,7 +32,7 @@ from geometry_msgs.msg import PointStamped, Twist
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Empty, Float64, String
 
-from hydroships_control.gui_bridge_logic import DelayLine, GuiBridgeLogic
+from hydroships_control.gui_bridge_logic import DelayLine, GuiBridgeLogic, parse_extra_dests
 
 
 def _yaw_rpy(q):
@@ -60,6 +60,10 @@ class GuiBridge(Node):
         p('surge_gain', 0.40); p('sway_gain', 0.40)
         p('heave_gain', 0.30); p('yaw_gain', 0.12)
         p('tether_latency_ms', 0.0)   # R-8: simulasi latency tether topside<->ROV
+        # Tujuan telemetri tambahan (mis. mission5.py FSM di port 14552) agar
+        # dashboard GUI & FSM bisa terima telemetri bersamaan tanpa rebut satu
+        # telem_port -- pola sama dgn --telem-extra di autonomy/rov_link.py.
+        p('telem_extra', '')
         g = lambda n: self.get_parameter(n).value
 
         self.logic = GuiBridgeLogic(
@@ -96,6 +100,7 @@ class GuiBridge(Node):
 
         # UDP: dengar perintah GUI (non-blocking) + kirim telemetri.
         self._telem_dest = (str(g('telem_host')), int(g('telem_port')))
+        self._extra_dests = parse_extra_dests(str(g('telem_extra')))
         self._rx = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._rx.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self._rx.bind(('0.0.0.0', int(g('cmd_port'))))
@@ -111,9 +116,11 @@ class GuiBridge(Node):
         # to have a dead link.
         self.create_timer(1.0 / hz, self._send_telem,
                           clock=Clock(clock_type=ClockType.STEADY_TIME))
+        extra_str = (', +%d tujuan tambahan' % len(self._extra_dests)
+                     if self._extra_dests else '')
         self.get_logger().info(
-            'gui_bridge siap — dengar UDP cmd :%d, telemetri -> %s:%d' % (
-                int(g('cmd_port')), self._telem_dest[0], self._telem_dest[1]))
+            'gui_bridge siap — dengar UDP cmd :%d, telemetri -> %s:%d%s' % (
+                int(g('cmd_port')), self._telem_dest[0], self._telem_dest[1], extra_str))
 
     def _on_depth(self, msg: Float64):
         self._depth = float(msg.data)
@@ -184,8 +191,11 @@ class GuiBridge(Node):
     def _drain_downlink(self):
         now = time.monotonic()
         for telem in self._downlink.pop_ready(now):
+            payload = json.dumps(telem).encode('utf-8')
             try:
-                self._tx.sendto(json.dumps(telem).encode('utf-8'), self._telem_dest)
+                self._tx.sendto(payload, self._telem_dest)
+                for dest in self._extra_dests:
+                    self._tx.sendto(payload, dest)
             except socket.error as e:
                 self.get_logger().warn('kirim telemetri gagal: %s' % e,
                                        throttle_duration_sec=5.0)

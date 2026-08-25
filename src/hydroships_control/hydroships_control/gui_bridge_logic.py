@@ -57,6 +57,20 @@ def clamp(v, lo, hi):
     return lo if v < lo else hi if v > hi else v
 
 
+def parse_extra_dests(csv_str):
+    """csv 'host:port,host2:port2' -> [(host, port_int), ...]. Entri kosong/
+    spasi diabaikan. Sama pola dgn --telem-extra di autonomy/rov_link.py,
+    dipakai gui_bridge utk fanout telemetri ke >1 tujuan (mis. dashboard GUI
+    + mission5.py FSM bersamaan) tanpa rebut satu telem_port."""
+    dests = []
+    for item in (csv_str or '').split(','):
+        item = item.strip()
+        if item:
+            host, port = item.rsplit(':', 1)
+            dests.append((host, int(port)))
+    return dests
+
+
 def _num(v):
     try:
         return float(v)
