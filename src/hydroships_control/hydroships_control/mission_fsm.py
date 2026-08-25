@@ -138,7 +138,7 @@ class MissionFSM(Node):
         # secara fisik (tip menembus lubang). 12 mm = dekat batas fisik ±12.5,
         # memberi margin utk variasi spawn tanpa macet lagi.
         p('hang_l_tol', 0.012)       # m toleransi lubang sepanjang sumbu maju
-        p('hang_forward_bias', 0.018)  # m dorong maju ke wall (kompen residual 12-21mm) — supaya hook masuk lubang, tidak nyangkut
+        p('hang_forward_bias', 0.010)  # m dorong maju ke wall. 0.018 = wedging pin-bibir slot (AR beku dist~0.04, 4/4 run 2026-08-25); 0.0 = HANG kurang maju; 0.010 seat HANG 2/2 — sweep 2026-08-25
         # Gate heading sebelum turun: dengan kompensasi yaw live di _hang_xy,
         # error heading TIDAK lagi menggeser lubang dari tip (hanya memutar
         # slot sedikit, tip silinder tak peduli) — gate cukup utk memastikan
@@ -200,7 +200,7 @@ class MissionFSM(Node):
         p('t_grab', 10.0); p('t_nav', 30.0)
         p('t_hang', 30.0); p('t_surface', 20.0); p('t_wait_trigger', 600.0)
         p('t_lean', 25.0); p('t_reverse', 35.0)
-        p('t_release', 30.0); p('t_approach', 25.0)
+        p('t_release', 60.0); p('t_approach', 25.0)
         # AUTO_RELEASE fase-turun: retry terbatas bila plat duduk miring (drift
         # lateral saat turun) — naik, re-center, turun ulang sebelum ABORT.
         p('release_max_retries', 3)
@@ -285,6 +285,9 @@ class MissionFSM(Node):
         p('lean_hold_s', 2.5)        # s tahan di lean sebelum REVERSE (diperpanjang)
         p('lean_log_cap', 800)       # tick max log LEAN_RECORD
         p('reverse_step_tol', 0.12)  # m toleransi reverse
+        p('reverse_lookahead', 0.60)  # m jarak anchor cruise di depan jalur balik (opsi A)
+        p('reverse_pass_r', 0.35)    # m radius pop entri lean_log yg sudah terlewati
+        p('reverse_tail_n', 4)       # N entri terakhir pakai mode presisi per-waypoint
         p('docking_yaw', 90.0)       # deg putar saat docking (samping)
 
         g = lambda n: self.get_parameter(n).value
@@ -346,6 +349,9 @@ class MissionFSM(Node):
         self.lean_hold_s = float(g('lean_hold_s'))
         self.lean_log_cap = int(g('lean_log_cap'))
         self.reverse_step_tol = float(g('reverse_step_tol'))
+        self.reverse_lookahead = float(g('reverse_lookahead'))
+        self.reverse_pass_r = float(g('reverse_pass_r'))
+        self.reverse_tail_n = int(g('reverse_tail_n'))
         self.docking_yaw = float(g('docking_yaw'))
         self.hook_max_age = float(g('hook_max_age'))
         self.hook_settle_grace_s = float(g('hook_settle_grace_s'))
@@ -520,6 +526,10 @@ class MissionFSM(Node):
             self._rev_stuck = 0
         if s is St.REVERSE_RETURN:
             self._reverse_idx = len(self._lean_log) - 1
+        if s is St.DIVE:
+            self._dive_entry_depth = None
+            self._dive_gerak = False
+            self._dive_grace_given = False
             self._rev_stuck = 0
 
     def _set_depth(self, d_pos):
@@ -586,8 +596,10 @@ class MissionFSM(Node):
         # Floor gaya 0.12 x fmax (bukan 0.05): di jarak dekat gaya 0.05xfmax
         # (~1 N) terlalu kecil utk menyelesaikan sisa error — ROV mandek
         # beberapa cm dari target (terlihat di HANG: dist macet 0.036).
+        # min_fmax_frac cuma boleh MENAIKKAN floor: dgn payload terpasang,
+        # 0.12 pun mandek (AR stuck dist 0.038 -> timeout posisi).
         if dist < slow_radius:
-            frac = max(0.12, dist / slow_radius)
+            frac = max(0.12, min_fmax_frac or 0.0, dist / slow_radius)
             fm = fm * frac
         yaw = self.yaw if yaw_ref is None else yaw_ref
         c, s = math.cos(yaw), math.sin(yaw)
@@ -724,6 +736,11 @@ class MissionFSM(Node):
     def _st_dive(self):
         self._set_depth(self.scan_depth)
         self._set_heading(0.0)
+        if self.depth is not None:
+            if self._dive_entry_depth is None:
+                self._dive_entry_depth = self.depth
+            elif self.depth - self._dive_entry_depth > 0.05:
+                self._dive_gerak = True
         depth_ok = self.depth is not None and self.depth >= self.scan_depth - self.depth_tol
         # Jangan transisi ke APPROACH_QR sebelum payload_pose (latched, dari
         # payload_spawner via TimerAction) benar-benar tiba -- kalau tidak,
@@ -753,7 +770,16 @@ class MissionFSM(Node):
                    else 'fallback (payload_x/y param)'))
             self._to(St.APPROACH_QR)
         elif self._elapsed() > self.T['dive']:
-            self.get_logger().error('DIVE timeout'); self._to(St.ABORT)
+            # Thrust ros->gz kadang baru mengalir 10-20s pasca-launch (terukur
+            # 2026-08-25): bukan gagal kendali -> beri grace sekali.
+            if not self._dive_grace_given and not self._dive_gerak:
+                self._dive_grace_given = True
+                self.T['dive'] += 45.0
+                self.get_logger().warn(
+                    'DIVE: depth belum turun (dugaan thrust race boot) -> '
+                    'grace +45s')
+            else:
+                self.get_logger().error('DIVE timeout'); self._to(St.ABORT)
 
     def _gripper_align_txt(self):
         """Metrik alignment sesungguhnya: jarak XY GRIPPER (bukan base_link) ke QR.
@@ -1087,7 +1113,11 @@ class MissionFSM(Node):
         # hook_depth — supaya plat payload tak menyodok hook saat transit, dan
         # HANG bisa turun vertikal menembus tip.
         self._set_depth(self.hang_approach_depth)
-        dist = self._goto_xy_yaw_first(tx, ty, fmax=self.nav_fmax)
+        # Dekat hook gas kendor (<=6N -> v~4cm/s): dulu full 22N sampai 1.5m
+        # sebelum target, ROV nyamber hook. Jauh tetap kencang biar t_nav cukup.
+        dx, dy = tx - (self.x or tx), ty - (self.y or ty)
+        fmax_nav = self.nav_fmax if math.hypot(dx, dy) > 1.0 else min(self.nav_fmax, 6.0)
+        dist = self._goto_xy_yaw_first(tx, ty, fmax=fmax_nav)
         if dist < self.nav_tol:
             self._set_heading(target_heading)   # sudah tiba, baru hadapkan ke wall
         if int(self._elapsed() * 2) % 20 == 0:
@@ -1098,10 +1128,11 @@ class MissionFSM(Node):
                 % (dist, self.x or -99, self.y or -99,
                    math.degrees(self.yaw or 0), target_yaw_dbg, tx, ty))
         if dist < self.nav_tol:
-            self._set_surge(0.0)
-            speed = math.hypot(self.vx, self.vy)
-            self.get_logger().info('Tiba di standoff wall %s (dist %.2fm, v %.2fm/s) -> HANG'
-                                   % (self.wall, dist, speed))
+            speed = math.hypot(self.vx or 0.0, self.vy or 0.0)
+            if speed < 0.05:   # jangan serahkan momen sisa ke HANG
+                self._set_surge(0.0)
+                self.get_logger().info('Tiba di standoff wall %s (dist %.2fm, v %.2fm/s) -> HANG'
+                                       % (self.wall, dist, speed))
             self._to(St.HANG)
         elif self._elapsed() > self.T['nav']:
             self.get_logger().error('NAV_WALL timeout (dist %.2fm)' % dist); self._to(St.ABORT)
@@ -1149,7 +1180,7 @@ class MissionFSM(Node):
                                      yaw_ref=target_heading)
             else:
                 dist = self._goto_xy(tx, ty, fmax=self.nav_fmax,
-                                     yaw_ref=yaw_ref)
+                                     yaw_ref=yaw_ref, min_fmax_frac=0.30)
             # Gate arah LUBANG (sepanjang sumbu maju ROV): toleransi fisik lubang
             # hanya ~+-9 mm di arah maju (tip 25mm di lubang 50mm) vs +-28.5 mm
             # ke samping (dinding slot). Gate radial 25 mm sendiri terlalu longgar
@@ -1187,7 +1218,7 @@ class MissionFSM(Node):
         # yaw tetap wall): tanpa ini ROV bisa hanyut lateral saat turun (gaya
         # thrust coupling / kontak tip) dan lubang meleset dari tip.
         dist = self._goto_xy(tx, ty, fmax=0.6 * self.nav_fmax,
-                             yaw_ref=yaw_ref)
+                             yaw_ref=yaw_ref, min_fmax_frac=0.30)
         self._set_depth(self.hook_depth)
         # Gate presisi: selain depth & yaw, UJI ULANG error lateral (dist &
         # l_err) saat plat duduk — kalau lubang bergeser selama turun (coupling
@@ -1380,34 +1411,74 @@ class MissionFSM(Node):
             return
         if self._reverse_idx < 0 or self._reverse_idx >= len(self._lean_log):
             self._reverse_idx = len(self._lean_log) - 1
-        ent = self._lean_log[self._reverse_idx]
-        if len(ent) == 3:
-            tx, ty, tyaw = ent
+
+        def _ent(k):
+            e = self._lean_log[k]
+            return (e[0], e[1], e[2] if len(e) == 3 else wall_yaw)
+
+        i = self._reverse_idx
+        if i >= self.reverse_tail_n:
+            # Cruise: anchor dikejar dr jauh -> taper _goto_xy tak mematikan
+            # gaya (dulu waypoint 2cm = fm efektif ~3N, merangkak).
+            while i > self.reverse_tail_n and math.hypot(
+                    self.x - self._lean_log[i - 1][0],
+                    self.y - self._lean_log[i - 1][1]) < self.reverse_pass_r:
+                i -= 1
+            fx, fy, fyaw = _ent(i)
+            tx, ty, _ = _ent(i)
+            j = i
+            while j > 0 and math.hypot(tx - self.x, ty - self.y) < self.reverse_lookahead:
+                j -= 1
+                tx, ty, _ = _ent(j)
+            self._set_heading(fyaw)
+            dist = self._goto_xy(tx, ty, fmax=self.nav_fmax, yaw_ref=fyaw)
+            stuck = getattr(self, '_rev_stuck', 0)
+            stuck = stuck + 1 if dist > self.reverse_pass_r and self._elapsed() > 6.0 else 0
+            self._rev_stuck = stuck
+            if int(self._elapsed() * 2) % 10 == 0:
+                self.get_logger().info('REVERSE cruise %d/%d dist %.2f stuck %d'
+                                       % (i, len(self._lean_log), dist, stuck))
+            yaw_ok = abs(wrap_to_pi(fyaw - (self.yaw or fyaw))) < self.hang_yaw_tol
+            if i <= self.reverse_tail_n and dist < self.reverse_step_tol and yaw_ok:
+                i = self.reverse_tail_n - 1   # ekor tercapai -> serahkan ke presisi
+                self._rev_stuck = 0
+            elif stuck > 80:
+                self.get_logger().warn('REVERSE cruise skip stuck %d (dist %.2f) -> mundur 6 entri'
+                                       % (i, dist))
+                i = max(self.reverse_tail_n, i - 6)
+                self._rev_stuck = 0
+            self._reverse_idx = i
         else:
-            tx, ty = ent[:2]; tyaw = wall_yaw
-        self._set_heading(tyaw)
-        dist = self._goto_xy(tx, ty, fmax=self.nav_fmax, yaw_ref=tyaw)
-        stuck = getattr(self, '_rev_stuck', 0)
-        if dist > 0.11 and self._elapsed() > 6.0:
-            stuck += 1
-        else:
-            stuck = 0
-        self._rev_stuck = stuck
-        effective_tol = self.reverse_step_tol if stuck < 40 else 0.20
-        if int(self._elapsed() * 2) % 10 == 0:
-            self.get_logger().info('REVERSE log %d/%d dist %.2f tol %.2f stuck %d' % (self._reverse_idx, len(self._lean_log), dist, effective_tol, stuck))
-        if dist < effective_tol:
-            self._reverse_idx -= 1
-            self._rev_stuck = 0
-            if self._reverse_idx < 0:
-                self.get_logger().info('REVERSE done log %d -> AUTO_RELEASE' % len(self._lean_log))
+            # Presisi per-waypoint utk N entri terakhir: pose akhir tepat di hook.
+            tx, ty, tyaw = _ent(i)
+            self._set_heading(tyaw)
+            dist = self._goto_xy(tx, ty, fmax=self.nav_fmax, yaw_ref=tyaw)
+            stuck = getattr(self, '_rev_stuck', 0)
+            if dist > 0.11 and self._elapsed() > 6.0:
+                stuck += 1
+            else:
+                stuck = 0
+            self._rev_stuck = stuck
+            effective_tol = self.reverse_step_tol if stuck < 40 else 0.20
+            if int(self._elapsed() * 2) % 10 == 0:
+                self.get_logger().info('REVERSE presisi %d/%d dist %.2f tol %.2f stuck %d'
+                                       % (i, len(self._lean_log), dist, effective_tol, stuck))
+            yaw_err = abs(wrap_to_pi(tyaw - (self.yaw or tyaw)))
+            if dist < effective_tol and yaw_err < self.hang_yaw_tol:
+                i -= 1
+                self._rev_stuck = 0
+            elif stuck > 80:
+                self.get_logger().warn('REVERSE skip stuck %d (dist %.2f) -> next' % (i, dist))
+                i = max(0, i - 1)   # entri terakhir wajib lolos gate yaw
+                self._rev_stuck = 0
+            self._reverse_idx = i
+            if i < 0:
+                self.get_logger().info('REVERSE done log %d exit=(%.2f,%.2f,yaw %.1f°) -> AUTO_RELEASE'
+                                       % (len(self._lean_log), self.x or 0, self.y or 0,
+                                          math.degrees(self.yaw or 0)))
                 self._set_surge(0.0, 0.0)
                 self._to(St.AUTO_RELEASE)
                 return
-        elif stuck > 80:
-            self.get_logger().warn('REVERSE skip stuck %d (dist %.2f) -> next' % (self._reverse_idx, dist))
-            self._reverse_idx -= 1
-            self._rev_stuck = 0
         if self._elapsed() > self.T['reverse']:
             self.get_logger().warn('REVERSE timeout step %d -> AUTO_RELEASE' % self._reverse_idx)
             self._to(St.AUTO_RELEASE)
@@ -1499,7 +1570,8 @@ class MissionFSM(Node):
             else:
                 tx, ty = self._hang_xy(self.wall)
                 yaw_ref = wall_yaw
-            dist = self._goto_xy(tx, ty, fmax=self.nav_fmax, yaw_ref=yaw_ref)
+            dist = self._goto_xy(tx, ty, fmax=self.nav_fmax,
+                                 yaw_ref=yaw_ref, min_fmax_frac=0.30)
             l_err = abs((tx - (self.x or 0)) * math.cos(wall_yaw) + (ty - (self.y or 0)) * math.sin(wall_yaw))
             ok = dist < self.hang_tol and l_err < self.hang_l_tol and yaw_err < self.hang_yaw_tol
             dwell = update_dwell(ok, self._now(), self._hold_since, self._hook_bad_since, self.hold_settle_s, self.hook_settle_grace_s)
@@ -1547,7 +1619,7 @@ class MissionFSM(Node):
                 # ikut yaw_ref.
                 self._set_depth(self.hang_approach_depth)
                 dist = self._goto_xy(tx, ty, fmax=self.nav_fmax,
-                                     yaw_ref=yaw_ref)
+                                     yaw_ref=yaw_ref, min_fmax_frac=0.30)
                 l_err = abs((tx - (self.x or 0)) * math.cos(target_heading)
                             + (ty - (self.y or 0)) * math.sin(target_heading))
                 if (dist < self.hang_tol and l_err < self.hang_l_tol
@@ -1564,6 +1636,13 @@ class MissionFSM(Node):
                             % (dist, l_err * 1000.0, math.degrees(yaw_err)))
                 else:
                     self._hold_since = None
+                if int(self._elapsed() * 2) % 10 == 0:
+                    self.get_logger().info(
+                        'AUTO_RELEASE dbg: dist=%.3f l_err=%.1fmm yaw_err=%.1f° '
+                        'pos=(%.2f,%.2f) tgt=(%.2f,%.2f) depth=%.2f'
+                        % (dist, l_err * 1000.0, math.degrees(yaw_err),
+                           self.x or 0, self.y or 0, tx, ty,
+                           self.depth if self.depth is not None else -99.0))
                 if self._elapsed() > self.T['release']:
                     self.get_logger().error('AUTO_RELEASE timeout (posisi)')
                     self._to(St.ABORT)
@@ -1571,7 +1650,7 @@ class MissionFSM(Node):
             # Fase 2: turun (tip menembus lubang), lalu detach. Pertahankan
             # posisi lubang di atas tip selama turun (sama spt HANG).
             dist = self._goto_xy(tx, ty, fmax=0.6 * self.nav_fmax,
-                                 yaw_ref=yaw_ref)
+                                 yaw_ref=yaw_ref, min_fmax_frac=0.30)
             self._set_depth(self.hook_depth)
             # Gate presisi saat duduk (sama spt HANG fase 2): selain stall,
             # uji ulang dist/l_err. Tanpa ini detach bisa terjadi dgn lubang

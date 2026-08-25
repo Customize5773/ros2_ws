@@ -1407,3 +1407,37 @@ selidiki kandidat lain (attitude ROV per-wall, `hook_z` per-hook tak
 presisi, proyeksi `dist_forward`).
 
 File disentuh: `docs/STATUS.md`, CHANGELOG ini. Tak ada perubahan kode.
+
+## 2026-08-25 — Docking REVERSE cepat, anti-wedging pin-slot, tahan thrust-race boot
+
+Batch perbaikan alur docking (LEAN→REVERSE→AUTO_RELEASE) + HANG/NAV_WALL,
+semua didorong bukti runtime headless (±15 run terinstrumentasi, seed
+6001/5001). Branch `payload-release-v1`.
+
+- **REVERSE playback cepat (opsi lookahead)**: dulu waypoint 2cm + gate
+  0.12 bikin fm efektif ~3N (merangkak menit-menit). Kini dua mode: CRUISE
+  (anchor ±0.6m di depan jalur balik, pop entri terlewati radius 0.35m) +
+  PRESISI (`reverse_tail_n=4` entri terakhir per-waypoint). Gate maju kini
+  butuh **yaw align <10°** juga — dulu reverse bisa "done" dengan heading
+  meleset −49° dan AR buntu. Param baru: `reverse_lookahead/pass_r/tail_n`.
+  Hasil: REVERSE 39–120 entri selesai detik-detik (dulu timeout).
+- **NAV_WALL tak lagi menabrak hook**: dua-band gaya (22N jauh / ≤6N dalam
+  1m terakhir → v~4cm/s) + speed-gate serah terima ke HANG (`v<0.05 m/s`).
+- **DIVE tahan thrust-race boot**: terukur bridge ros→gz baru mengalir
+  thrust di detik ke-14 pasca-launch → depth tak turun & ABORT. Kini bila
+  ROV belum turun ≥5cm dari entry saat `t_dive`, beri grace sekali +45s.
+- **Seating presisi hook**: `min_fmax_frac` akhirnya di-wire (cuma boleh
+  MENAIKKAN floor 0.12; dipakai 0.30 di 5 goto presisi HANG/AR/APPROACH_
+  HOOK), `t_release` 30→60s, dbg `AUTO_RELEASE dbg` + pose exit REVERSE.
+- **[RESOLVED sementara] AR timeout posisi (dist beku ~0.04)**: akar =
+  `hang_forward_bias=0.018` menempatkan lubang melewati pusat pin → pin
+  menyandar bibir slot, maju = makin terkunci (4/4 run beku 36–41mm;
+  lateral tetap bebas bergeser). Sweep: bias 0.0 → AR pass tapi HANG kurang
+  maju; **default kini 0.010** (HANG seat 2/2, over-push separuh).
+  `hang_forward_bias` kini launch-arg utk sweep GUI.
+- Catatan lingkungan: fenomena "physics Gazebo berhenti" (24-08) muncul
+  lagi di run headless beruntun + race bridge thrust di atas; SHM
+  `fastrtps_*` wajib dibersihkan antar-sesi kill -9.
+
+File disentuh: `mission_fsm.py`, `hydroships_mission.launch.py`. Data mentah
+& skrip sekali-pakai: `/tmp/opencode/hook-ac-compare/` (session-scoped).
