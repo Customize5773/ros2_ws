@@ -1675,6 +1675,13 @@ class MissionFSM(Node):
                             % (dist, l_err * 1000.0, math.degrees(yaw_err)))
                 else:
                     self._hold_since = None
+                if int(self._elapsed() * 2) % 20 == 0:
+                    self.get_logger().info(
+                        'AUTO_RELEASE dbg: elapsed=%.1f/%.1f dist=%.3f l_err=%.1fmm '
+                        'x=%.2f y=%.2f yaw=%.1f target=(%.2f,%.2f)'
+                        % (self._elapsed(), self.T['release'], dist, l_err * 1000.0,
+                           self.x or -99, self.y or -99, math.degrees(self.yaw or 0),
+                           tx, ty))
                 if self._elapsed() > self.T['release']:
                     self.get_logger().error('AUTO_RELEASE timeout (posisi)')
                     self._to(St.ABORT)
