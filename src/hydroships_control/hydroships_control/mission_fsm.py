@@ -109,7 +109,11 @@ class MissionFSM(Node):
         # descent berhenti di atas palang -> plat HOVER di tip -> "stall" di
         # AUTO_RELEASE cuma konvergensi depth hold (bukan terblok) -> detach di
         # udara -> jatuh.
-        p('hook_depth', 0.32)        # m kedalaman base saat plat seated di palang
+        # 0.285 = 0.32 lama - 0.035: hook kolam latihan 0.385 m dari lantai (-0.80)
+        # -> palang di z=-0.415, sedangkan arena lama 0.45 dari lantai (-0.90)
+        # -> palang -0.450. Palang naik 0.035 m, jadi base ikut 0.035 lebih dangkal.
+        # Utk world:=kki_arena.sdf kembalikan ke 0.32.
+        p('hook_depth', 0.285)       # m kedalaman base saat plat seated di palang
         # HANG presisi: target = LUBANG payload di atas TIP hook, bukan standoff
         # lama wall_dist-hook_dist (~0.5 m dari hook) yang membuat payload tak
         # pernah menyentuh hook. Geometri arena: muka dinding di wall_face;
@@ -118,14 +122,28 @@ class MissionFSM(Node):
         # 0.18 + tengah lubang di plat 0.0933). hang_approach_depth harus DI ATAS
         # puncak tip (-0.33) supaya ROV bisa memosisikan lubang lalu TURUN
         # menembus tip (bukan menyodok tip dari samping).
-        p('wall_face', 2.5)          # m jarak muka dinding dari pusat arena
+        # KOLAM PERSEGI PANJANG: muka dinding BEDA per sumbu, jadi tak boleh satu
+        # skalar. Default = kolam latihan 2,2 x 4,4 m (pool_practice_arena.sdf):
+        # dinding sisi X (wall C/D) di x=+-1.1, sisi Y (wall A/B) di y=+-2.2.
+        # Dulu satu nilai wall_face=2.5 (arena lomba 5x5 lama) dipakai utk KEEMPAT
+        # dinding -- di kolam baru target HANG wall C/D meleset 1.40 m dan jatuh
+        # 1.26 m DI LUAR dinding, jadi payload tak pernah bisa digantung.
+        # Utk world:=kki_arena.sdf (5x5 m) set KEDUANYA ke 2.5.
+        p('wall_face_x', 1.1)        # m muka dinding sisi X (wall C/D) dari pusat
+        p('wall_face_y', 2.2)        # m muka dinding sisi Y (wall A/B) dari pusat
         p('hang_tip_d', 0.14)        # m jarak tip hook dari muka dinding
         p('hang_hole_dx', 0.2733)    # m base_link -> pusat lubang payload
         # hang_approach_depth DI ATAS hook_depth - gate_turun (0.32-0.02=0.30)
         # supaya gate kedalaman turun tak langsung lolos saat masih di approach.
         # Dgn offset z=-0.13, lubang di base_z-0.13: di atas tip (-0.33) ->
         # -depth-0.13 > -0.33 -> depth < 0.20. 0.14 (0.27-0.13) celah 0.06 m.
-        p('hang_approach_depth', 0.14)  # m kedalaman posisi lubang di atas tip
+        # 0.105 = 0.14 lama - 0.035 (tip kolam latihan naik 0.035 m: puncak tip
+        # -0.295, bukan -0.330). Dgn 0.14 lama clearance lubang->tip tinggal
+        # 0.025 m sehingga UJUNG PLAT menyodok tip alih-alih lewat di atasnya --
+        # terukur: HANG mandek 62 mm KURANG maju (l_err) lalu timeout.
+        # 0.105 mengembalikan clearance 0.06 m spt rancangan.
+        # Utk world:=kki_arena.sdf kembalikan ke 0.14.
+        p('hang_approach_depth', 0.105)  # m kedalaman posisi lubang di atas tip
         # Toleransi posisi lubang di atas tip. Diukur dari run nyata: ROV sering
         # mandek ~21 mm dari target (gaya sway sebagian terserap kopling yaw-hold)
         # dan heading hold menyisakan error ~7 deg di wall D (180 deg). Slot plat
@@ -193,7 +211,10 @@ class MissionFSM(Node):
         p('approach_kd', 140.0)       # N/(m/s) redaman kecepatan (cegah overshoot)
         p('approach_fmax', 16.0)     # N batas gaya approach
         p('approach_tol', 0.06)      # m radius "sudah di atas payload"
-        p('wall_dist', 2.15)         # m jarak pusat->target wall (standoff; hook ~2.4 m)
+        # Standoff NAV_WALL diukur MASUK dari muka dinding (bukan absolut dari
+        # pusat), supaya ikut menyesuaikan tiap sisi kolam persegi panjang.
+        # 0.35 = nilai lama wall_face 2.5 - wall_dist 2.15.
+        p('wall_standoff', 0.35)     # m jarak target NAV_WALL di depan muka dinding
         p('hook_dist', 0.30)         # m jarak target di depan hook (lebih dekat dari wall_dist)
         p('hook_lateral_offset', 0.0)  # m, koreksi geser samping ke hook (+/- sesuai arah)
         p('nav_tol', 0.20)           # m radius "tiba di wall/hook"
@@ -300,7 +321,8 @@ class MissionFSM(Node):
         self.descend_recenter_timeout = float(g('descend_recenter_timeout'))
         self.descend_settle_dwell = float(g('descend_settle_dwell'))
         self.hook_depth = float(g('hook_depth'))
-        self.wall_face = float(g('wall_face'))
+        self.wall_face_x = float(g('wall_face_x'))
+        self.wall_face_y = float(g('wall_face_y'))
         self.hang_tip_d = float(g('hang_tip_d'))
         self.hang_hole_dx = float(g('hang_hole_dx'))
         self.hang_approach_depth = float(g('hang_approach_depth'))
@@ -320,7 +342,7 @@ class MissionFSM(Node):
         self.approach_kd = float(g('approach_kd'))
         self.approach_fmax = float(g('approach_fmax'))
         self.approach_tol = float(g('approach_tol'))
-        self.wall_dist = float(g('wall_dist'))
+        self.wall_standoff = float(g('wall_standoff'))
         self.hook_dist = float(g('hook_dist'))
         self.hook_lateral_offset = float(g('hook_lateral_offset'))
         self.nav_tol = float(g('nav_tol'))
@@ -622,14 +644,19 @@ class MissionFSM(Node):
                 return w
         return None
 
+    def _face_d(self, wall):
+        """Jarak muka dinding dari pusat UTK SISI wall itu. Kolam persegi
+        panjang: A/B di sumbu Y, C/D di sumbu X — nilainya beda."""
+        return self.wall_face_x if wall in ('C', 'D') else self.wall_face_y
+
     def _wall_xy(self, wall):
-        d = self.wall_dist
+        d = self._face_d(wall) - self.wall_standoff
         return {'A': (0.0, -d), 'B': (0.0, d), 'C': (d, 0.0), 'D': (-d, 0.0)}[wall]
 
     def _tip_xy(self, wall):
         """Posisi dunia TIP (ujung) hook — silinder tegak tempat lubang payload
-        digantung. Tip berada wall_face - hang_tip_d dari pusat arena."""
-        d = self.wall_face - self.hang_tip_d
+        digantung. Tip berada (muka dinding sisi itu) - hang_tip_d dari pusat."""
+        d = self._face_d(wall) - self.hang_tip_d
         return {'A': (0.0, -d), 'B': (0.0, d), 'C': (d, 0.0), 'D': (-d, 0.0)}[wall]
 
     def _hang_xy(self, wall, yaw=None):
@@ -1203,8 +1230,12 @@ class MissionFSM(Node):
         # PERTAHANKAN posisi lubang di atas tip selama turun (gaya dikurangi,
         # yaw tetap wall): tanpa ini ROV bisa hanyut lateral saat turun (gaya
         # thrust coupling / kontak tip) dan lubang meleset dari tip.
-        dist = self._goto_xy(tx, ty, fmax=0.6 * self.nav_fmax,
-                             yaw_ref=yaw_ref)
+        # Otoritas hold PENUH saat turun (dulu 0.6*nav_fmax). Dgn 0.6 ROV
+        # terdorong mundur oleh kontak tip: l_err merayap 12.0 -> 15.8 mm
+        # (batas 12 mm) sehingga gate presisi tak pernah lolos & plat cuma
+        # menggesek ujung tip alih-alih masuk lubang -- kedalaman ikut merayap
+        # 3 mm/15 s lalu HANG timeout. Peredaman lateral tetap dari _goto_xy.
+        dist = self._goto_xy(tx, ty, fmax=self.nav_fmax, yaw_ref=yaw_ref)
         self._set_depth(self.hook_depth)
         # Gate presisi: selain depth & yaw, UJI ULANG error lateral (dist &
         # l_err) saat plat duduk — kalau lubang bergeser selama turun (coupling
@@ -1247,10 +1278,20 @@ class MissionFSM(Node):
                 'Payload tergantung stabil di hook %s (+15, depth %.2f)'
                 % (self.wall, d))
             self._to(St.SURFACE)
+        if int(self._elapsed() * 2) % 20 == 0:
+            self.get_logger().info(
+                'HANG turun dbg: depth=%.3f max=%.3f dist=%.3f l_err=%.1fmm '
+                'yaw_err=%.1f° (butuh dist<%.3f l_err<%.1fmm)'
+                % (d if d is not None else -99, self._hang_depth_max or -99,
+                   dist, l_err * 1000.0, math.degrees(yaw_err),
+                   self.hang_tol, self.hang_l_tol * 1000.0))
         if self._elapsed() > self.T['hang']:
-            self.get_logger().error('HANG timeout (turun, depth %s, dist %.3f)'
-                                    % (self.depth if self.depth is not None else 'n/a',
-                                       dist))
+            self.get_logger().error(
+                'HANG timeout (turun, depth %s, max %s, dist %.3f, l_err %.1fmm, '
+                'yaw_err %.1f°)'
+                % (self.depth if self.depth is not None else 'n/a',
+                   '%.3f' % self._hang_depth_max if self._hang_depth_max else 'n/a',
+                   dist, l_err * 1000.0, math.degrees(yaw_err)))
             self._to(St.ABORT)
 
     def _st_surface(self):
@@ -1306,7 +1347,7 @@ class MissionFSM(Node):
             self._to(St.ABORT)
 
     def _lean_wall_xy(self, wall):
-        d = self.wall_face - self.lean_wall_offset
+        d = self._face_d(wall) - self.lean_wall_offset
         s = self.lean_side_offset
         return {'A': (s, -d), 'B': (-s, d), 'C': (d, s), 'D': (-d, -s)}[wall]
 
@@ -1323,7 +1364,7 @@ class MissionFSM(Node):
                 self._locked_yaw = self.yaw
             self._set_heading(self._locked_yaw)
             self._set_depth(self.depth_surface)
-            d = self.wall_face - self.lean_wall_offset
+            d = self._face_d(self.wall) - self.lean_wall_offset
             wx, wy = {'A': (0.0, -d), 'B': (0.0, d), 'C': (d, 0.0), 'D': (-d, 0.0)}[self.wall]
             if not self._lean_log or math.hypot(self.x - self._lean_log[-1][0], self.y - self._lean_log[-1][1]) > 0.02 or abs(wrap_to_pi(self.yaw - self._lean_log[-1][2])) > math.radians(8):
                 self._lean_log.append((self.x, self.y, self.yaw))

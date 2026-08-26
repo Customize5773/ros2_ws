@@ -77,6 +77,10 @@ def generate_launch_description():
                           LaunchConfiguration('descend_depth_tol'), value_type=float),
                       'cam_gripper_dx': ParameterValue(
                           LaunchConfiguration('cam_gripper_dx'), value_type=float),
+                      'wall_face_x': ParameterValue(
+                          LaunchConfiguration('wall_face_x'), value_type=float),
+                      'wall_face_y': ParameterValue(
+                          LaunchConfiguration('wall_face_y'), value_type=float),
                       'hook_size_stop': ParameterValue(
                           LaunchConfiguration('hook_size_stop'), value_type=float),
                       'hook_center_tol': ParameterValue(
@@ -148,6 +152,14 @@ def generate_launch_description():
                               description='Kedalaman scan QR (m). Naikkan angka = '
                                           'lebih dalam = QR lebih besar tapi petak '
                                           'pandang menyempit.'),
+        DeclareLaunchArgument('wall_face_x', default_value='1.1',
+                              description='Muka dinding sisi X (wall C/D) dari pusat (m). '
+                                          '1.1 = kolam latihan 2,2x4,4 m (default). '
+                                          'Set 2.5 bila world:=kki_arena.sdf (5x5 m).'),
+        DeclareLaunchArgument('wall_face_y', default_value='2.2',
+                              description='Muka dinding sisi Y (wall A/B) dari pusat (m). '
+                                          '2.2 = kolam latihan 2,2x4,4 m (default). '
+                                          'Set 2.5 bila world:=kki_arena.sdf (5x5 m).'),
         DeclareLaunchArgument('cam_gripper_dx', default_value='0.16',
                               description='Jarak gripper di depan kamera bawah (m). '
                                           '0.0 = perilaku lama (tanpa koreksi).'),
