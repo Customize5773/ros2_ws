@@ -966,7 +966,9 @@ class MissionFSM(Node):
         # diperlebar) sempat dicoba dulu -- lihat blok RECOVERY di atas.
         # `centered` (deteksi visual kontur NYATA) tetap lolos langsung, tak
         # perlu menunggu apa pun.
-        converged_now = centered or (dist < self.approach_tol and self._approach_recovered)
+        recovery_settled = (self._approach_recovered and self._recovery_started_at is not None
+                           and (self._now() - self._recovery_started_at) >= self.recovery_settle_s)
+        converged_now = centered or (dist < self.approach_tol and recovery_settled)
 
         # P0-2.5 Kandidat #4: syarat dwell N-tick sebelum transisi GRAB
         # benar2 dipicu -- BUKAN transisi pada tick tunggal begitu kondisi
