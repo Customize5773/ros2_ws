@@ -304,10 +304,20 @@ class MissionFSM(Node):
         # GRIPPER yang berada tepat di atas QR.
         p('cam_gripper_dx', 0.16)    # m, jarak gripper di depan kamera bawah (x body)
         p('gripper_base_dx', 0.18)   # m, gripper_base.x vs base_link (utk fallback XY)
-        p('qr_floor_z', -0.90)       # m, tinggi bidang QR di dunia (payload_spawner.py)
+        # -0.794 = lantai kolam latihan default -0.80 (pool_practice_arena.sdf)
+        # + 6mm ketebalan plat (payload_spawner.py payload_z=-0.80). -0.894 utk
+        # world:=kki_arena.sdf (lantai -0.90). Param TERPISAH dari
+        # gripper_controller.py punya sendiri -- HARUS disamakan manual, tak ada
+        # sumber tunggal (ditemukan basi 27 Agu: masih -0.90 stlh floor naik
+        # 0.10m sejak 26 Agu, bikin ey_target salah -> APPROACH_QR tak pernah
+        # centered walau QR sudah kebaca & posisi XY presisi).
+        p('qr_floor_z', -0.794)      # m, tinggi bidang QR di dunia (payload_spawner.py)
         p('cam_bottom_dz', 0.18)     # m, kamera bawah di bawah base_link
-        # tan(setengah-FOV vertikal). hFOV 80° @ 4:3 -> atan(0.75*tan40°) = 32.2°.
-        p('cam_vfov_half_tan', 0.6293)
+        # tan(setengah-FOV vertikal). hFOV 70° @ 4:3 -> atan(0.75*tan35°) = 27.7°.
+        # (BUKAN 80°/32.2° lagi -- kamera direkalibrasi 26 Agu, fx sim 381->457,
+        # horizontal_fov 1.3962634->1.2217 di hydroships.urdf.xacro; konstanta
+        # turunan ini basi sampai 27 Agu, sama dampaknya dgn qr_floor_z di atas.)
+        p('cam_vfov_half_tan', 0.5252)
         # Batas |ey_target| supaya QR tetap di dalam frame (1.0 = tepat di tepi).
         p('ey_target_max', 0.8)
         # APPROACH_HOOK ey_target (M6): hook di dinding, kamera depan di haluan
