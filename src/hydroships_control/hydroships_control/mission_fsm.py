@@ -500,6 +500,9 @@ class MissionFSM(Node):
             self._hang_depth_max = None
         if s is St.AUTO_RELEASE:
             self._release_retries = 0
+            self._ar_dist_best = None
+            self._ar_stall_since = None
+            self._ar_backoff_until = None
         if s is St.APPROACH_QR:
             # Misi berulang per payload (AUTO_RELEASE -> DIVE -> APPROACH_QR):
             # tanpa reset, payload ke-2 dst langsung dianggap sudah ber-wall.
@@ -563,7 +566,12 @@ class MissionFSM(Node):
         self._set_heading(target_yaw)
         yaw_err = abs(wrap_to_pi(target_yaw - self.yaw))
         if yaw_err > math.radians(yaw_gate_deg):
-            self._set_surge(0.0)
+            # Rem PD saat rotate-in-place, bukan coast: dulu surge=0 murni,
+            # momentum sisa state sebelumnya menghanyutkan ROV 1.4m menjauh
+            # target selama ~10s rotasi (run 2026-08-26 hook-2, NAV_WALL
+            # timeout dist 3.5).
+            self._set_surge(max(-20.0, min(20.0, -40.0 * self.vx)),
+                            max(-20.0, min(20.0, -40.0 * self.vy)))
         else:
             fm = self.approach_fmax if fmax is None else fmax
             taper = min(1.0, (dist - freeze_dist) / max(0.01, slow_dist - freeze_dist))
@@ -1129,11 +1137,24 @@ class MissionFSM(Node):
                    math.degrees(self.yaw or 0), target_yaw_dbg, tx, ty))
         if dist < self.nav_tol:
             speed = math.hypot(self.vx or 0.0, self.vy or 0.0)
-            if speed < 0.05:   # jangan serahkan momen sisa ke HANG
+            yaw_err_nav = abs(wrap_to_pi(target_heading - (self.yaw or target_heading)))
+            if speed < 0.05 and yaw_err_nav < self.yaw_tol:
+                # Gate yaw juga: dulu cukup speed<0.05 -- masuk HANG dgn yaw
+                # meleset >10° memicu cabang retreat yg menggeser plat ke
+                # struktur hook (run 2026-08-26: yaw masuk -115° -> fisik
+                # terpental ke -42° -> HANG timeout). Rotasi selesai di sini.
                 self._set_surge(0.0)
                 self.get_logger().info('Tiba di standoff wall %s (dist %.2fm, v %.2fm/s) -> HANG'
                                        % (self.wall, dist, speed))
-            self._to(St.HANG)
+                self._to(St.HANG)
+            else:
+                # Datang kencang ATAU belum sejajar: tahan di titik standoff
+                # (PD holonomik, frame yaw AKTUAL -> gaya benar walau masih
+                # berputar). Rem statis saja tidak cukup -- ROV yg melewati
+                # standoff sambil menunggu rotasi menyodokkan plat (0.32m di
+                # depan base) ke struktur wall/hook lalu JEM: run 2026-08-26
+                # hook-2, y=-2.31 yaw beku -119° sampai NAV_WALL timeout.
+                self._goto_xy(tx, ty, fmax=self.nav_fmax, yaw_ref=self.yaw)
         elif self._elapsed() > self.T['nav']:
             self.get_logger().error('NAV_WALL timeout (dist %.2fm)' % dist); self._to(St.ABORT)
 
@@ -1176,11 +1197,21 @@ class MissionFSM(Node):
                 retreat = 0.25
                 gx = tx - retreat * math.cos(target_heading)
                 gy = ty - retreat * math.sin(target_heading)
+                # yaw_ref = yaw AKTUAL: gaya holonomik dipetakan ke dunia lewat
+                # frame yg benar selama ROV masih berputar. Dulu target_heading --
+                # saat masuk dgn yaw meleset 25° (run 2026-08-26) dorongan
+                # "mundur" malah mengarah ke dinding, plat nyeret struktur hook,
+                # yaw terpental -42° -> HANG timeout.
                 dist = self._goto_xy(gx, gy, fmax=self.nav_fmax,
-                                     yaw_ref=target_heading)
+                                     yaw_ref=self.yaw if self.yaw is not None
+                                     else target_heading)
             else:
+                # min_fmax_frac 0.60 (bukan 0.30): floor gaya dekat-target
+                # 6.6N kalah gesekan JAM tip-vs-dinding-slot -- run
+                # 2026-08-26: ROV nyangkut dist 46mm, merayap 0.5mm/s,
+                # gate tak pernah lolos sampai timeout.
                 dist = self._goto_xy(tx, ty, fmax=self.nav_fmax,
-                                     yaw_ref=yaw_ref, min_fmax_frac=0.30)
+                                     yaw_ref=yaw_ref, min_fmax_frac=0.60)
             # Gate arah LUBANG (sepanjang sumbu maju ROV): toleransi fisik lubang
             # hanya ~+-9 mm di arah maju (tip 25mm di lubang 50mm) vs +-28.5 mm
             # ke samping (dinding slot). Gate radial 25 mm sendiri terlalu longgar
@@ -1189,20 +1220,29 @@ class MissionFSM(Node):
             # palang collision menyentuh tiang) dan tak bisa mundur.
             l_err = abs((tx - (self.x or 0)) * math.cos(target_heading)
                         + (ty - (self.y or 0)) * math.sin(target_heading))
-            if (dist < self.hang_tol and l_err < self.hang_l_tol
-                    and yaw_err < self.hang_yaw_tol):
-                if self._hold_since is None:
-                    self._hold_since = self._now()
-                if self._now() - self._hold_since >= self.hold_settle_s:
-                    self._set_surge(0.0)
-                    self._hang_pos_done = True
-                    self._hold_since = None
-                    self.get_logger().info(
-                        'HANG: lubang di atas tip hook %s (dist %.3f, l_err %.1f mm, '
-                        'yaw_err %.1f°) -> turun ke hook'
-                        % (self.wall, dist, l_err * 1000.0, math.degrees(yaw_err)))
-            else:
+            # Jalur longgar dist<=50mm (masih dalam lebar slot +-45mm): tip boleh
+            # menempel dinding slot saat fase posisi -- yang memutuskan seating
+            # adalah stall depth di fase turun, bukan gate odometri fase-1.
+            # Run 2026-08-26: macet dist 46mm l_err 30mm -> ABORT padahal
+            # tinggal turun.
+            pos_ok = ((dist < self.hang_tol and l_err < self.hang_l_tol)
+                      or dist < 2.0 * self.hang_tol)
+            # Dwell dgn grace 1s (update_dwell): konvergensi bisa melintas
+            # batas 50mm bolak-balik -- reset dwell tiap lintasan membuat
+            # hold_settle_s tak pernah terkumpul (run R7: hover 56->44mm
+            # 60s sampai timeout padahal ujungnya sudah stabil di 44mm).
+            ok = pos_ok and yaw_err < self.hang_yaw_tol
+            dwell = update_dwell(ok, self._now(), self._hold_since, None,
+                                 self.hold_settle_s, 1.0)
+            self._hold_since = dwell.hold_since
+            if dwell.done:
+                self._set_surge(0.0)
+                self._hang_pos_done = True
                 self._hold_since = None
+                self.get_logger().info(
+                    'HANG: lubang di atas tip hook %s (dist %.3f, l_err %.1f mm, '
+                    'yaw_err %.1f°) -> turun ke hook'
+                    % (self.wall, dist, l_err * 1000.0, math.degrees(yaw_err)))
             if int(self._elapsed() * 2) % 20 == 0:
                 self.get_logger().info(
                     'HANG dbg: dist=%.3f l_err=%.1fmm x=%.2f y=%.2f yaw=%.1f target=(%.2f,%.2f)'
@@ -1234,7 +1274,10 @@ class MissionFSM(Node):
         # 3001). Kedalaman duduk bervariasi 0.28..0.32 tergantung cara plat
         # mendarat; stall = bukti fisik "sudah duduk" yang invarian terhadap itu.
         # Histeresis 5 mm (sama dgn AUTO_RELEASE): creeps mikro jangan restore
-        # _hold_since. Tetap uji ulang dist/l_err saat duduk (presisi).
+        # _hold_since. dist/l_err TIDAK lagi menggerbangkan dwell (run
+        # 2026-08-26: plat fisik duduk, depth stall 0.2797, tapi dist 32mm >
+        # 25mm -> ABORT padahal payload sudah menggantung; slot plat +-45mm);
+        # keduanya dipindah ke keputusan penerimaan di bawah.
         d = self.depth
         depth_stalled = False
         if d is not None:
@@ -1243,9 +1286,7 @@ class MissionFSM(Node):
                 self._hold_since = None
             elif (d >= self._hang_depth_max - 0.015
                   and d >= self.hang_approach_depth + 0.03
-                  and yaw_err < self.hang_yaw_tol
-                  and dist < self.hang_tol
-                  and l_err < self.hang_l_tol):
+                  and yaw_err < self.hang_yaw_tol):
                 if self._hold_since is None:
                     self._hold_since = self._now()
                 if self._now() - self._hold_since >= self.hold_settle_s:
@@ -1255,12 +1296,26 @@ class MissionFSM(Node):
         else:
             self._hold_since = None
         if depth_stalled:
-            self._set_surge(0.0)
-            self.score['m3'] = 15
-            self.get_logger().info(
-                'Payload tergantung stabil di hook %s (+15, depth %.2f)'
-                % (self.wall, d))
-            self._to(St.SURFACE)
+            if dist < self.hang_tol and l_err < self.hang_l_tol:
+                self._set_surge(0.0)
+                self.score['m3'] = 15
+                self.get_logger().info(
+                    'Payload tergantung stabil di hook %s (+15, depth %.2f)'
+                    % (self.wall, d))
+                self._to(St.SURFACE)
+            elif dist < 2.0 * self.hang_tol:
+                # Duduk agak geser tapi masih dalam lebar slot (stall tetap
+                # bukti fisik threading; 50mm < setengah-slot 45mm + tip r12.5).
+                self._set_surge(0.0)
+                self.score['m3'] = 15
+                self.get_logger().warn(
+                    'Payload tergantung di hook %s (+15, LONGGOR: dist %.0fmm '
+                    'l_err %.0fmm depth %.2f -- cek visual)'
+                    % (self.wall, dist * 1000.0, l_err * 1000.0, d))
+                self._to(St.SURFACE)
+            # else: stall jauh dari target (plat nyangkut struktur, bukan
+            # threading) -> jangan dinilai; XY-hold menarik balik sambil
+            # depth menekan, kalau tak membaik -> timeout ABORT jujur.
         if self._elapsed() > self.T['hang']:
             self.get_logger().error('HANG timeout (turun, depth %s, dist %.3f)'
                                     % (self.depth if self.depth is not None else 'n/a',
@@ -1618,24 +1673,65 @@ class MissionFSM(Node):
                 # + gate heading + gate lubang (sama spt HANG). Yaw rotasi
                 # ikut yaw_ref.
                 self._set_depth(self.hang_approach_depth)
+                now = self._now()
+                if (self._ar_backoff_until is not None
+                        and now < self._ar_backoff_until):
+                    # ESCAPE aktif: mundur dari struktur (body -x = menjauh
+                    # wall, heading dipaksa menghadap wall di atas), jangan
+                    # nilai gate selama mundur.
+                    self._set_surge(-8.0, 0.0)
+                    return
+                # min_fmax_frac 0.60 anti-JAM (lihat _st_hang fase 1): floor
+                # 6.6N kalah gesekan tip-vs-slot -- run 2026-08-26 macet
+                # dist 46mm merayap 0.5mm/s sampai timeout posisi.
                 dist = self._goto_xy(tx, ty, fmax=self.nav_fmax,
-                                     yaw_ref=yaw_ref, min_fmax_frac=0.30)
+                                     yaw_ref=yaw_ref, min_fmax_frac=0.60)
+                # Deteksi mandek: 15s tanpa progres -> mundur 2s dulu, JANGAN
+                # terus menekan struktur sampai timeout (run R5 2026-08-26:
+                # REVERSE serahkan posisi buruk, fase-1 beku dist 0.155 dgn
+                # plate tertanam melewati muka dinding wall C sampai ABORT).
+                # Margin progres 1%-dr-jarak (min 5mm): jitter kontak +-5mm di
+                # jarak jauh (run R6: beku dist 5.019 di pojok arena) tak boleh
+                # me-reset detektor; nonaktif saat sudah <=50mm (urusan gate,
+                # bukan escape).
+                prog = max(0.005, 0.01 * dist)
+                if self._ar_dist_best is None or dist < self._ar_dist_best - prog:
+                    self._ar_dist_best = dist
+                    self._ar_stall_since = None
+                elif dist <= 2.0 * self.hang_tol:
+                    self._ar_stall_since = None
+                elif self._ar_stall_since is None:
+                    self._ar_stall_since = now
+                if (self._ar_stall_since is not None
+                        and now - self._ar_stall_since > 15.0):
+                    self._ar_backoff_until = now + 2.0
+                    self._ar_stall_since = None
+                    self._ar_dist_best = None
+                    self.get_logger().warn(
+                        'AUTO_RELEASE: fase-1 mandek (dist %.3f) -> backoff 2s'
+                        % dist)
+                    return
                 l_err = abs((tx - (self.x or 0)) * math.cos(target_heading)
                             + (ty - (self.y or 0)) * math.sin(target_heading))
-                if (dist < self.hang_tol and l_err < self.hang_l_tol
-                        and yaw_err < self.hang_yaw_tol):
-                    if self._hold_since is None:
-                        self._hold_since = self._now()
-                    if self._now() - self._hold_since >= self.hold_settle_s:
-                        self._set_surge(0.0)
-                        self._hang_pos_done = True
-                        self._hold_since = None
-                        self.get_logger().info(
-                            'AUTO_RELEASE: lubang di atas hook (dist %.3f, l_err %.1f mm, '
-                            'yaw_err %.1f°)'
-                            % (dist, l_err * 1000.0, math.degrees(yaw_err)))
-                else:
+                # Jalur longgar dist<=50mm (dalam lebar slot): seating diputuskan
+                # stall depth di fase turun, bukan gate fase-1. Run 2026-08-26:
+                # macet dist 46mm l_err 30mm -> ABORT padahal tinggal turun.
+                pos_ok = ((dist < self.hang_tol and l_err < self.hang_l_tol)
+                          or dist < 2.0 * self.hang_tol)
+                # Dwell dgn grace 1s -- cermin _st_hang fase 1 (boundary
+                # hover di batas 50mm, run R7).
+                ok = pos_ok and yaw_err < self.hang_yaw_tol
+                dwell = update_dwell(ok, now, self._hold_since, None,
+                                     self.hold_settle_s, 1.0)
+                self._hold_since = dwell.hold_since
+                if dwell.done:
+                    self._set_surge(0.0)
+                    self._hang_pos_done = True
                     self._hold_since = None
+                    self.get_logger().info(
+                        'AUTO_RELEASE: lubang di atas hook (dist %.3f, l_err %.1f mm, '
+                        'yaw_err %.1f°)'
+                        % (dist, l_err * 1000.0, math.degrees(yaw_err)))
                 if int(self._elapsed() * 2) % 10 == 0:
                     self.get_logger().info(
                         'AUTO_RELEASE dbg: dist=%.3f l_err=%.1fmm yaw_err=%.1f° '
@@ -1663,6 +1759,9 @@ class MissionFSM(Node):
             # (depth 0.31 < titik berhenti 0.32) -> detach di udara -> payload jatuh
             # & terlempar dari hook. Depth hold menekan plat ke palang; begitu
             # terblok, depth berhenti naik -> stall hold_settle_s -> seated.
+            # dist/l_err TIDAK menggerbangkan dwell lagi (cermin _st_hang fase 2):
+            # run 2026-08-26 fase turun bisa duduk geser 30-46mm krn jam tip-slot;
+            # penerimaan longgar <=50mm ada di blok depth_stalled di bawah.
             d = self.depth
             depth_stalled = False
             if d is not None:
@@ -1677,9 +1776,7 @@ class MissionFSM(Node):
                     self._hold_since = None
                 elif (d >= self._hang_depth_max - 0.015
                       and d >= self.hang_approach_depth + 0.03
-                      and yaw_err < self.hang_yaw_tol
-                      and dist < self.hang_tol
-                      and l_err < self.hang_l_tol):
+                      and yaw_err < self.hang_yaw_tol):
                     if self._hold_since is None:
                         self._hold_since = self._now()
                     if self._now() - self._hold_since >= self.hold_settle_s:
@@ -1688,10 +1785,15 @@ class MissionFSM(Node):
                     self._hold_since = None
             else:
                 self._hold_since = None
-            if depth_stalled:
+            seat_ok = (depth_stalled and dist < self.hang_tol
+                       and l_err < self.hang_l_tol)
+            seat_longgor = (depth_stalled and not seat_ok
+                            and dist < 2.0 * self.hang_tol)
+            if seat_ok or seat_longgor:
                 self.get_logger().info(
-                    'AUTO_RELEASE: plat di palang hook (depth %.2f, stall), publish detach...'
-                    % d)
+                    'AUTO_RELEASE: plat di palang hook (depth %.2f, stall%s), publish detach...'
+                    % (d, ' LONGGOR dist %.0fmm' % (dist * 1000.0)
+                       if seat_longgor else ''))
                 self.pub_detach.publish(Empty())
                 # Reset state gripper utk siklus berikutnya (GRAB ke-2 dst): tanpa
                 # ini logic.attached tetap True -> close berikutnya diabaikan.
