@@ -138,7 +138,11 @@ class PayloadSpawner(Node):
         p('qr_letter', '')          # '' = random A/B/C/D
         p('payload_x', 0.4)         # m
         p('payload_y', 0.04)        # m
-        p('payload_z', -0.90)       # m (tepat di lantai kolam, top floor z=-0.90)
+        p('payload_z', -0.80)       # m (tepat di lantai kolam, top floor z=-0.80,
+                                    # kolam latihan default; -0.90 jika world=kki_arena.sdf.
+                                    # Selalu di-override eksplisit oleh launch file --
+                                    # nilai ini cuma dipakai kalau node dijalankan berdiri
+                                    # sendiri (ros2 run) atau dibaca test_grab_geometry.py.
         p('spawn_delay', 4.0)       # s setelah node start (tunggu sim siap)
         p('randomize_pos', True)    # random posisi saat qr_letter kosong
         p('arena_x_min', 0.2)

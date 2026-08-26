@@ -174,18 +174,21 @@ class MissionFSM(Node):
         # menarik payload) -- ROV masih ~0.6 m di atas lantai QR saat itu, jadi
         # ROV terjangkar. DESCEND turun ke grab_depth sebelum GRAB memicu "close".
         #
-        # Asal angka 0.70 (semua dari hydroships.urdf.xacro + rov_params.yaml,
+        # Asal angka 0.60 (semua dari hydroships.urdf.xacro + rov_params.yaml,
         # dikunci test/test_grab_geometry.py — ubah salah satunya, test gagal):
         #   dasar gripper  = -grab_depth - 0.13 (joint z) - 0.03 (½ tinggi box)
-        #                  = -0.86  -> 0.034 m DI ATAS bidang QR (-0.894). Celah
-        #                     attach turun 0.60 -> 0.03 m.
-        #   dasar collision hull = -grab_depth - 0.091 + 0.02 (cob.z) = -0.775
+        #                  = -0.76  -> 0.034 m DI ATAS bidang QR (-0.794, kolam
+        #                     latihan default 2,2x4,4x0,8 m — lantai -0.80).
+        #                     Sebelumnya 0.70/-0.894 utk kolam lomba lama (-0.90);
+        #                     digeser -0.10 mengikuti lantai yg naik 0.10m.
+        #   dasar collision hull = -grab_depth - 0.091 + 0.02 (cob.z) = -0.675
         #                  -> masih 0.12 m di atas lantai, tidak menabrak.
-        # CATATAN: pada kedalaman ini kamera bawah (-0.18) berada di -0.88, praktis
+        # CATATAN: pada kedalaman ini kamera bawah (-0.18) berada di -0.78, praktis
         # sejajar bidang QR -> QR TIDAK terlihat lagi. Itu disengaja; gerbang attach
         # memakai latch "armed" dari APPROACH_QR (gripper_logic.arm_timeout), bukan
         # deteksi QR yang segar. XY di-hold dead-reckon selama turun.
-        p('grab_depth', 0.70)        # m kedalaman base_link saat mencengkeram (TUNE)
+        # Utk world:=kki_arena.sdf (lantai -0.90), naikkan lagi ke 0.70.
+        p('grab_depth', 0.60)        # m kedalaman base_link saat mencengkeram (TUNE)
         p('approach_kp', 90.0)       # N/m gain posisi XY -> gaya horizontal
         p('approach_kd', 140.0)       # N/(m/s) redaman kecepatan (cegah overshoot)
         p('approach_fmax', 16.0)     # N batas gaya approach

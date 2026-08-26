@@ -99,23 +99,23 @@ Setiap entri: `ros_topic_name`, `gz_topic_name`, `ros_type_name`, `gz_type_name`
 
 | Arg | Default | Arti |
 |---|---|---|
-| `world` | `kki_arena.sdf` | Nama file world (`.sdf`) di `worlds/`. Alt: `pool_empty.sdf`. |
+| `world` | `pool_practice_arena.sdf` | Nama file world (`.sdf`) di `worlds/` — kolam latihan 2,2×4,4×0,8 m. Alt: `kki_arena.sdf` (arena lomba 5×5 m), `pool_empty.sdf` (kolam kosong). |
 | `headless` | `false` | `true` = gz-sim tanpa GUI (server saja), untuk CI/mesin tanpa GPU |
 | `rov_random_spawn` | `true` | Spawn ROV acak dekat salah satu dinding kolam tiap run |
 | `rov_x` / `rov_y` / `rov_z` | 0.0 / 0.0 / -0.5 | Posisi spawn manual (dipakai bila `rov_random_spawn:=false`) |
 | `rov_wall_margin` | 0.5 | Jarak aman ROV dari dinding fisik saat spawn acak |
 | `spawn_seed` | `''` (kosong) | Fix seed pose spawn acak untuk replay/debug; kosong = acak penuh |
-| `rov_arena_half` | 2.55 | Setengah lebar kolam (dinding di ±nilai ini) |
+| `rov_arena_half` | 1.1 | Setengah lebar kolam (dinding di ±nilai ini) — setengah sisi pendek kolam latihan. Naikkan ke `2.55` bila `world:=kki_arena.sdf`. |
 | `spawn_delay` | 3.0 | Jeda (detik) sebelum spawn ROV, cegah race condition dengan service `create` |
 | `qr_letter` | `''` (kosong) | Huruf QR payload A/B/C/D; kosong = random + posisi acak |
-| `payload_x` / `payload_y` | 0.4 / 0.04 | Posisi payload (m), dipakai bila `qr_letter` diset eksplisit |
+| `payload_x` / `payload_y` / `payload_z` | 0.4 / 0.04 / -0.80 | Posisi payload (m), dipakai bila `qr_letter` diset eksplisit. `payload_z` HARUS = lantai kolam; naikkan ke -0.90 bila `world:=kki_arena.sdf`. |
 
 ### `src/hydroships_bringup/launch/hydroships_sim.launch.py` (M1)
 
 | Arg | Default |
 |---|---|
 | `headless` | `false` |
-| `world` | `kki_arena.sdf` |
+| `world` | `pool_practice_arena.sdf` |
 
 ### `src/hydroships_bringup/launch/hydroships_stabilized.launch.py` (M2)
 
@@ -142,7 +142,7 @@ Semua arg `hydroships_stabilized.launch.py`, plus:
 | Arg | Default | Arti |
 |---|---|---|
 | `headless` | `false` | |
-| `world` | `kki_arena.sdf` | |
+| `world` | `pool_practice_arena.sdf` | |
 | `gui_host` | `127.0.0.1` | Alamat IP tujuan telemetri UDP (laptop GUI) |
 | `cmd_port` | `14550` | Port UDP untuk menerima command dari GUI |
 | `telem_port` | `14551` | Port UDP untuk mengirim telemetri ke GUI |

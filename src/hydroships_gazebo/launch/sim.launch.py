@@ -149,6 +149,7 @@ def _launch_setup(context, *args, **kwargs):
     qr_letter = LaunchConfiguration('qr_letter').perform(context)
     payload_x = LaunchConfiguration('payload_x').perform(context)
     payload_y = LaunchConfiguration('payload_y').perform(context)
+    payload_z = LaunchConfiguration('payload_z').perform(context)
 
     # P2-B: opsional suntik noise ke odom (docs/ARCHITECTURE.md).
     odom_noise = LaunchConfiguration('odom_noise').perform(context).strip().lower() == 'true'
@@ -322,6 +323,7 @@ def _launch_setup(context, *args, **kwargs):
             'qr_letter': qr_letter,
             'payload_x': float(payload_x) if payload_x else 0.4,
             'payload_y': float(payload_y) if payload_y else 0.04,
+            'payload_z': float(payload_z) if payload_z else -0.80,
             'spawn_delay': spawn_delay + 0.5,
         }],
     )
@@ -365,6 +367,10 @@ def generate_launch_description():
                               description='Posisi X payload (m); dipakai bila qr_letter di-set.'),
         DeclareLaunchArgument('payload_y', default_value='0.04',
                               description='Posisi Y payload (m); dipakai bila qr_letter di-set.'),
+        DeclareLaunchArgument('payload_z', default_value='-0.80',
+                              description='Posisi Z payload (m), harus = lantai kolam (top floor). '
+                                          '-0.80 = lantai kolam latihan (default). '
+                                          'Naikkan ke -0.90 bila world:=kki_arena.sdf (arena lomba, lantai -0.9).'),
         DeclareLaunchArgument('odom_noise', default_value='false',
                               description='P2-B: true -> /hydroships/odom disuntik noise '
                                           '(bukan ground truth langsung). false = passthrough.'),

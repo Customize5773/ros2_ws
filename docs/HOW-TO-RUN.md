@@ -84,7 +84,8 @@ Menyalakan: Gazebo + spawn ROV + bridge + depth_publisher + qr_detector.
   ros2 launch hydroships_gazebo sim.launch.py world:=kki_arena.sdf
 ```
 
-(default world sim.launch.py = `pool_empty.sdf`; pakai `kki_arena.sdf` utk arena lomba.)
+(default world sim.launch.py = `pool_practice_arena.sdf`, kolam latihan 2,2×4,4×0,8 m;
+`kki_arena.sdf` = arena lomba 5×5 m; `pool_empty.sdf` = kolam kosong tanpa dinding/hook.)
 Setelah spawn, verifikasi visual: body gripper (kotak kuning 0.10×0.10×0.06 m)
 harus terlihat di muka depan ROV (x≈0.18 m). DUA jari kuning (masing-masing
 0.08 m) menjorok ke depan (+X) dari body, satu di sisi kiri (y≈-0.025 m) dan
@@ -129,11 +130,14 @@ Mulai dari state tertentu (lewati DIVE/SCAN):
   # Samakan dengan ROV spawn manual di dekat wall B
   ros2 launch hydroships_bringup hydroships_mission.launch.py \
       start_state:=NAV_WALL start_wall:=B \
-      rov_random_spawn:=false rov_x:=0.0 rov_y:=2.0 rov_z:=-0.5
+      rov_random_spawn:=false rov_x:=0.0 rov_y:=1.5 rov_z:=-0.5
 ```
 
 Payload QR di-spawn otomatis RANDOM (A/B/C/D + posisi acak dalam bounds arena)
-oleh node `payload_spawner` setiap launch. Pilih huruf/posisi eksplisit:
+oleh node `payload_spawner` setiap launch. Bounds default node itu (x∈[0.2,0.6],
+y∈[-1.5,1.5]) TIDAK ikut diubah saat default world diganti ke kolam latihan —
+kebetulan masih valid (lebih sempit dari kolam 2,2×4,4 m) tapi cuma memanfaatkan
+sebagian area kolam baru utk sebaran acak. Pilih huruf/posisi eksplisit:
 
 ```bash
   ros2 launch hydroships_bringup hydroships_mission.launch.py qr_letter:=B
@@ -227,7 +231,7 @@ Untuk spawn manual pada posisi tetap (mis. dekat wall B untuk uji NAV_WALL):
 ```bash
   ros2 launch hydroships_bringup hydroships_mission.launch.py \
       start_state:=NAV_WALL start_wall:=B \
-      rov_random_spawn:=false rov_x:=0.0 rov_y:=2.0 rov_z:=-0.5
+      rov_random_spawn:=false rov_x:=0.0 rov_y:=1.5 rov_z:=-0.5
 ```
 
 ### 3H. MID-MISSION START dengan TUNING APPROACH_HOOK
@@ -245,7 +249,7 @@ State lain yang bisa di-start: DIVE, APPROACH_QR, GRAB, NAV_WALL, HANG,
 SURFACE, WAIT_TRIGGER, AUTO_RELEASE. Untuk NAV_WALL/HANG/SURFACE bisa
 ditambah `start_wall:=A/B/C/D`.
 
-### 3H. TRIGGER JOYSTICK UTK LEWATI WAIT_TRIGGER
+### 3I. TRIGGER JOYSTICK UTK LEWATI WAIT_TRIGGER
 
 Setelah SURFACE, FSM parkir di `WAIT_TRIGGER` dan menunggu pesan Empty di
 `/hydroships/mission/start_autonomous` sebelum lanjut ke APPROACH_HOOK →
@@ -271,7 +275,7 @@ Tanpa joystick, `WAIT_TRIGGER` timeout setelah `t_wait_trigger` (default
   ros2 topic pub -1 /hydroships/mission/start_autonomous std_msgs/msg/Empty "{}"
 ```
 
-### 3I. BATCH REPRODUCIBLE RUN (3-SEED)
+### 3J. BATCH REPRODUCIBLE RUN (3-SEED)
 
 Untuk eksperimen batch yang dapat direproduksi, jalankan loop seed dan
 simpan semua output ke satu file log. Contoh: setiap seed pakai
@@ -300,14 +304,14 @@ perilaku autonomous yang konsisten.
 | arg | default | deskripsi |
 | --- | --- | --- |
 | `headless` | `false` | gz sim tanpa GUI (server saja); untuk CI / mesin tanpa GPU. |
-| `world` | `kki_arena.sdf` | arena lomba (default mission/stabilized). Alt: `pool_empty.sdf`. |
+| `world` | `pool_practice_arena.sdf` | kolam latihan 2,2×4,4×0,8 m (default). Alt: `kki_arena.sdf` (arena lomba 5×5 m), `pool_empty.sdf` (kolam kosong). |
 | `start_state` | `DIVE` | (mission) state awal FSM: DIVE/APPROACH_QR/GRAB/NAV_WALL/HANG/SURFACE/WAIT_TRIGGER/APPROACH_HOOK/AUTO_RELEASE. |
 | `start_wall` | `''` | (mission) seed wall target A/B/C/D utk testing mid-state (NAV_WALL/HANG/SURFACE/APPROACH_HOOK/AUTO_RELEASE). |
 | `hook_size_stop` / `hook_center_tol` / `hook_max_age` / `t_approach` | `0.35` / `0.15` / `1.0` / `25.0` | (mission) tuning visual servo APPROACH_HOOK ke hook. `hook_size_stop` naik = berhenti lebih dekat; `hook_center_tol` turun = pemusatan lebih ketat; deteksi lebih tua dari `hook_max_age` = fallback ke target odometri. |
 | `rov_random_spawn` | `true` | spawn ROV ACAK dekat salah satu dinding kolam (default kontes, beda tiap run). `false` = pakai `rov_x/rov_y/rov_z`. |
 | `rov_x` / `rov_y` / `rov_z` | `0.0` / `0.0` / `-0.5` | posisi manual spawn ROV (dipakai bila `rov_random_spawn:=false`). `rov_z` default -0.5 (di bawah permukaan). |
 | `rov_wall_margin` | `0.5` | jarak aman ROV dari dinding fisik (±`rov_arena_half`). |
-| `rov_arena_half` | `2.55` | setengah lebar kolam (dinding di ±nilai ini). |
+| `rov_arena_half` | `1.1` | setengah lebar kolam (dinding di ±nilai ini). 1,1 = setengah sisi pendek kolam latihan (2,2 m). Naikkan ke `2.55` bila `world:=kki_arena.sdf` (arena lomba 5×5 m). |
 | `spawn_delay` | `3.0` | jeda (detik) sebelum spawn ROV; naikkan bila mesin lambat (cegah race: service create belum siap). |
 | `spawn_seed` | — | fix seed pose spawn acak supaya run bisa diulang persis (replay/debug). Contoh eksperimen 3-seed: 1001/1002/1003 supaya hasil konsisten tiap run. Nilai kosong (default) = acak penuh tiap launch. |
 | `qr_letter` | `''` | (mission/stabilized/sim) huruf QR payload A/B/C/D. Kosong (default) = random + posisi acak dalam bounds arena. |
@@ -321,7 +325,11 @@ Contoh gabungan:
   # Run reproducibel penuh (headless + seed + QR + payload):
   ros2 launch hydroships_bringup hydroships_mission.launch.py \
       headless:=true spawn_seed:=1001 qr_letter:=A payload_x:=0.4 payload_y:=0.04
-  ros2 launch hydroships_bringup hydroships_mission.launch.py headless:=true world:=kki_arena.sdf
+  # Uji di arena lomba 5x5 m (bukan kolam latihan default) - rov_arena_half
+  # WAJIB ikut diganti, kalau tidak ROV random-spawn dgn radius kolam kecil
+  # di dalam arena besar (bukan crash, tapi tak representatif):
+  ros2 launch hydroships_bringup hydroships_mission.launch.py headless:=true \
+      world:=kki_arena.sdf rov_arena_half:=2.55
 ```
 
 --------------------------------------------------------------------------------
@@ -526,5 +534,7 @@ Prasyarat di setiap terminal:
 
 ```text
 cd ~/ros2_ws && colcon build && source install/setup.bash
-ros2 launch hydroships_bringup hydroships_mission.launch.py world:=kki_arena.sdf
+ros2 launch hydroships_bringup hydroships_mission.launch.py
+# default: kolam latihan 2,2x4,4x0,8 m (pool_practice_arena.sdf).
+# utk arena lomba 5x5 m: tambah world:=kki_arena.sdf rov_arena_half:=2.55
 ```
