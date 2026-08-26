@@ -28,6 +28,12 @@ try:
 except ImportError:                       # pragma: no cover
     CV2_OK = False
 
+try:
+    from pyzbar import pyzbar as _pyzbar
+    PYZBAR_OK = True
+except ImportError:                       # pragma: no cover
+    PYZBAR_OK = False
+
 # Huruf sisi A-D berdiri sendiri (mis. "A", "SIDE_B", "WALL-C") — sama dgn GUI/autonomy.
 _WALL_RE = re.compile(r'(?:^|[^A-Z])([ABCD])(?![A-Z])')
 
@@ -99,6 +105,34 @@ def _candidates(img):
     yield th_d, 1.0, 'adaptive_thresh_denoised'
 
 
+def _pyzbar_decode(img):
+    """Coba decode via pyzbar (libzbar) — jauh lebih toleran thd moire/aliasing
+    minifikasi tekstur drpd cv2.QRCodeDetector, yang murni berbasis pola-jari
+    finder + estimasi grid; libzbar memindai baris scanline & tak butuh grid
+    modul yang sepenuhnya bersih. Ditemukan 27 Agu: render kolam sim (albedo
+    QR 512x512 di-minify ke plat ~0.06 m dilihat dari ~0,3 m, ~130x130 px
+    layar) membuat AREA MODUL (bukan finder pattern, yang tetap tajam) jadi
+    speckle/noise di gz-sim/ogre2 — cv2.QRCodeDetector + 7 tingkat
+    praproses robust_decode() SEMUA gagal decode pada frame yang SAMA yang
+    langsung berhasil di pyzbar tanpa praproses apa pun.
+    Mengembalikan (data, pts) sama seperti detector.detectAndDecode, atau
+    ('', None) bila pyzbar tak ada / tak menemukan apa pun."""
+    if not PYZBAR_OK or img is None:
+        return '', None
+    gray = _to_gray(img)
+    if gray is None:
+        return '', None
+    try:
+        results = _pyzbar.decode(gray)
+    except Exception:
+        return '', None
+    if not results:
+        return '', None
+    r = results[0]
+    pts = np.asarray([(p.x, p.y) for p in r.polygon], dtype=float)
+    return r.data.decode('utf-8', errors='replace'), pts
+
+
 def robust_decode(img, detector, debug_info=None):
     """Coba decode QR dari `img` lewat beberapa pra-pemrosesan.
 
@@ -123,6 +157,22 @@ def robust_decode(img, detector, debug_info=None):
         return '', None
     best_pts = None
     first_pts_idx, first_pts_name = None, None
+    # Coba pyzbar DULU pada frame mentah (lihat _pyzbar_decode): jauh lebih
+    # murah drpd 7 tingkat praproses cv2 di bawah, dan mengatasi kelas
+    # kegagalan (moire minifikasi tekstur) yang TAK SATU PUN kandidat cv2 di
+    # bawah bisa atasi (0/7 pada frame yang sama, 27 Agu).
+    pz_data, pz_pts = _pyzbar_decode(img)
+    if pz_pts is not None and _quiet_zone_ok(_to_gray(img), pz_pts):
+        if debug_info is not None:
+            debug_info['winning_candidate_index'] = -2 if pz_data else -1
+            debug_info['winning_candidate_name'] = 'pyzbar' if pz_data else None
+            debug_info['first_pts_candidate_index'] = -2
+            debug_info['first_pts_candidate_name'] = 'pyzbar'
+            debug_info['n_candidates_tried'] = 0
+        if pz_data:
+            return pz_data, pz_pts
+        best_pts = pz_pts
+        first_pts_idx, first_pts_name = -2, 'pyzbar'
     idx = -1
     for idx, (cand, s, name) in enumerate(_candidates(img)):
         try:
