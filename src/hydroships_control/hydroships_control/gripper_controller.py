@@ -61,7 +61,8 @@ class GripperController(Node):
         p('offset_frame', 'camera_bottom_link')
         # Geometri untuk qr_ey_target — HARUS sama dengan default mission_fsm.
         p('cam_gripper_dx', 0.16)     # m, gripper_base di depan kamera bawah
-        p('qr_floor_z', -0.894)       # m, ketinggian bidang QR di dunia
+        p('qr_floor_z', -0.794)       # m, ketinggian bidang QR di dunia (kolam
+                                       # latihan default -0.80; -0.894 utk kki_arena.sdf)
         p('cam_bottom_dz', 0.18)      # m, kamera bawah di bawah base_link
         p('cam_vfov_half_tan', 0.6293)
         p('ey_target_max', 0.8)

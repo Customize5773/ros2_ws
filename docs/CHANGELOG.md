@@ -1408,36 +1408,300 @@ presisi, proyeksi `dist_forward`).
 
 File disentuh: `docs/STATUS.md`, CHANGELOG ini. Tak ada perubahan kode.
 
-## 2026-08-25 — Docking REVERSE cepat, anti-wedging pin-slot, tahan thrust-race boot
+## 2026-08-25 — APPROACH_HOOK C/D: kandidat attitude/hook_z/dist_forward DIBANTAH
 
-Batch perbaikan alur docking (LEAN→REVERSE→AUTO_RELEASE) + HANG/NAV_WALL,
-semua didorong bukti runtime headless (±15 run terinstrumentasi, seed
-6001/5001). Branch `payload-release-v1`.
+Investigasi lanjutan atas 3 kandidat yang diajukan sesi 2026-08-24 (bias
+attitude ROV, `hook_z` per-hook tak presisi, proyeksi `dist_forward`).
 
-- **REVERSE playback cepat (opsi lookahead)**: dulu waypoint 2cm + gate
-  0.12 bikin fm efektif ~3N (merangkak menit-menit). Kini dua mode: CRUISE
-  (anchor ±0.6m di depan jalur balik, pop entri terlewati radius 0.35m) +
-  PRESISI (`reverse_tail_n=4` entri terakhir per-waypoint). Gate maju kini
-  butuh **yaw align <10°** juga — dulu reverse bisa "done" dengan heading
-  meleset −49° dan AR buntu. Param baru: `reverse_lookahead/pass_r/tail_n`.
-  Hasil: REVERSE 39–120 entri selesai detik-detik (dulu timeout).
-- **NAV_WALL tak lagi menabrak hook**: dua-band gaya (22N jauh / ≤6N dalam
-  1m terakhir → v~4cm/s) + speed-gate serah terima ke HANG (`v<0.05 m/s`).
-- **DIVE tahan thrust-race boot**: terukur bridge ros→gz baru mengalir
-  thrust di detik ke-14 pasca-launch → depth tak turun & ABORT. Kini bila
-  ROV belum turun ≥5cm dari entry saat `t_dive`, beri grace sekali +45s.
-- **Seating presisi hook**: `min_fmax_frac` akhirnya di-wire (cuma boleh
-  MENAIKKAN floor 0.12; dipakai 0.30 di 5 goto presisi HANG/AR/APPROACH_
-  HOOK), `t_release` 30→60s, dbg `AUTO_RELEASE dbg` + pose exit REVERSE.
-- **[RESOLVED sementara] AR timeout posisi (dist beku ~0.04)**: akar =
-  `hang_forward_bias=0.018` menempatkan lubang melewati pusat pin → pin
-  menyandar bibir slot, maju = makin terkunci (4/4 run beku 36–41mm;
-  lateral tetap bebas bergeser). Sweep: bias 0.0 → AR pass tapi HANG kurang
-  maju; **default kini 0.010** (HANG seat 2/2, over-push separuh).
-  `hang_forward_bias` kini launch-arg utk sweep GUI.
-- Catatan lingkungan: fenomena "physics Gazebo berhenti" (24-08) muncul
-  lagi di run headless beruntun + race bridge thrust di atas; SHM
-  `fastrtps_*` wajib dibersihkan antar-sesi kill -9.
+**Instrumentasi ditambah** (permanen, murah): `mission_fsm._on_odom`
+merekam `self.roll`/`self.pitch` lewat `stabilizer.roll_pitch_from_quaternion`
+(reuse, bukan kode baru), dan baris log `APPROACH_HOOK dbg` yang sudah
+ada sekarang menyertakan `roll=%+.1f pitch=%+.1f` (derajat) di samping
+`off`/`ey_tgt`/`depth`.
 
-File disentuh: `mission_fsm.py`, `hydroships_mission.launch.py`. Data mentah
-& skrip sekali-pakai: `/tmp/opencode/hook-ac-compare/` (session-scoped).
+**Attitude bias DIBANTAH**: run bersih (`start_wall:=C spawn_seed:=7001
+hang_approach_depth:=0.30`, window 100s, satu proses saja, dijalankan
+setelah `load average` mesin turun ke ~4 dari ~18) menunjukkan
+`|roll|,|pitch| < 0.2°` sepanjang jendela penuh — ROV tetap level,
+bukan miring, bahkan saat hook tak terdeteksi & akhirnya timeout
+fallback.
+
+**`hook_z` per-hook DIBANTAH lewat kode**: `hook_z=-0.39` adalah satu
+konstanta global (`mission_fsm.py:280`), dipakai sama untuk keempat
+wall, dan sudah cocok byte-persis dengan `tip_collision` di SDF —
+tidak ada nilai "per-hook" untuk jadi tak presisi.
+
+**Proyeksi `dist_forward` DIBANTAH lewat kode**: dihitung
+`hypot(tip_x-self.x, tip_y-self.y)`, formula generik sama untuk semua
+wall lewat `_tip_xy()`, tidak ada cabang khusus per-wall.
+
+**Catatan metodologi penting**: run pertama sesi ini (wall A yang
+lanjut otomatis ke wall C dalam satu proses, ditambah proses sim lain
+yang belum mati sepenuhnya dari percobaan sebelumnya, `load average`
+15-18 saat itu) menghasilkan `roll`/`pitch` berosilasi liar ±1-5°
+dalam <100ms dan `depth` melompat bolak-balik dalam interval sama —
+pola RTF-collapse identik dengan bug freeze-odom yang sudah ditutup di
+entri HANG 2026-08-24. Data ini dibuang, tidak dipakai untuk
+kesimpulan. Pelajaran: satu run sim per waktu, tunggu `load average`
+turun sebelum menjalankan probe APPROACH_HOOK manapun.
+
+**Akar asimetri C/D tetap OPEN.** Ketiga kandidat sesi lalu semua
+terbantah. Fakta yang bertahan: deteksi hook sendiri sangat rapuh
+(`HOOK TAK TERDETEKSI` mendominasi log di SEMUA wall, bukan cuma C/D),
+dan saat berhasil deteksi, `ey` yang terbaca sangat bervariasi antar
+run (0.167 di satu sesi vs 0.406-0.435 di battery lain) — kemungkinan
+besar sumber "bias" yang diamati sebelumnya adalah variansi deteksi
+cv2 (`_best_contour` memilih satu kontur berdasar skor confidence,
+gampang salah pilih fitur), bukan bias geometris sistematis per-wall.
+Sesi lanjutan sebaiknya kumpulkan sample lebih besar (n≥5 run per
+wall, `ex,ey,size` mentah) sebelum mencari kandidat baru — n=1 per
+wall tidak cukup memisahkan noise deteksi dari bias asli.
+
+File disentuh: `src/hydroships_control/hydroships_control/mission_fsm.py`
+(instrumentasi roll/pitch), `docs/STATUS.md`, CHANGELOG ini. Data
+mentah run: `/tmp/claude-*/scratchpad/hook-ac-compare/` (tak
+disertakan di repo, session-scoped).
+
+## 2026-08-25 (lanjutan) — PIVOT: live A vs C compare runtuhkan premis vision
+
+Live compare wall A vs C akhirnya berhasil dijalankan penuh (mesin idle,
+`load average` 1.1/12 core, PATH sudah benar). Metode: `start_state:=
+APPROACH_HOOK spawn_seed:=6001`, wall A lalu C, spawn ROV identik di
+kedua run `(1.704, 2.05, -0.5) yaw=-1.9149`, window 160s/run, teardown
+bersih + `sleep 10` antar-run (pola `run_hang_wall_battery.sh`).
+
+**Temuan kunci: deteksi hook = nol sampel valid di KEDUA wall** (`off=
+None` di semua baris `APPROACH_HOOK dbg`, log dibanjiri `HOOK TAK
+TERDETEKSI`). Asimetri A vs C sama sekali tidak lewat jalur vision —
+menjelaskan sekaligus kenapa 4 kandidat kamera/geometri yang diuji
+sesi 2026-08-24/25 (centroid-vs-tip, attitude ROV, `hook_z` per-hook,
+proyeksi `dist_forward`) semua terbantah: tidak ada sinyal kamera yang
+bisa dibiaskan sejak awal untuk sample yang diuji.
+
+Asimetri terjadi murni di jalur odometri + kontrol depth: wall A odom
+approach lancar (4.46→0.57m) dan depth servo tercapai (0.12 vs
+setpoint 0.14) → keluar via fallback presisi (14.6s) → AUTO_RELEASE
+sukses penuh. Wall C odom **berhenti maju** di 2.06m dan depth
+**nyangkut di permukaan** (0.01-0.03 vs setpoint 0.14) → timeout 36.5s
+→ AUTO_RELEASE juga timeout posisi → ABORT. Bonus: siklus ke-2 di log
+wall-A menjangkau hook C lewat jalur normal (bukan `start_wall:=`) dan
+gagal dengan mekanisme BERBEDA lagi — `HANG` XY konvergen sempurna
+(4mm) tapi depth stall di 0.275, tak mau turun ke `hook_depth=0.32` →
+timeout → ABORT.
+
+**Kesimpulan**: akar wall C bukan bias visual servo (dibantah lewat
+data, bukan cuma penalaran geometri kali ini). Dua arah kegagalan
+depth yang berlawanan (nyangkut di permukaan di satu state, stall
+tak-mau-turun di state lain) mengarah ke interaksi fisik/kontrol
+posisi-depth spesifik wall C — mekanisme belum diidentifikasi.
+
+**Akar asimetri C/D tetap OPEN**, ruang pencarian pindah total dari
+vision ke kontrol depth/posisi dekat wall C. Kandidat sesi berikutnya:
+kenapa depth setpoint 0.14 tak tercapai di APPROACH_HOOK wall C, dan
+kenapa depth stall di 0.275 (bukan 0.32) di HANG→AUTO_RELEASE wall C —
+curigai collision arena dekat wall C atau interaksi PID depth dengan
+heading/thrust spesifik wall C (`WALL_HEADING_DEG['C']=0°`).
+
+File disentuh: `docs/STATUS.md`, CHANGELOG ini. Tak ada perubahan
+kode dari temuan ini. Skrip retry (sekali-pakai, tak disertakan
+repo): `/tmp/opencode/run_ac_compare.sh`; log mentah
+`/tmp/opencode/hook-ac-compare/AC-{A,C}.log` (mesin lain, tak
+disertakan repo).
+
+## 2026-08-25 (lanjutan 2) — DITUTUP: asimetri wall C/D bukan properti dinding
+
+6 run tambahan dengan spawn/seed/heading byte-identik (`AC-C`, `R1-c1`,
+`R3-c1`, `R4-c1` = APPROACH_HOOK wall C langsung; `AC-A` siklus-2 &
+`R2` = HANG wall C langsung): hasilnya **3/4 sukses APPROACH_HOOK, 4/4
+seated di HANG** — konfigurasi byte-sama menghasilkan hasil beda
+run-ke-run. Ini membuktikan asimetri A vs C yang teramati sesi lalu
+bukan sifat deterministik wall C.
+
+Dua kandidat kode dari sesi sebelumnya dibantah: **collision arena
+dekat wall C** — SDF `hook_a..d` identik byte-per-byte, dinding pool
+simetris 4 arah, tak ada struktur ekstra di C. **Interaksi PID depth ×
+`WALL_HEADING_DEG['C']=0°`** — 3 run sukses beruntun pakai heading
+target 0° yang sama persis dengan run gagal; kalau coupling
+deterministik, run sukses itu harusnya gagal juga.
+
+**Q1 (depth nyangkut 0.01-0.03 di permukaan)**: akar = degradasi
+RTF/scheduling saat beban mesin tinggi, pola sama dengan bug
+freeze-odom HANG yang sudah ditutup (`33a386c`/`1bcabee`). Run gagal
+mulai saat `load average` 1-menit 12.07 (puncak 13.49 antar-run),
+pipeline persepsi jelas sakit (24× `HOOK TAK TERDETEKSI` vs 5-6× di
+run sukses). Mekanisme dalam (saturasi allocator, coupling Fz→My yang
+`DEFERRED`) belum bisa dipastikan — trace odom saat kejadian tak
+tertangkap (logger sesi itu error 2× salah import `PointStamped`), dan
+begitu mesin tenang gagalan tak muncul lagi di 4 run beruntun.
+
+**Q2 (stall di depth 0.275, bukan 0.32)**: akar = mis-thread mekanis
+lubang↔tiang, bukan setpoint salah. Geometri seat normal (underside
+plat = base_z-0.136) memprediksi stall ≈0.30 + margin tekan 0.02 =
+`hook_depth=0.32` — semua seat sukses (A maupun C) tercatat 0.31-0.33
+✓, setpoint benar. Stall 0.2748 → underside plat di -0.411 =
+menggantung di badan tiang (span -0.45..-0.33), 2.7cm di atas palang —
+lubang tak menembus bersih. Log run itu mencatat `dist=0.031 >
+hang_tol=0.025` saat timeout — offset horizontal 31mm saat menembus,
+padahal clearance tip cuma Ø25mm vs slot ±45mm (sway sering mandek
+~21mm karena kopling yaw-hold, catatan lama di kode). 4 descend
+berikutnya (C langsung + D×3) semua seated mulus.
+
+**Verdict akhir**: bukan 1 bug wall-C-spesifik, melainkan 2 mode gagal
+probabilistik generik yang kebetulan sama-sama nongol di wall C hari
+itu: (a) degradasi depth/navigasi saat mesin dev overload (noise
+environment, bukan bug repo), dan (b) toleransi mis-thread lubang↔
+tiang yang tipis (`hang_tol=0.025` vs clearance efektif ~21-31mm
+sway-lag) — real tapi generik, bisa kena wall manapun, base rate
+rendah (1/8 run descend). **Investigasi asimetri C/D DITUTUP** — tak
+ada bug wall-spesifik ditemukan.
+
+Item terpisah untuk sesi lain kalau mau diperketat (belum dikerjakan,
+prioritas rendah): perkecil `hang_tol` atau perbesar clearance tip vs
+slot untuk toleransi sway-lag saat descend.
+
+File disentuh: `docs/STATUS.md`, CHANGELOG ini. Tak ada perubahan
+kode.
+
+## 2026-08-25 — Mis-thread clearance fix + akar joy_node leak di battery HANG
+
+**Fix mis-thread (kandidat (b) di atas, dikerjakan):** slot plat
+(`slot_left/right_collision` di `payload_spawner.py` PAYLOAD_SDF_TEMPLATE
+& `model.sdf` cadangan) dilebarkan `x ±0.045 → ±0.055` — +10mm clearance
+vs `r_tip=12.5mm` (28.5mm → 38.5mm efektif) untuk toleransi sway-lag ROV
+saat descend ke hook. `hang_tol` **sengaja dibiarkan 25mm** — memperketat
+gerbang kontrol dinilai lebih berisiko menambah timeout drpd menambah
+clearance fisik pasif.
+
+**Bug nyata ditemukan saat validasi**: `run_hang_wall_battery.sh` tak
+pernah pass `joy_trigger:=false` ke `hydroships_mission.launch.py` (yang
+default `joy_trigger:=true`), dan pattern teardown-nya tak match
+`joy_node` sama sekali. Efeknya: setiap run battery (dan launch manual
+tanpa override) membocorkan 1 proses `joy_node` yang tak pernah mati.
+**26 proses zombie** ditemukan menumpuk lintas sesi di mesin dev,
+masing² ~5% CPU, bersamaan dengan `load average` 10.93 pada 12 core —
+pola persis sama dengan gejala "RTF collapse Gazebo headless" yang
+didiagnosis 2026-08-24 dan "ditutup" via `sleep 3→10` di teardown
+(`1bcabee`). Kemungkinan besar fix sleep itu cuma meredakan gejala,
+bukan akar. **Fix**: `joy_trigger:=false` eksplisit di `run_one()` +
+`pkill -9 -f joy_node` di teardown (defense-in-depth,
+`run_hang_wall_battery.sh`). 26 zombie lama dibersihkan manual.
+
+**Validasi A/B clearance** (12-run battery, wall A-D × 3 seed,
+`start_state:=HANG`, geometri lama direvert sementara non-destruktif via
+`sed` lalu di-`git checkout` balik ke versi baru — bukan `git reset`):
+
+| geometri | seated | pos-to | descend-to | tak-selesai |
+|---|---|---|---|---|
+| lama (0.045) | 6/12 | 3 | 2 | 1 |
+| baru (0.055) | 6/12 | 1 | 5 | 0 |
+
+Seated rate identik — **no regression**, tapi juga belum ada bukti
+kuat perbaikan pada n=12 (load mesin 5-9 saat itu, bukan idle bersih).
+Sinyal yang konsisten di SEMUA kegagalan kedua geometri: `dist` posisi
+selalu konvergen ke 0.004-0.028m — **nol kegagalan mis-thread XY**
+teramati; semua kegagalan dari fase depth timeout, kelas noise RTF yang
+sama dgn temuan joy-leak, independen dari geometri slot. Base rate
+mis-thread asli (~1/8 descend per catatan 2026-08-24) terlalu jarang
+untuk terbaca bersih di sample n=12 yang didominasi noise mesin —
+battery lanjutan (n≥30, mesin idle `uptime`<2) diperlukan untuk baca
+sinyal sebenarnya.
+
+**Sisi lain dari sesi ini (M3, tak terkait HANG)**: ditambahkan
+`calibration_sanity_warnings()` di `qr_logic.py` (flag `cx`/`cy` >10%
+off-center saat load kalibrasi kamera) — menangkap anomali nyata di
+`dwe.npz` (`cy` +13.7% off-center) yang RMS-only check terlewat.
+Ditemukan pula 2 file kalibrasi lain di root repo yang belum tercatat:
+`dwe_underwater.npz` (dikalibrasi di air, RMS 1.76px, cx/cy bersih —
+kandidat terbaik saat ini, tapi resolusi 4:3 vs stream 16:9 belum
+diverifikasi) dan `laptop.npz` (webcam laptop, bukan kamera DWE, jangan
+dipakai). Detail: `docs/HARDWARE.md` §3, `docs/STATUS.md` M3.
+
+File disentuh: `src/hydroships_gazebo/scripts/payload_spawner.py`,
+`src/hydroships_gazebo/models/payload/model.sdf`,
+`src/hydroships_control/hydroships_control/qr_logic.py`,
+`src/hydroships_control/hydroships_control/qr_detector.py`,
+`src/hydroships_control/test/test_qr_logic.py`,
+`tools/p0-experiments/run_hang_wall_battery.sh`, `docs/HARDWARE.md`,
+`docs/STATUS.md`, `docs/P2-GUI-INVESTIGATION.md`, CHANGELOG ini.
+
+## 2026-08-25 (lanjutan 3) — M7: kandidat saturasi allocator diuji runtime & dibantah
+
+Lanjutan re-audit kode `allocation.py` (§7 `P2-GUI-INVESTIGATION.md`,
+ditulis sesi sebelumnya tapi belum diuji runtime): kandidat "clipping
+per-thruster tanpa redistribusi membocorkan momen pitch tak-terkomando
+saat saturasi" akhirnya diuji lewat sim sungguhan, bukan hitung offline
+lagi.
+
+**Perubahan kode**: `tools/p2-experiment.py` diberi dukungan combo
+dua-axis (`--axis2`/`--value2`, mode `sustained`) supaya bisa kirim
+`surge=100 yaw=100` bersamaan lewat `gui_bridge` — sebelumnya cuma
+bisa satu axis per run.
+
+**Run**: `hydroships_gui.launch.py headless:=true rov_random_spawn:=false`
+(ROV mid-arena), command combo aktif 8s. **Saturasi terkonfirmasi
+persis seperti prediksi analitik offline**: `t3=50.0000` (pinned tepat
+di `MAX_THRUST`) sepanjang window aktif. **Tapi respons attitude yang
+dihasilkan tidak signifikan**: `pitch` tetap -0.0115..-0.0068°
+sepanjang window (nyaris nol), dan `roll` justru **meluruh** dari
+-0.71° (sisa settling dari spawn, SEBELUM command dikirim — bukan
+disebabkan command) turun ke -0.04° selama command aktif — command
+tidak menambah roll sama sekali.
+
+**Kandidat DIBANTAH**: mekanisme kode (clipping per-thruster) nyata
+terjadi di sim, tapi residual `my` yang diprediksi (0.36-0.77 N·m)
+terlalu kecil untuk terlihat di attitude ROV nyata setelah diserap
+massa/inersia/damping hidrodinamik — jauh di bawah bahkan baseline
+air-bebas 0.4-0.5° dari investigasi §5a, apalagi klaim asli ±25-31°.
+
+**Keempat kandidat kode kini habis diuji** (thrust drop-out: fixed &
+bukan faktor; kombinasi-axis manusia: kontributor nyata s.d. 6.4°;
+kontak dinding: kontributor nyata s.d. 2.7°; saturasi allocator:
+dibantah). Ruang pencarian kandidat KODE sudah tuntas — kandidat baru
+kalau ada harus datang dari observasi lapangan tambahan, bukan
+re-audit kode lagi. **M7 spike tetap OPEN**, prioritas rendah, jangan
+tandai RESOLVED.
+
+File disentuh: `tools/p2-experiment.py`, `docs/P2-GUI-INVESTIGATION.md`,
+`docs/STATUS.md`, CHANGELOG ini. Data mentah:
+`/tmp/claude-*/scratchpad/p2-combo/combo_surge100_yaw100.csv`
+(session-scoped, tak disertakan repo).
+
+## 2026-08-25 (lanjutan 4) — M7: gui_bridge expose mission FSM & kontrol autonomous
+
+Tujuan awal repo ini adalah agar sim ROS 2 bisa dipakai sistem autonomous
+di [Customize5773/GUI-ROV](https://github.com/Customize5773/GUI-ROV) —
+tapi `gui_bridge` sejauh ini cuma menjembatani teleop manual, GUI tak
+punya visibilitas maupun kontrol atas `mission_fsm` autonomous.
+
+**Perubahan**:
+
+- `mission_fsm.py`: publish state (`St.name`) tiap tick ke topic baru
+  `/hydroships/mission/state` (String); subscribe topic baru
+  `/hydroships/mission/abort` (Empty) → paksa `_to(St.ABORT)` dari state
+  manapun kecuali `DONE`/`ABORT`.
+- `gui_bridge_logic.py`: `on_command()` menangani command UDP baru
+  `start_mission`/`abort_mission`; `build_telemetry()` menerima
+  `mission_state`, `qr_result`, `hook_offset`/`hook_age`,
+  `gripper_status`, `gripper_state` dan menurunkan field `mode`
+  (auto/manual) dari `mission_state`, bukan hardcoded lagi.
+- `gui_bridge.py`: subscribe `/hydroships/mission/state`,
+  `/hydroships/qr_result`, `/hydroships/hook_offset`,
+  `/hydroships/gripper/status`, `/hydroships/gripper/state`; publish
+  `/hydroships/mission/start_autonomous` & `/hydroships/mission/abort`
+  saat command UDP baru diterima; teruskan semua ke `build_telemetry()`.
+
+`start_mission` hanya berefek bila FSM sedang di `WAIT_TRIGGER` (perilaku
+`_on_trigger` existing, tak diubah) — belum bisa cold-start dari `IDLE`.
+
+Kontrak wire protocol baru didokumentasikan di
+[GUI-INTEGRATION.md](GUI-INTEGRATION.md) §3c supaya tim GUI-ROV bisa
+menyesuaikan `rov_agent.py`/`server.js`/dashboard.
+
+Teruji headless: 6 test baru + 14 existing, 20/20 lolos
+(`test/test_gui_bridge.py`). **Belum live-tested dengan dashboard GUI-ROV
+asli** — tandai 🧪 di `STATUS.md` M7.
+
+File disentuh: `src/hydroships_control/hydroships_control/gui_bridge.py`,
+`gui_bridge_logic.py`, `mission_fsm.py`,
+`src/hydroships_control/test/test_gui_bridge.py`,
+`docs/GUI-INTEGRATION.md`, `docs/STATUS.md`, CHANGELOG ini.

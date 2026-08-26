@@ -8,7 +8,12 @@ dipisah ke sini agar bisa diuji headless (pola allocation.py vs node).
 
 Kontrak GUI-ROV (dari rov_agent.py / autonomy/rov_link.py):
   * Perintah  GUI->ROV : JSON {"name": <str>, "value": <val>} via UDP.
-      name in {surge, sway, yaw, heave} -> persen -100..100 (joystick)
+      name in {surge, sway, yaw, heave} -> rentang KAWAT -1000..1000, 0=diam
+      (lihat server/server.js clampAxis() & autonomy/fsm/mission5.py
+      CommandSender.send(), keduanya GUI-ROV, dikonfirmasi baca source
+      langsung 2026-08-25 -- BUKAN persen -100..100 seperti dikira semula.
+      on_command() membagi /10 di titik masuk supaya gain N-per-persen di
+      bawah ini tetap valid tanpa diubah.)
       name == "arm"   -> bool
       name == "light" -> bool
       name == "stop"  -> failsafe (netral)
@@ -52,6 +57,20 @@ def clamp(v, lo, hi):
     return lo if v < lo else hi if v > hi else v
 
 
+def parse_extra_dests(csv_str):
+    """csv 'host:port,host2:port2' -> [(host, port_int), ...]. Entri kosong/
+    spasi diabaikan. Sama pola dgn --telem-extra di autonomy/rov_link.py,
+    dipakai gui_bridge utk fanout telemetri ke >1 tujuan (mis. dashboard GUI
+    + mission5.py FSM bersamaan) tanpa rebut satu telem_port."""
+    dests = []
+    for item in (csv_str or '').split(','):
+        item = item.strip()
+        if item:
+            host, port = item.rsplit(':', 1)
+            dests.append((host, int(port)))
+    return dests
+
+
 def _num(v):
     try:
         return float(v)
@@ -67,12 +86,13 @@ class GuiBridgeLogic:
     """
 
     def __init__(self, surge_gain=0.40, sway_gain=0.40, heave_gain=0.30,
-                 yaw_gain=0.12, mode='manual'):
+                 yaw_gain=0.12, mode='manual', hook_max_age=1.0):
         self.surge_gain = float(surge_gain)
         self.sway_gain = float(sway_gain)
         self.heave_gain = float(heave_gain)
         self.yaw_gain = float(yaw_gain)
-        self.mode = mode
+        self.mode = mode  # vestigial: build_telemetry() kini menurunkan mode dari mission_state
+        self.hook_max_age = float(hook_max_age)
         # axis manual terakhir (persen)
         self.axes = {'surge': 0.0, 'sway': 0.0, 'yaw': 0.0, 'heave': 0.0}
         self.armed = False
@@ -87,7 +107,10 @@ class GuiBridgeLogic:
             atau {} bila tak menghasilkan aksi ROS langsung."""
         n = (name or '').strip().lower()
         if n in self.axes:
-            self.axes[n] = clamp(_num(value), -100.0, 100.0)
+            # value datang dalam skala kawat GUI-ROV (-1000..1000) -> /10 jadi
+            # persen sebelum clamp, supaya gain N-per-persen di bawah tetap
+            # berarti "100% ~ batas thruster", bukan disaturasi di 1/10 rentang.
+            self.axes[n] = clamp(_num(value) / 10.0, -100.0, 100.0)
             return {'wrench': self.wrench()}
         if n == 'stop':
             self.axes = {k: 0.0 for k in self.axes}
@@ -106,6 +129,10 @@ class GuiBridgeLogic:
             if g in ('open', 'close'):
                 return {'gripper': g}
             return {}
+        if n == 'start_mission':
+            return {'mission_start': True}
+        if n == 'abort_mission':
+            return {'mission_abort': True}
         return {}   # mode/pid/pool config dsb. tak dipetakan ke ROS di sini
 
     def wrench(self):
@@ -128,8 +155,15 @@ class GuiBridgeLogic:
         return math.degrees(yaw_rad) % 360.0
 
     def build_telemetry(self, yaw_rad=None, depth_m=None, roll=None, pitch=None,
-                        voltage=0.0, temp=0.0):
-        """Susun dict telemetri utk GUI (JSON). Nilai None -> 0 agar GUI aman."""
+                        voltage=0.0, temp=0.0, mission_state=None, qr_result=None,
+                        hook_offset=None, hook_age=None, gripper_status=None,
+                        gripper_state=None):
+        """Susun dict telemetri utk GUI (JSON). Nilai None -> 0/'' agar GUI aman."""
+        mode = ('auto' if mission_state not in (None, 'IDLE', 'DONE', 'ABORT')
+                 else 'manual')
+        hex_, hey_, hsize_ = hook_offset if hook_offset is not None else (0.0, 0.0, 0.0)
+        hook_fresh = (hook_offset is not None and hook_age is not None
+                      and hook_age <= self.hook_max_age)
         return {
             'heading': self.yaw_to_heading_deg(yaw_rad) if yaw_rad is not None else 0.0,
             'depth': float(depth_m) if depth_m is not None else 0.0,
@@ -139,5 +173,13 @@ class GuiBridgeLogic:
             'voltage': float(voltage),
             'armed': bool(self.armed),
             'light': bool(self.light),
-            'mode': self.mode,
+            'mode': mode,
+            'mission_state': mission_state if mission_state is not None else 'IDLE',
+            'qr_result': qr_result if qr_result is not None else '',
+            'hook_ex': float(hex_),
+            'hook_ey': float(hey_),
+            'hook_size': float(hsize_),
+            'hook_fresh': bool(hook_fresh),
+            'gripper_status': gripper_status if gripper_status is not None else '',
+            'gripper_state': gripper_state if gripper_state is not None else '',
         }

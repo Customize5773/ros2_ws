@@ -310,6 +310,67 @@ satu-kali yang tak sepenuhnya reproducible secara sistematis dgn probe
 terkontrol. **Tetap OPEN** — turunkan prioritas (tak ada bukti bug aktif di
 kode saat ini), tapi jangan tandai RESOLVED di STATUS.md.
 
+## 7. Kandidat #4 (2026-08-25, dari kode, belum diuji lapangan): clipping saturasi thruster membocorkan momen roll/pitch tak-terkomando
+
+Re-audit `allocation.py`/`thruster_allocator.py` (bukan observasi lapangan)
+mencari mekanisme kode yang belum diuji dari §4-6. `allocate()`
+(`allocation.py:73-76`) meng-clip gaya per-thruster ke `[MIN_THRUST,
+MAX_THRUST]` **setelah** pseudo-inverse teredam menghitung kombinasi gaya
+yang seharusnya menghasilkan wrench komando persis (termasuk membatalkan
+komponen roll/pitch yang tak diminta). Clipping terjadi PER-THRUSTER tanpa
+redistribusi — begitu satu thruster jenuh, kombinasi gaya yang tersisa tak
+lagi membatalkan roll/pitch seperti dirancang TAM, dan wrench yang benar-benar
+terkirim ke sim (`TAM @ forces_clipped`) punya residual `mx`/`my` yang TAK
+pernah dikomando.
+
+**Verifikasi numerik offline** (`allocation.py` langsung, gain default
+`surge_gain=0.40 sway_gain=0.40 heave_gain=0.30 yaw_gain=0.12`, damping=0.1):
+
+| surge% | yaw% | thruster jenuh? | mx terkirim | my terkirim |
+|---|---|---|---|---|
+| 100 | 100 | ya (thruster_3 54.5N > 50N) | -0.007 | **0.568** |
+| 80 | 60 | tidak | -0.005 | 0.589 |
+| 50 | 50 | tidak | -0.003 | 0.359 |
+| 100 | 30 | tidak | -0.005 | 0.769 |
+
+(skrip: `pinv @ wrench` lalu `np.clip` lalu `tam @ forces_clipped`, dibanding
+wrench komando `[fx,0,0,0,0,mz]`.)
+
+Catatan: bahkan TANPA saturasi, `my` residual sudah tak nol (0.36-0.77 N·m) —
+pseudo-inverse teredam (damping=0.1) sendiri sudah tak sempurna membatalkan
+axis lain (trade-off yang disengaja, lihat komentar `build_damped_pinv`).
+Saturasi (baris pertama) menambah my jadi lebih besar tapi BUKAN
+menyebabkannya dari nol — jadi kandidat ini kemungkinan cuma memperbesar
+kebocoran yang sudah ada di semua kombinasi axis, bukan mekanisme terpisah.
+Tak ada validasi berapa N·m residual dibutuhkan utk spike 2-6° (butuh
+massa/inertia & damping hidrodinamik ROV, tak tersedia dari kode saja).
+
+**[UPDATE 2026-08-25] Kandidat #4 DIUJI RUNTIME & DIBANTAH.** `tools/p2-experiment.py`
+diberi dukungan combo dua-axis (`--axis2`/`--value2`, sustained mode) supaya bisa
+mengirim `surge=100 yaw=100` bersamaan lewat `gui_bridge` sungguhan (bukan hitung
+offline lagi). Run: ROV mid-arena (`rov_random_spawn:=false`), `headless:=true`,
+window aktif command 8s.
+
+**Saturasi terkonfirmasi terjadi persis seperti prediksi analitik**: `t3=50.0000`
+(pinned tepat di `MAX_THRUST`) sepanjang window command aktif — bukan spekulasi,
+benar-benar saturasi di sim nyata. **Tapi respons roll/pitch yang dihasilkan tidak
+signifikan**: `pitch` tetap di rentang -0.0115..-0.0068° sepanjang window aktif
+(nyaris nol, jauh di bawah bahkan baseline air-bebas 0.4-0.5° dari §5a) — residual
+`my` 0.36-0.77 N·m yang diprediksi offline **tidak menghasilkan spike pitch yang
+terukur** begitu diserap dinamika ROV nyata (massa/inertia/damping hidrodinamik).
+`roll` justru **meluruh** dari -0.71° (nilai SEBELUM command dikirim, sisa settling
+dari spawn — bukan disebabkan command) turun ke -0.04° selama window aktif —
+command tidak menambah roll, kalau ada efek malah meredam.
+
+**Kandidat #4 DIBANTAH sbg penjelas spike**: mekanisme kode (clipping per-thruster
+tanpa redistribusi) nyata terjadi, tapi besarnya efek pada attitude ROV terlalu
+kecil untuk menjelaskan bahkan baseline 0.4-0.5°, apalagi klaim asli ±25-31°.
+Konsisten dengan kandidat #2 (kombinasi-axis) — sama-sama kontributor real tapi
+kecil, tak satupun (sendiri atau gabungan #1-#4) mendekati skala klaim asli.
+
+Data: `/tmp/claude-*/scratchpad/p2-combo/combo_surge100_yaw100.csv`
+(session-scoped, tak disertakan repo).
+
 ## Status ringkas
 
 - ✅ Task 1 — root cause + fix thrust drop-out GUI: **selesai, terverifikasi**.
@@ -323,14 +384,22 @@ kode saat ini), tapi jangan tandai RESOLVED di STATUS.md.
 - ✅ M7 light — **diverifikasi round-trip via dashboard asli** (§5b):
   command diterima `gui_bridge`, **disengaja non-aktuasi** (tak ada model
   lampu di sim) — bukan bug, bukan lagi item "belum dites".
-- ⚠️ M7 roll/pitch spike — **ketiga kandidat §4 sudah diuji habis** (§6):
+- ⚠️ M7 roll/pitch spike — **keempat kandidat §4/§7 sudah diuji habis** (§6-7):
   kontak fisik dgn dinding selama yaw **terkonfirmasi sebagai kontributor
   nyata** (peak 2.73°/2.71°, ~5-6× di atas baseline air-bebas 0.48°/0.37°,
   mekanisme teramati langsung — hull tergelincir sepanjang dinding sambil
   berputar), tapi sendirian **masih ~9-11× di bawah** klaim asli ±25-31°;
-  kombinasi-axis manusia (§5a) berkontribusi sampai 6.40°/2.22°. Tak
-  satupun kandidat, sendiri-sendiri, mendekati klaim asli — kemungkinan
-  besar efek gabungan beberapa kandidat sekaligus, atau anomali satu-kali
-  yang tak sepenuhnya reproducible. **Tetap OPEN** (turunkan prioritas,
-  tak ada bukti bug aktif di kode), jangan tandai RESOLVED di STATUS.md.
+  kombinasi-axis manusia (§5a) berkontribusi sampai 6.40°/2.22°; **saturasi
+  allocator (§7) DIUJI RUNTIME 2026-08-25 (`surge=100 yaw=100` combo via
+  `gui_bridge` sungguhan, thruster_3 terkonfirmasi saturasi persis 50N) dan
+  DIBANTAH** — pitch yang dihasilkan cuma ~0.01°, roll malah meluruh
+  (bukan naik) selama command aktif, jauh di bawah bahkan baseline. Tak
+  satupun dari keempat kandidat, sendiri-sendiri, mendekati klaim asli —
+  kemungkinan besar efek gabungan kontak-dinding + kombinasi-axis manusia
+  (dua kandidat yg terbukti berkontribusi nyata), atau anomali satu-kali
+  observasi asli 2026-08-13 yang tak sepenuhnya reproducible. **Tetap
+  OPEN** (turunkan prioritas, tak ada bukti bug aktif di kode; ruang
+  pencarian kandidat kode sudah habis — kandidat baru harus datang dari
+  observasi lapangan tambahan, bukan re-audit kode), jangan tandai
+  RESOLVED di STATUS.md.
 - Belum dikerjakan: lint/typecheck penuh repo.

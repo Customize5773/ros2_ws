@@ -29,6 +29,20 @@ PAYLOAD_SDF_TEMPLATE = '''<?xml version="1.0"?>
     <pose>{x} {y} {z} 1.5708 0 0</pose>
     <link name="payload_link">
       <inertial>
+        <!-- CoM di CENTROID VOLUME KOLISI, bukan di origin link.
+             Origin link ada di UJUNG plat (z=0), sedangkan volume kolisi
+             (= tempat plugin Buoyancy world menerapkan gaya apung) berpusat
+             di z~0.0594. Selisih itu bikin kopel gravitasi-vs-apung yang
+             MEMUTAR plat sampai sumbu z-nya tegak -- terukur 26 Agu: spawn
+             roll +90 (QR menghadap atas) jatuh ke roll 0 (QR menyamping)
+             dalam ~2 s. Dulu ditambal dgn DetachableJoint anchor ke
+             pool::floor; anchor itu justru men-DE-STATIC-kan lantai kolam
+             sehingga ROV menyeret lantai saat grab (terukur 0.30-0.38 m).
+             Dgn CoM & pusat apung segaris, plat diam stabil rebah di roll 90
+             tanpa anchor sama sekali.
+             Centroid tertimbang-volume dari body+slot_l+slot_r+bar:
+               V = 9.13e-5 m^3, x=0, y=0.0039, z=0.0594 -->
+        <pose>0 0.0039 0.0594 0 0 0</pose>
         <mass>0.3</mass>
         <inertia>
           <ixx>2.51e-4</ixx><iyy>3.13e-4</iyy><izz>6.34e-5</izz>
@@ -45,6 +59,9 @@ PAYLOAD_SDF_TEMPLATE = '''<?xml version="1.0"?>
              bersandar di palang bawah hook saat plat turun (palang hook di
              x +-0.0125, jadi butuh material padat di sana — sayap di x +-0.035
              saja TIDAK menyentuh palang dan plat jatuh menembus hook).
+           slot_* di x +-0.055 (dulu 0.045): +10mm clearance vs r_tip 12.5
+           (28.5mm -> 38.5mm) untuk toleransi sway-lag ROV saat descend
+           (mis-thread fix; hang_tol tetap 25mm, bukan diperketat).
            Tip (silinder tegak r=0.0125 di lubang) menembus lewat celah
            z 0.075..0.11 (bawah body & atas bar_collision kosong) dan lorong
            slot, lalu plat bersandar stabil di palang. -->
@@ -53,11 +70,11 @@ PAYLOAD_SDF_TEMPLATE = '''<?xml version="1.0"?>
         <geometry><box><size>0.05 0.02 0.065</size></box></geometry>
       </collision>
       <collision name="slot_left_collision">
-        <pose>-0.045 -0.003 0.09325 0 0 0</pose>
+        <pose>-0.055 -0.003 0.09325 0 0 0</pose>
         <geometry><box><size>0.008 0.006 0.0135</size></box></geometry>
       </collision>
       <collision name="slot_right_collision">
-        <pose>0.045 -0.003 0.09325 0 0 0</pose>
+        <pose>0.055 -0.003 0.09325 0 0 0</pose>
         <geometry><box><size>0.008 0.006 0.0135</size></box></geometry>
       </collision>
       <collision name="bar_collision">
@@ -104,6 +121,15 @@ PAYLOAD_SDF_TEMPLATE = '''<?xml version="1.0"?>
         <angular>1.0</angular>
       </velocity_decay>
     </link>
+    <!-- TIDAK ADA anchor ke pool::floor lagi (dihapus 26 Agu).
+         Dulu ada DetachableJoint payload_link<->pool::floor utk menahan plat
+         supaya tak terguling dari roll 90. Akar masalahnya ternyata CoM link
+         yang tak segaris dgn pusat volume apung (lihat <inertial> di atas);
+         setelah CoM diperbaiki plat diam sendiri, anchor tak perlu.
+         Anchor itu WAJIB tetap hilang: child_model=pool membuat gz-sim
+         men-de-static-kan LANTAI KOLAM, sehingga ROV menyeret/menggeser
+         lantai saat menabrak & meng-grab (terukur 0.30-0.38 m, dilaporkan
+         terlihat jelas di GUI). Jangan dihidupkan lagi. -->
   </model>
 </sdf>
 '''
@@ -116,7 +142,11 @@ class PayloadSpawner(Node):
         p('qr_letter', '')          # '' = random A/B/C/D
         p('payload_x', 0.4)         # m
         p('payload_y', 0.04)        # m
-        p('payload_z', -0.90)       # m (tepat di lantai kolam, top floor z=-0.90)
+        p('payload_z', -0.80)       # m (tepat di lantai kolam, top floor z=-0.80,
+                                    # kolam latihan default; -0.90 jika world=kki_arena.sdf.
+                                    # Selalu di-override eksplisit oleh launch file --
+                                    # nilai ini cuma dipakai kalau node dijalankan berdiri
+                                    # sendiri (ros2 run) atau dibaca test_grab_geometry.py.
         p('spawn_delay', 4.0)       # s setelah node start (tunggu sim siap)
         p('randomize_pos', True)    # random posisi saat qr_letter kosong
         p('arena_x_min', 0.2)
@@ -132,6 +162,7 @@ class PayloadSpawner(Node):
         # bawaan gz SETELAH ini (urutan benar). Latched agar tak hilang bila terbit
         # sebelum subscriber terhubung.
         self.pub_spawned = self.create_publisher(Empty, '/hydroships/payload/spawned', qos)
+        # (anchor payload<->lantai sudah dihapus -- lihat PAYLOAD_SDF_TEMPLATE)
         self._spawn_delay = float(self.get_parameter('spawn_delay').value)
         self._t0 = self._now()
         self._spawned_initial = False

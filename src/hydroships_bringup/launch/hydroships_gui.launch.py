@@ -44,6 +44,7 @@ def generate_launch_description():
     cmd_port = LaunchConfiguration('cmd_port')
     telem_port = LaunchConfiguration('telem_port')
     telem_hz = LaunchConfiguration('telem_hz')
+    telem_extra = LaunchConfiguration('telem_extra')
     spawn_seed = LaunchConfiguration('spawn_seed')
     rov_random_spawn = LaunchConfiguration('rov_random_spawn')
     rov_x = LaunchConfiguration('rov_x')
@@ -90,13 +91,14 @@ def generate_launch_description():
             'telem_host': ParameterValue(gui_host, value_type=str),
             'telem_port': ParameterValue(telem_port, value_type=int),
             'telem_hz': ParameterValue(telem_hz, value_type=float),
+            'telem_extra': ParameterValue(telem_extra, value_type=str),
             'tether_latency_ms': ParameterValue(tether_latency_ms, value_type=float),
         }],
     )
 
     return LaunchDescription([
         DeclareLaunchArgument('headless', default_value='false'),
-        DeclareLaunchArgument('world', default_value='kki_arena.sdf'),
+        DeclareLaunchArgument('world', default_value='pool_practice_arena.sdf'),
         DeclareLaunchArgument('gui_host', default_value='127.0.0.1',
                               description='IP tujuan telemetri (laptop GUI/server.js).'),
         DeclareLaunchArgument('cmd_port', default_value='14550',
@@ -105,6 +107,10 @@ def generate_launch_description():
                               description='UDP port tujuan telemetri (server.js).'),
         DeclareLaunchArgument('telem_hz', default_value='10.0',
                               description='Frekuensi telemetri UDP berbasis wall clock.'),
+        DeclareLaunchArgument('telem_extra', default_value='',
+                              description='Tujuan telemetri tambahan, csv host:port (mis. '
+                                          '127.0.0.1:14552 agar dashboard GUI & mission5.py '
+                                          'FSM terima telemetri bersamaan).'),
         DeclareLaunchArgument('camera_dropout', default_value='false',
                               description='R-8: aktifkan dropout frame kamera.'),
         DeclareLaunchArgument('camera_drop_prob', default_value='0.05',

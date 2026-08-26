@@ -138,10 +138,15 @@ def run_experiment(args):
     if args.mode == 'sustained':
         print(f'Sending {args.axis}={args.value} (sustained {args.duration}s)')
         send_udp(sock, target, args.axis, args.value)
+        if args.axis2:
+            print(f'Sending {args.axis2}={args.value2} (combo)')
+            send_udp(sock, target, args.axis2, args.value2)
         while node.sim_t - cmd_start_t < args.duration:
             time.sleep(0.1)
         send_udp(sock, target, args.axis, 0.0)
-        print(f'Sent {args.axis}=0')
+        if args.axis2:
+            send_udp(sock, target, args.axis2, 0.0)
+        print(f'Sent {args.axis}=0' + (f', {args.axis2}=0' if args.axis2 else ''))
 
     elif args.mode == 'step':
         print(f'Sending {args.axis}={args.value} (step, {args.duration}s)')
@@ -191,6 +196,9 @@ def main():
     ap.add_argument('--axis', choices=['surge', 'sway', 'yaw', 'heave'],
                     default='yaw')
     ap.add_argument('--value', type=float, default=100.0)
+    ap.add_argument('--axis2', choices=['surge', 'sway', 'yaw', 'heave'],
+                    default=None, help='Second axis for combo sustained command')
+    ap.add_argument('--value2', type=float, default=100.0)
     ap.add_argument('--duration', type=float, default=10.0)
     ap.add_argument('--pre-wait', type=float, default=2.0,
                     help='Seconds of baseline recording before command (sim time)')

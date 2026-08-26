@@ -36,16 +36,17 @@ def generate_launch_description():
     qr_letter = LaunchConfiguration('qr_letter')
     payload_x = LaunchConfiguration('payload_x')
     payload_y = LaunchConfiguration('payload_y')
+    payload_z = LaunchConfiguration('payload_z')
     # Diteruskan ke stabilized -> sim.launch.py (spawn ROV acak dekat dinding / manual).
     rov_args = ('rov_random_spawn', 'rov_x', 'rov_y', 'rov_z',
                 'rov_wall_margin', 'rov_arena_half', 'spawn_seed',
                 'odom_noise', 'odom_pos_noise_std', 'odom_vel_noise_std',
                 'odom_heading_noise_std_deg', 'odom_noise_seed')
 
-    # sim + allocator + stabilizer (M2). Teruskan qr_letter/payload_x/y (payload
+    # sim + allocator + stabilizer (M2). Teruskan qr_letter/payload_x/y/z (payload
     # spawner) + rov_* (spawn ROV) ke sim.launch.py lewat stabilized.
     stab_args = {'headless': headless, 'world': world, 'qr_letter': qr_letter,
-                 'payload_x': payload_x, 'payload_y': payload_y}
+                 'payload_x': payload_x, 'payload_y': payload_y, 'payload_z': payload_z}
     stab_args.update({a: LaunchConfiguration(a) for a in rov_args})
     stabilized = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -76,6 +77,10 @@ def generate_launch_description():
                           LaunchConfiguration('descend_depth_tol'), value_type=float),
                       'cam_gripper_dx': ParameterValue(
                           LaunchConfiguration('cam_gripper_dx'), value_type=float),
+                      'wall_face_x': ParameterValue(
+                          LaunchConfiguration('wall_face_x'), value_type=float),
+                      'wall_face_y': ParameterValue(
+                          LaunchConfiguration('wall_face_y'), value_type=float),
                       'hook_size_stop': ParameterValue(
                           LaunchConfiguration('hook_size_stop'), value_type=float),
                       'hook_center_tol': ParameterValue(
@@ -107,7 +112,7 @@ def generate_launch_description():
         DeclareLaunchArgument('joy_button_index', default_value='0',
                               description='Index tombol joystick utk trigger '
                                           'WAIT_TRIGGER (0 = A/Cross pada XInput/F310).'),
-        DeclareLaunchArgument('world', default_value='kki_arena.sdf'),
+        DeclareLaunchArgument('world', default_value='pool_practice_arena.sdf'),
         DeclareLaunchArgument('start_state', default_value='DIVE',
                               description='State awal FSM (DIVE/GRAB/NAV_WALL/HANG/SURFACE/'
                                           'WAIT_TRIGGER/APPROACH_HOOK/AUTO_RELEASE).'),
@@ -120,6 +125,9 @@ def generate_launch_description():
                               description='Posisi X payload (m); dipakai bila qr_letter di-set.'),
         DeclareLaunchArgument('payload_y', default_value='0.04',
                               description='Posisi Y payload (m); dipakai bila qr_letter di-set.'),
+        DeclareLaunchArgument('payload_z', default_value='-0.80',
+                              description='Posisi Z payload (m), harus = lantai kolam. '
+                                          'Naikkan ke -0.90 bila world:=kki_arena.sdf (arena lomba).'),
         DeclareLaunchArgument('rov_random_spawn', default_value='true',
                               description='true = spawn ROV acak dekat dinding kolam (kontes); '
                                           'false = pakai rov_x/rov_y/rov_z.'),
@@ -127,7 +135,7 @@ def generate_launch_description():
         DeclareLaunchArgument('rov_y', default_value='0.0'),
         DeclareLaunchArgument('rov_z', default_value='-0.5'),
         DeclareLaunchArgument('rov_wall_margin', default_value='0.5'),
-        DeclareLaunchArgument('rov_arena_half', default_value='2.55'),
+        DeclareLaunchArgument('rov_arena_half', default_value='1.1'),
         DeclareLaunchArgument('spawn_seed', default_value='',
                               description='Isi utk fix seed pose spawn acak '
                                           '(replay/debug); kosong = acak penuh tiap launch.'),
@@ -146,6 +154,14 @@ def generate_launch_description():
                               description='Kedalaman scan QR (m). Naikkan angka = '
                                           'lebih dalam = QR lebih besar tapi petak '
                                           'pandang menyempit.'),
+        DeclareLaunchArgument('wall_face_x', default_value='1.1',
+                              description='Muka dinding sisi X (wall C/D) dari pusat (m). '
+                                          '1.1 = kolam latihan 2,2x4,4 m (default). '
+                                          'Set 2.5 bila world:=kki_arena.sdf (5x5 m).'),
+        DeclareLaunchArgument('wall_face_y', default_value='2.2',
+                              description='Muka dinding sisi Y (wall A/B) dari pusat (m). '
+                                          '2.2 = kolam latihan 2,2x4,4 m (default). '
+                                          'Set 2.5 bila world:=kki_arena.sdf (5x5 m).'),
         DeclareLaunchArgument('cam_gripper_dx', default_value='0.16',
                               description='Jarak gripper di depan kamera bawah (m). '
                                           '0.0 = perilaku lama (tanpa koreksi).'),

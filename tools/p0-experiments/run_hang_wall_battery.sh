@@ -16,7 +16,14 @@ source "$REPO/install/setup.bash"
 run_one () {
     local tag=$1; shift
     echo "=== $tag: $* ==="
-    ros2 launch hydroships_bringup hydroships_mission.launch.py headless:=true "$@" \
+    # joy_trigger:=false: battery/headless run tak butuh joystick (lihat
+    # deskripsi arg di hydroships_mission.launch.py) -- default arg
+    # joy_trigger=true kalau tak di-override di sini akan spawn joy_node
+    # yg TAK match pattern pkill manapun di bawah, jadi bocor & menumpuk
+    # tiap run (26 proses zombie ketemu 2026-08-25, ~5% CPU masing2,
+    # kandidat kuat penyebab asli RTF-collapse yg didiagnosis 2026-08-24).
+    ros2 launch hydroships_bringup hydroships_mission.launch.py headless:=true \
+        joy_trigger:=false "$@" \
         > "$SP/$tag.log" 2>&1 &
     local launch=$!
     sleep 60
@@ -25,8 +32,9 @@ run_one () {
     pkill -9 -f "gz sim"
     pkill -9 -f "hydroships_control/lib"; pkill -9 -f "hydroships_gazebo/lib"
     pkill -9 -f "parameter_bridge"; pkill -9 -f "robot_state_publisher"
+    pkill -9 -f "joy_node"  # defense-in-depth kalau joy_trigger:=false gagal ke-pass
     sleep 10
-    echo "  torn down; gz=$(pgrep -cf 'gz sim')"
+    echo "  torn down; gz=$(pgrep -cf 'gz sim') joy=$(pgrep -cf 'joy_node')"
 }
 
 tags=()

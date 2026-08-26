@@ -44,6 +44,7 @@ setup(
             'attitude_estimator = hydroships_control.attitude_estimator:main',
             'odom_injector = hydroships_control.odom_injector:main',
             'camera_dropout_injector = hydroships_control.camera_dropout_injector:main',
+            'http_camera_bridge = hydroships_control.http_camera_bridge:main',
         ],
     },
 )
