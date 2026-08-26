@@ -29,6 +29,20 @@ PAYLOAD_SDF_TEMPLATE = '''<?xml version="1.0"?>
     <pose>{x} {y} {z} 1.5708 0 0</pose>
     <link name="payload_link">
       <inertial>
+        <!-- CoM di CENTROID VOLUME KOLISI, bukan di origin link.
+             Origin link ada di UJUNG plat (z=0), sedangkan volume kolisi
+             (= tempat plugin Buoyancy world menerapkan gaya apung) berpusat
+             di z~0.0594. Selisih itu bikin kopel gravitasi-vs-apung yang
+             MEMUTAR plat sampai sumbu z-nya tegak -- terukur 26 Agu: spawn
+             roll +90 (QR menghadap atas) jatuh ke roll 0 (QR menyamping)
+             dalam ~2 s. Dulu ditambal dgn DetachableJoint anchor ke
+             pool::floor; anchor itu justru men-DE-STATIC-kan lantai kolam
+             sehingga ROV menyeret lantai saat grab (terukur 0.30-0.38 m).
+             Dgn CoM & pusat apung segaris, plat diam stabil rebah di roll 90
+             tanpa anchor sama sekali.
+             Centroid tertimbang-volume dari body+slot_l+slot_r+bar:
+               V = 9.13e-5 m^3, x=0, y=0.0039, z=0.0594 -->
+        <pose>0 0.0039 0.0594 0 0 0</pose>
         <mass>0.3</mass>
         <inertia>
           <ixx>2.51e-4</ixx><iyy>3.13e-4</iyy><izz>6.34e-5</izz>
@@ -107,25 +121,15 @@ PAYLOAD_SDF_TEMPLATE = '''<?xml version="1.0"?>
         <angular>1.0</angular>
       </velocity_decay>
     </link>
-    <!-- ANCHOR sementara ke lantai (pool::floor, statis): payload non-static
-         goyah di orientasi spawn (roll 90 -> QR menghadap atas) & langsung
-         terguling balik ke identitas (QR menghadap SAMPING) dlm <0.3s begitu
-         fisika jalan (dikonfirmasi 26 Agu via TF isolasi -- BUKAN bug render/
-         CLI, murni ketidakstabilan collision hull di orientasi itu). gz-sim
-         Fortress SELALU attach DetachableJoint saat load (sama seperti anchor
-         gripper<->payload di hydroships.urdf.xacro) -- jadi payload TERKUNCI
-         KAKU di pose spawn (termasuk roll) sejak tick pertama, sebelum sempat
-         terguling. Dilepas oleh payload_spawner begitu gripper BENAR menjepit
-         (subscribe /hydroships/gripper/attach yg sama dipublish
-         gripper_controller._on_cmd) -- payload lalu bebas ikut gripper spt biasa. -->
-    <plugin filename="gz-sim-detachable-joint-system"
-            name="gz::sim::systems::DetachableJoint">
-      <parent_link>payload_link</parent_link>
-      <child_model>pool</child_model>
-      <child_link>floor</child_link>
-      <attach_topic>/hydroships/payload_anchor/attach</attach_topic>
-      <detach_topic>/hydroships/payload_anchor/detach</detach_topic>
-    </plugin>
+    <!-- TIDAK ADA anchor ke pool::floor lagi (dihapus 26 Agu).
+         Dulu ada DetachableJoint payload_link<->pool::floor utk menahan plat
+         supaya tak terguling dari roll 90. Akar masalahnya ternyata CoM link
+         yang tak segaris dgn pusat volume apung (lihat <inertial> di atas);
+         setelah CoM diperbaiki plat diam sendiri, anchor tak perlu.
+         Anchor itu WAJIB tetap hilang: child_model=pool membuat gz-sim
+         men-de-static-kan LANTAI KOLAM, sehingga ROV menyeret/menggeser
+         lantai saat menabrak & meng-grab (terukur 0.30-0.38 m, dilaporkan
+         terlihat jelas di GUI). Jangan dihidupkan lagi. -->
   </model>
 </sdf>
 '''
@@ -158,14 +162,7 @@ class PayloadSpawner(Node):
         # bawaan gz SETELAH ini (urutan benar). Latched agar tak hilang bila terbit
         # sebelum subscriber terhubung.
         self.pub_spawned = self.create_publisher(Empty, '/hydroships/payload/spawned', qos)
-        # Lepas anchor payload<->lantai (lihat catatan di PAYLOAD_SDF_TEMPLATE)
-        # begitu gripper BENAR menjepit -- subscribe topic attach yg SAMA
-        # dipublish gripper_controller (bukan status ack, supaya lepas anchor
-        # & attach gripper terjadi nyaris serentak, bukan gripper attach dulu
-        # baru anchor lepas belakangan -- hindari sesaat kedua joint aktif).
-        self.pub_anchor_detach = self.create_publisher(Empty, '/hydroships/payload_anchor/detach', 10)
-        self.create_subscription(Empty, '/hydroships/gripper/attach',
-                                 lambda _msg: self.pub_anchor_detach.publish(Empty()), 10)
+        # (anchor payload<->lantai sudah dihapus -- lihat PAYLOAD_SDF_TEMPLATE)
         self._spawn_delay = float(self.get_parameter('spawn_delay').value)
         self._t0 = self._now()
         self._spawned_initial = False
