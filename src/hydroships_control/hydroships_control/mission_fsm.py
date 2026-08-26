@@ -641,11 +641,18 @@ class MissionFSM(Node):
         dist = math.hypot(ex, ey)
         # Taper gaya maks saat mendekati target (slow-down radius) -> cegah slam.
         slow_radius = 1.0  # m, mulai perlambat dalam radius ini
-        # Floor gaya 0.12 x fmax (bukan 0.05): di jarak dekat gaya 0.05xfmax
-        # (~1 N) terlalu kecil utk menyelesaikan sisa error — ROV mandek
-        # beberapa cm dari target (terlihat di HANG: dist macet 0.036).
+        # Floor gaya 0.18 x fmax (dulu 0.12, sebelumnya 0.05): di jarak dekat
+        # gaya yg terlalu kecil tak cukup menuntaskan sisa error — ROV mandek
+        # sebelum tolerance tercapai (0.05->0.12 fix lama: macet di 0.036;
+        # 27 Agu: masih macet 0.065/l_err 14.6mm dgn 0.12, beda axis/run beda
+        # magnitude -- pola PRESISI STEADY-STATE, bukan bug geometri
+        # deterministik, kemungkinan besar terkait asimetri sway riil yg
+        # sudah terdokumentasi [[sway-drift-roll-coupling]] (7,1:1, diduga
+        # ballast fisik). DUGAAN, BELUM divalidasi kolam nyata -- kalau masih
+        # macet di kolam fisik, ini BUKAN yang harus dinaikkan lagi (root cause
+        # kemungkinan ballast, bukan gain), lihat memory-nya dulu.
         if dist < slow_radius:
-            frac = max(0.12, dist / slow_radius)
+            frac = max(0.18, dist / slow_radius)
             fm = fm * frac
         yaw = self.yaw if yaw_ref is None else yaw_ref
         c, s = math.cos(yaw), math.sin(yaw)
