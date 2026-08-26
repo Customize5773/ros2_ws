@@ -213,9 +213,9 @@ ROV (gabungkan dengan `headless` + `qr_letter` + `payload_*` bila inginkan
 run penuh yang deterministis). Kosong (default) = acak penuh tiap launch.
 
 ```bash
-  # Run reproducibel penuh: headless + seed 1001 + QR 'A' + pose (0.4, 0.04)
-  ros2 launch hydroships_bringup hydroships_mission.launch.py \
-      headless:=true spawn_seed:=1001 qr_letter:=A payload_x:=0.4 payload_y:=0.04
+# Run reproducibel penuh: headless + seed 1001 + QR 'A' + pose (0.4, 0.04)
+ros2 launch hydroships_bringup hydroships_mission.launch.py \
+    headless:=true spawn_seed:=1001 qr_letter:=A payload_x:=0.4 payload_y:=0.04
 ```
 
 Eksperimen 3-seed pakai seed 1001/1002/1003 supaya hasil bisa direproduksi
@@ -223,15 +223,15 @@ persis tiap run (covariance/RNG di `sim.launch.py` & `_spawn_rng`). Untuk replay
 debug tunggal cukup set `spawn_seed` saja:
 
 ```bash
-  ros2 launch hydroships_bringup hydroships_mission.launch.py spawn_seed:=1001
+ros2 launch hydroships_bringup hydroships_mission.launch.py spawn_seed:=1001
 ```
 
 Untuk spawn manual pada posisi tetap (mis. dekat wall B untuk uji NAV_WALL):
 
 ```bash
-  ros2 launch hydroships_bringup hydroships_mission.launch.py \
-      start_state:=NAV_WALL start_wall:=B \
-      rov_random_spawn:=false rov_x:=0.0 rov_y:=1.5 rov_z:=-0.5
+ros2 launch hydroships_bringup hydroships_mission.launch.py \
+    start_state:=NAV_WALL start_wall:=B \
+    rov_random_spawn:=false rov_x:=0.0 rov_y:=1.5 rov_z:=-0.5
 ```
 
 ### 3H. MID-MISSION START dengan TUNING APPROACH_HOOK
@@ -240,9 +240,9 @@ FSM bisa dimulai dari state tengah untuk isolasi testing. Contoh: mulai
 langsung di APPROACH_HOOK dengan tuning parameter visual servo:
 
 ```bash
-  ros2 launch hydroships_bringup hydroships_mission.launch.py \
-      start_state:=APPROACH_HOOK \
-      hook_size_stop:=0.40 hook_center_tol:=0.10 hook_max_age:=2.0 t_approach:=30.0
+ros2 launch hydroships_bringup hydroships_mission.launch.py \
+    start_state:=APPROACH_HOOK \
+    hook_size_stop:=0.40 hook_center_tol:=0.10 hook_max_age:=2.0 t_approach:=30.0
 ```
 
 State lain yang bisa di-start: DIVE, APPROACH_QR, GRAB, NAV_WALL, HANG,
@@ -258,21 +258,21 @@ joystick (default **A** / index 0 pada XInput/F310) mempublish pesan itu
 via node `joy_mission_trigger`:
 
 ```bash
-  # default: tombol A (index 0)
-  ros2 launch hydroships_bringup hydroships_mission.launch.py
+# default: tombol A (index 0)
+ros2 launch hydroships_bringup hydroships_mission.launch.py
 
-  # ganti tombol, mis. B (index 1)
-  ros2 launch hydroships_bringup hydroships_mission.launch.py joy_button_index:=1
+# ganti tombol, mis. B (index 1)
+ros2 launch hydroships_bringup hydroships_mission.launch.py joy_button_index:=1
 
-  # nonaktifkan (run battery/headless tanpa joystick)
-  ros2 launch hydroships_bringup hydroships_mission.launch.py joy_trigger:=false
+# nonaktifkan (run battery/headless tanpa joystick)
+ros2 launch hydroships_bringup hydroships_mission.launch.py joy_trigger:=false
 ```
 
 Tanpa joystick, `WAIT_TRIGGER` timeout setelah `t_wait_trigger` (default
 600 s) → ABORT. Cara manual tetap tersedia:
 
 ```bash
-  ros2 topic pub -1 /hydroships/mission/start_autonomous std_msgs/msg/Empty "{}"
+ros2 topic pub -1 /hydroships/mission/start_autonomous std_msgs/msg/Empty "{}"
 ```
 
 ### 3J. BATCH REPRODUCIBLE RUN (3-SEED)
@@ -283,12 +283,12 @@ simpan semua output ke satu file log. Contoh: setiap seed pakai
 QR 'A' dan payload pada (0.4, 0.04):
 
 ```bash
-  for seed in 1001 1002 1003; do
-    echo "=== Menjalankan Seed: $seed ==="
-    ros2 launch hydroships_bringup hydroships_mission.launch.py \
-      headless:=true spawn_seed:=$seed qr_letter:=A \
-      start_state:=AUTO_RELEASE 2>&1
-  done | tee -a semua_output.log
+for seed in 1001 1002 1003; do
+  echo "=== Menjalankan Seed: $seed ==="
+  ros2 launch hydroships_bringup hydroships_mission.launch.py \
+    headless:=true spawn_seed:=$seed qr_letter:=A \
+    start_state:=AUTO_RELEASE 2>&1
+done | tee -a semua_output.log
 ```
 
 Karena `spawn_seed` diteruskan ke `_spawn_rng` (sim.launch.py:38) + RNG payload
@@ -323,13 +323,13 @@ Contoh gabungan:
 
 ```bash
   # Run reproducibel penuh (headless + seed + QR + payload):
-  ros2 launch hydroships_bringup hydroships_mission.launch.py \
-      headless:=true spawn_seed:=1001 qr_letter:=A payload_x:=0.4 payload_y:=0.04
+ros2 launch hydroships_bringup hydroships_mission.launch.py \
+    headless:=true spawn_seed:=1001 qr_letter:=A payload_x:=0.4 payload_y:=0.04
   # Uji di arena lomba 5x5 m (bukan kolam latihan default) - rov_arena_half
   # WAJIB ikut diganti, kalau tidak ROV random-spawn dgn radius kolam kecil
   # di dalam arena besar (bukan crash, tapi tak representatif):
-  ros2 launch hydroships_bringup hydroships_mission.launch.py headless:=true \
-      world:=kki_arena.sdf rov_arena_half:=2.55
+ros2 launch hydroships_bringup hydroships_mission.launch.py headless:=true \
+    world:=kki_arena.sdf rov_arena_half:=2.55
 ```
 
 --------------------------------------------------------------------------------
@@ -339,34 +339,34 @@ Contoh gabungan:
 Lihat daftar & data topik:
 
 ```bash
-  ros2 topic list
-  ros2 topic echo /hydroships/odom          # pose & twist ROV
-  ros2 topic echo /hydroships/depth          # kedalaman (m, >=0)
-  ros2 topic echo /hydroships/payload_pose   # posisi spawn payload QR (dari payload_spawner)
-  ros2 topic echo /hydroships/qr_result      # huruf QR terbaca kamera (A/B/C/D)
+ros2 topic list
+ros2 topic echo /hydroships/odom          # pose & twist ROV
+ros2 topic echo /hydroships/depth          # kedalaman (m, >=0)
+ros2 topic echo /hydroships/payload_pose   # posisi spawn payload QR (dari payload_spawner)
+ros2 topic echo /hydroships/qr_result      # huruf QR terbaca kamera (A/B/C/D)
 ```
 
 Kendali langsung (saat mode 3B/3C berjalan):
 
 ```bash
-  # target kedalaman (negatif = menyelam)
-  ros2 topic pub -1 /hydroships/setpoint/depth std_msgs/msg/Float64 "{data: -0.6}"
-  # target heading (rad)
-  ros2 topic pub -1 /hydroships/setpoint/heading std_msgs/msg/Float64 "{data: 1.57}"
-  # gaya horizontal manual (Fx maju, Fy samping) — Newton, body-frame
-  ros2 topic pub -1 /hydroships/manual/cmd geometry_msgs/msg/Twist "{linear: {x: 15.0, y: 0.0}}"
+# target kedalaman (negatif = menyelam)
+ros2 topic pub -1 /hydroships/setpoint/depth std_msgs/msg/Float64 "{data: -0.6}"
+# target heading (rad)
+ros2 topic pub -1 /hydroships/setpoint/heading std_msgs/msg/Float64 "{data: 1.57}"
+# gaya horizontal manual (Fx maju, Fy samping) — Newton, body-frame
+ros2 topic pub -1 /hydroships/manual/cmd geometry_msgs/msg/Twist "{linear: {x: 15.0, y: 0.0}}"
 ```
 
 Suntik hasil QR manual (bila QR belum terbaca visual — lihat PROBLEM.md):
 
 ```bash
-  ros2 topic pub -1 /hydroships/qr_result std_msgs/msg/String "{data: 'A'}"
+ros2 topic pub -1 /hydroships/qr_result std_msgs/msg/String "{data: 'A'}"
 ```
 
 Uji thruster langsung (mode 3A, gaya N per thruster):
 
 ```bash
-  ros2 topic pub -1 /hydroships/thruster_3/thrust std_msgs/msg/Float64 "{data: 20.0}"
+ros2 topic pub -1 /hydroships/thruster_3/thrust std_msgs/msg/Float64 "{data: 20.0}"
 ```
 
 --------------------------------------------------------------------------------
@@ -378,7 +378,7 @@ Setelah perbaikan geometri thruster (yaw pulih, lihat PROBLEM.md), cek di sim:
 a) YAW berputar benar:
 
 ```bash
-  ros2 topic pub -1 /hydroships/setpoint/heading std_msgs/msg/Float64 "{data: 1.57}"
+ros2 topic pub -1 /hydroships/setpoint/heading std_msgs/msg/Float64 "{data: 1.57}"
 ```
 
 -> ROV berputar ke ~90°. Pantau yaw via: `ros2 topic echo /hydroships/odom`
@@ -386,7 +386,7 @@ a) YAW berputar benar:
 b) TANDA sway benar:
 
 ```bash
-  ros2 topic pub -1 /hydroships/manual/cmd geometry_msgs/msg/Twist "{linear: {y: 15.0}}"
+ros2 topic pub -1 /hydroships/manual/cmd geometry_msgs/msg/Twist "{linear: {y: 15.0}}"
 ```
 
 -> ROV geser ke KIRI (y+). Bila terbalik: flip axis T200-B (+y -> -y) di URDF
@@ -395,7 +395,7 @@ b) TANDA sway benar:
 c) DEPTH/DIVE normal:
 
 ```bash
-  ros2 topic pub -1 /hydroships/setpoint/depth std_msgs/msg/Float64 "{data: -0.7}"
+ros2 topic pub -1 /hydroships/setpoint/depth std_msgs/msg/Float64 "{data: -0.7}"
 ```
 
 -> ROV menyelam & menahan kedalaman.
@@ -410,8 +410,8 @@ e) GRIPPER BODY (mode 3A/3C): verifikasi body gripper terlihat di Gazebo
 f) GRIPPER MECHANISME (mode 3C): selama misi, di state GRAB periksa:
 
 ```bash
-  ros2 topic echo /hydroships/gripper/attach
-  ros2 topic echo /hydroships/gripper/detach
+ros2 topic echo /hydroships/gripper/attach
+ros2 topic echo /hydroships/gripper/detach
 ```
 
    Payload harus ter-attach saat ROV di atasnya, dan ter-detach saat AUTO_RELEASE.
@@ -419,8 +419,8 @@ f) GRIPPER MECHANISME (mode 3C): selama misi, di state GRAB periksa:
    topik ini harus menerbitkan nilai IDENTIK (0.35 = buka, 0.0 = tutup):
 
 ```bash
-  ros2 topic echo /hydroships/gripper_left/cmd
-  ros2 topic echo /hydroships/gripper_right/cmd
+ros2 topic echo /hydroships/gripper_left/cmd
+ros2 topic echo /hydroships/gripper_right/cmd
 ```
 
 --------------------------------------------------------------------------------
@@ -434,8 +434,8 @@ f) GRIPPER MECHANISME (mode 3C): selama misi, di state GRAB periksa:
   Ada proses sim/node lama yang masih hidup. Matikan semuanya lalu ulang:
 
   ```bash
-    pkill -f 'gz sim'; pkill -f parameter_bridge; pkill -f robot_state_publisher
-    pkill -f mission_fsm; pkill -f stabilizer; pkill -f thruster_allocator
+  pkill -f 'gz sim'; pkill -f parameter_bridge; pkill -f robot_state_publisher
+  pkill -f mission_fsm; pkill -f stabilizer; pkill -f thruster_allocator
   ```
 
   (Selalu pastikan bersih sebelum run baru — lihat catatan PROBLEM.md.)
@@ -475,9 +475,9 @@ f) GRIPPER MECHANISME (mode 3C): selama misi, di state GRAB periksa:
 ## 8. MENJALANKAN UNIT TEST (opsional, tanpa Gazebo)
 
 ```bash
-  cd ~/ros2_ws
-  colcon test --packages-select hydroships_control
-  colcon test-result --verbose
+cd ~/ros2_ws
+colcon test --packages-select hydroships_control
+colcon test-result --verbose
 ```
 
 --------------------------------------------------------------------------------
@@ -487,9 +487,9 @@ f) GRIPPER MECHANISME (mode 3C): selama misi, di state GRAB periksa:
 Prasyarat di setiap terminal:
 
 ```bash
-  cd ~/ros2_ws
-  source /opt/ros/humble/setup.bash
-  source install/setup.bash
+cd ~/ros2_ws
+source /opt/ros/humble/setup.bash
+source install/setup.bash
 ```
 
 ```text
