@@ -64,7 +64,10 @@ class GripperController(Node):
         p('qr_floor_z', -0.794)       # m, ketinggian bidang QR di dunia (kolam
                                        # latihan default -0.80; -0.894 utk kki_arena.sdf)
         p('cam_bottom_dz', 0.18)      # m, kamera bawah di bawah base_link
-        p('cam_vfov_half_tan', 0.6293)
+        # tan(setengah-FOV vertikal). hFOV 70° @ 4:3 -> atan(0.75*tan35°) = 27.7°.
+        # HARUS sama dgn mission_fsm.py (kamera direkalibrasi 26 Agu; konstanta
+        # ini basi 0.6293/80deg sampai 27 Agu di kedua file).
+        p('cam_vfov_half_tan', 0.5252)
         p('ey_target_max', 0.8)
         p('jaw_open', 0.35)         # sudut jari terbuka (rad; <= upper limit URDF 0.5)
         p('jaw_close', 0.0)         # sudut jari menutup (rad)

@@ -243,9 +243,22 @@ class MissionFSM(Node):
         p('hook_center_tol', 0.15)   # |ex|,|ey| dianggap "terpusat"
         p('hook_fmax', 16.0)         # N batas gaya servo hook
         p('hook_depth_range', 0.20)  # m batas koreksi depth dari hook_depth
-        # APPROACH_QR: batas waktu navigasi XY sebelum RECOVERY (naikkan depth
-        # utk perlebar FOV kamera bawah). Bukan abort — abort tetap di t_scan.
-        p('t_nav_qr', 30.0)
+        # APPROACH_QR: batas waktu navigasi XY sebelum RECOVERY (perlebar FOV
+        # kamera bawah). Bukan abort — abort tetap di t_scan (45s default).
+        # 8s (bukan 30s lama): XY dead-reckon biasanya konvergen ~10s: dgn
+        # 30s, fallback "wall tak ter-decode" via dist<approach_tol keburu
+        # lolos SEBELUM recovery sempat dicoba sama sekali (converged_now kini
+        # menunggu _approach_recovered utk jalur non-visual) -- 8s memberi
+        # recovery ~37s sisa dari t_scan utk mencoba FOV lebih lebar.
+        p('t_nav_qr', 8.0)
+        # Grace-settle SETELAH recovery dipicu, sebelum fallback jarak-XY boleh
+        # lolos: tanpa ini, dist<approach_tol yg SUDAH terpenuhi dari awal
+        # (dead-reckon lama konvergen) langsung lolos di TICK YANG SAMA
+        # _approach_recovered baru jadi True -- ROV belum sempat naik ke depth
+        # baru & kamera belum sempat dapat frame segar (terukur 27 Agu: log
+        # "recovery" dan "wall dipilih" di timestamp identik). 3s longgar utk
+        # ROV naik ~0.10 m + 1-2 frame kamera baru (~15 Hz).
+        p('recovery_settle_s', 3.0)
         # Visual servo (pusatkan QR di frame kamera bawah sebelum GRAB).
         p('qr_center_tol', 0.12)     # |ex|,|ey| ternormalisasi dianggap "di tengah"
         p('qr_servo_gain', 0.15)     # m geser target per satuan offset ternormalisasi
@@ -291,10 +304,20 @@ class MissionFSM(Node):
         # GRIPPER yang berada tepat di atas QR.
         p('cam_gripper_dx', 0.16)    # m, jarak gripper di depan kamera bawah (x body)
         p('gripper_base_dx', 0.18)   # m, gripper_base.x vs base_link (utk fallback XY)
-        p('qr_floor_z', -0.90)       # m, tinggi bidang QR di dunia (payload_spawner.py)
+        # -0.794 = lantai kolam latihan default -0.80 (pool_practice_arena.sdf)
+        # + 6mm ketebalan plat (payload_spawner.py payload_z=-0.80). -0.894 utk
+        # world:=kki_arena.sdf (lantai -0.90). Param TERPISAH dari
+        # gripper_controller.py punya sendiri -- HARUS disamakan manual, tak ada
+        # sumber tunggal (ditemukan basi 27 Agu: masih -0.90 stlh floor naik
+        # 0.10m sejak 26 Agu, bikin ey_target salah -> APPROACH_QR tak pernah
+        # centered walau QR sudah kebaca & posisi XY presisi).
+        p('qr_floor_z', -0.794)      # m, tinggi bidang QR di dunia (payload_spawner.py)
         p('cam_bottom_dz', 0.18)     # m, kamera bawah di bawah base_link
-        # tan(setengah-FOV vertikal). hFOV 80° @ 4:3 -> atan(0.75*tan40°) = 32.2°.
-        p('cam_vfov_half_tan', 0.6293)
+        # tan(setengah-FOV vertikal). hFOV 70° @ 4:3 -> atan(0.75*tan35°) = 27.7°.
+        # (BUKAN 80°/32.2° lagi -- kamera direkalibrasi 26 Agu, fx sim 381->457,
+        # horizontal_fov 1.3962634->1.2217 di hydroships.urdf.xacro; konstanta
+        # turunan ini basi sampai 27 Agu, sama dampaknya dgn qr_floor_z di atas.)
+        p('cam_vfov_half_tan', 0.5252)
         # Batas |ey_target| supaya QR tetap di dalam frame (1.0 = tepat di tepi).
         p('ey_target_max', 0.8)
         # APPROACH_HOOK ey_target (M6): hook di dinding, kamera depan di haluan
@@ -353,6 +376,7 @@ class MissionFSM(Node):
         self.hold_settle_s = float(g('hold_settle_s'))
         self.release_max_retries = int(g('release_max_retries'))
         self.t_nav_qr = float(g('t_nav_qr'))
+        self.recovery_settle_s = float(g('recovery_settle_s'))
         self.qr_center_tol = float(g('qr_center_tol'))
         self.qr_servo_gain = float(g('qr_servo_gain'))
         self.qr_servo_sign = float(g('qr_servo_sign'))
@@ -468,6 +492,7 @@ class MissionFSM(Node):
         self._qr_ey_filt = None   # P0-2.5 Kandidat #2: EMA qr_ey, direset tiap entry APPROACH_QR
         self._warned_no_odom = False
         self._approach_recovered = False   # RECOVERY depth-ascent sudah dipicu?
+        self._recovery_started_at = None   # kapan recovery dipicu (grace-settle)
         self._wall_scored = False          # skor m1 sudah diberi (cegah spam log)
         self._converge_ticks = 0  # P0-2.5 Kandidat #4: dwell tick counter, direset tiap entry APPROACH_QR
         self._descend_depth_ok_since = None  # R-11 Opsi 2: timer re-centering visual di DESCEND
@@ -543,6 +568,7 @@ class MissionFSM(Node):
             # tanpa reset, payload ke-2 dst langsung dianggap sudah ber-wall.
             self._wall_scored = False
             self._approach_recovered = False
+            self._recovery_started_at = None
             self._converge_ticks = 0  # P0-2.5 Kandidat #4: reset dwell counter juga
             # P0-2.5 Kandidat #2: reset filter EMA juga -- tanpa ini, payload
             # ke-2 dst mewarisi nilai filter dari target LAMA (posisi QR
@@ -881,13 +907,22 @@ class MissionFSM(Node):
         depth_target = self.scan_depth
         qr_seen = self.qr_wall is not None and (self._now() - self.qr_time) < self.qr_max_age
 
-        # RECOVERY: navigasi kelamaan tanpa QR terbaca -> naikkan sedikit supaya
-        # FOV kamera bawah melebar (QR 12cm gampang MEMENUHI frame saat terlalu
-        # rendah, finder pattern ter-crop -> decode gagal). Abort tetap di t_scan.
+        # RECOVERY: navigasi kelamaan tanpa QR terbaca -> NAIK (depth number
+        # LEBIH KECIL, lebih dangkal) supaya FOV kamera bawah melebar (jarak
+        # kamera->lantai membesar -> sudut pandang mencakup area lebih luas,
+        # QR jadi lebih kecil di frame tapi POSISI TOLERANCE-nya lebih besar).
+        # BUG lama (s.d. 26 Agu): kode ini malah `+0.10` (turun/lebih dalam),
+        # kebalikan dari komentarnya sendiri -- itu MENYEMPITKAN FOV, bikin
+        # margin toleransi XY makin kecil (dihitung: half-width FOV turun dari
+        # 0.22 m ke 0.15 m di scan_depth 0.30->0.40), padahal offset kamera
+        # thd payload akibat gripper_base_dx (~0.18 m) sudah mepet batas FOV
+        # 0.22 m sejak awal. Recovery yg salah arah GARANSI tetap gagal.
+        # Abort tetap di t_scan (T['scan']).
         if not qr_seen and self._elapsed() > self.t_nav_qr:
-            depth_target = self.scan_depth + 0.10
+            depth_target = self.scan_depth - 0.10
             if not self._approach_recovered:
                 self._approach_recovered = True
+                self._recovery_started_at = self._now()
                 self.get_logger().warn(
                     'APPROACH_QR recovery: QR belum terbaca %.0fs -> depth %.2f m '
                     '(perlebar FOV kamera bawah)' % (self.t_nav_qr, depth_target))
@@ -982,7 +1017,16 @@ class MissionFSM(Node):
         centered = (off_fresh
                     and abs(self.qr_off[0]) < self.qr_center_tol
                     and abs(self.qr_off[1] - ey_target) < self.qr_center_tol)
-        converged_now = centered or dist < self.approach_tol
+        # "Konvergen via jarak XY" (dead-reckon, TANPA QR pernah terlihat) tak
+        # boleh langsung lolos: gripper_base_dx (~0.18 m) menaruh kamera nyaris
+        # di batas FOV normal (~0.22 m di scan_depth), jadi gripper SUDAH dekat
+        # payload TIDAK berarti QR ada di frame kamera. Tunggu recovery (FOV
+        # diperlebar) sempat dicoba dulu -- lihat blok RECOVERY di atas.
+        # `centered` (deteksi visual kontur NYATA) tetap lolos langsung, tak
+        # perlu menunggu apa pun.
+        recovery_settled = (self._approach_recovered and self._recovery_started_at is not None
+                           and (self._now() - self._recovery_started_at) >= self.recovery_settle_s)
+        converged_now = centered or (dist < self.approach_tol and recovery_settled)
 
         # P0-2.5 Kandidat #4: syarat dwell N-tick sebelum transisi GRAB
         # benar2 dipicu -- BUKAN transisi pada tick tunggal begitu kondisi
@@ -1094,7 +1138,7 @@ class MissionFSM(Node):
         # depth_ok saja sering memaksa GRAB saat offset QR masih besar/basi
         # (decode gagal 82-89%). Jika qr_off masih segar tapi belum terpusat,
         # beri waktu servo memperbaiki. Jika sudah stale (QR hilang, normal di
-        # grab_depth), lanjaykan GRAB — servo tidak bisa membantu pada data usang.
+        # grab_depth), lanjaykan GRAB — servo tidak bisa membantu pada data usang.seperti benda berat yang
         centered = (off_fresh
                     and abs(self.qr_off[0]) < self.qr_center_tol
                     and abs(self.qr_off[1] - ey_target) < self.qr_center_tol)

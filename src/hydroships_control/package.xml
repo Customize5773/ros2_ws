@@ -19,6 +19,10 @@
   <exec_depend>joy</exec_depend>
   <exec_depend>python3-numpy</exec_depend>
   <exec_depend>python3-opencv</exec_depend>
+  <!-- pyzbar (libzbar) fallback decoder di qr_logic.robust_decode, jauh
+       lebih toleran thd moire minifikasi tekstur QR di render Gazebo sim
+       drpd cv2.QRCodeDetector sendirian (lihat komentar _pyzbar_decode). -->
+  <exec_depend>python3-pyzbar</exec_depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
