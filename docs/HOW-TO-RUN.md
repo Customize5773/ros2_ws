@@ -523,7 +523,7 @@ source install/setup.bash
 ┌─ CONTOH D: GUI BRIDGE (skenario 3D) ────────────────────────────────────────┐
 │ TERMINAL 1:                                                                    │
 │   ros2 launch hydroships_bringup hydroships_gui.launch.py                      │
-│ TERMINAL 2: (laptop GUI, server.js harus sudah berjalan)                        │
+│ TERMINAL  2: (laptop GUI, server.js harus sudah berjalan)                        │
 │   # pastikan server.js mendengarkan port 14551                                 │
 └───────────────────────────────────────────────────────────────────────────────┘
 ```

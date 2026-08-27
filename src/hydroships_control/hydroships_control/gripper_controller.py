@@ -105,7 +105,11 @@ class GripperController(Node):
         self.pub_status = self.create_publisher(String, '/hydroships/gripper/status', 10)
         self.create_subscription(String, '/hydroships/gripper/command', self._on_cmd, 10)
         self.create_subscription(PointStamped, '/hydroships/qr_offset', self._on_offset, 10)
+        self.create_subscription(Float64, '/hydroships/depth', self._on_depth, 10)
         self.create_subscription(Odometry, '/hydroships/odom', self._on_odom, 10)
+        qos_payload = QoSProfile(depth=1, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL)
+        self.create_subscription(PointStamped, '/hydroships/payload_pose', self._on_payload_pose, qos_payload)
+        self._payload_pose = None  # (x, y, z) dari spawner, latched
         self._rov_pose = None  # (x, y, z, qx, qy, qz, qw)
         # local xyz gripper_base relatif base_link — harus sama dgn origin
         # gripper_base_joint di hydroships.urdf.xacro (0.18 0 -0.13).
@@ -211,6 +215,9 @@ class GripperController(Node):
         self.get_logger().info('gripper %s: %s [pemicu: %s]'
                                % (action['state'], action['reason'], trigger))
 
+    def _on_payload_pose(self, msg: PointStamped):
+        self._payload_pose = (msg.point.x, msg.point.y, msg.point.z)
+
     def _on_odom(self, msg: Odometry):
         p = msg.pose.pose.position
         q = msg.pose.pose.orientation
@@ -299,6 +306,23 @@ class GripperController(Node):
         if action is None:
             self.get_logger().warn('perintah gripper tak dikenal: %r' % msg.data)
             return
+        # Gate jarak fisik tambahan: cegah attach teleport jauh bila payload bukan di bawah gripper.
+        # Mission mungkin kirim close saat DESCEND stale -> latch 8s masih aktif padahal ROV sudah geser.
+        # Hitung jarak gripper_base (world) ke payload_pose (spawner) langsung.
+        if action.get('joint') == 'attach' and self._payload_pose is not None and self._rov_pose is not None:
+            px, py, _pz = self._payload_pose
+            x, y, z, qx, qy, qz, qw = self._rov_pose
+            ox, oy, oz = self._gripper_offset
+            ww, xx, yy, zz = qw*qw, qx*qx, qy*qy, qz*qz
+            wx, wy, wz = qw*qx, qw*qy, qw*qz
+            xy, xz, yz = qx*qy, qx*qz, qy*qz
+            gx = x + (ww+xx-yy-zz)*ox + 2*(xy-wz)*oy + 2*(xz+wy)*oz
+            gy = y + 2*(xy+wz)*ox + (ww-xx+yy-zz)*oy + 2*(yz-wx)*oz
+            dist_xy = math.hypot(px - gx, py - gy)
+            if dist_xy > 0.18:
+                self.get_logger().warn('GATEDBG close: payload jauh %.3fm (gripper %.2f,%.2f vs payload %.2f,%.2f) -> tolak attach' % (dist_xy, gx, gy, px, py))
+                action = {'jaw': self.logic.jaw_close, 'joint': None, 'state': 'closed', 'reason': 'tutup TAPI payload di luar jangkauan XY %.3fm -> tak attach' % dist_xy}
+                self.logic.jaw_target = self.logic.jaw_close
         self._apply_jaw()
         if action['joint'] == 'attach':
             # DetachableJoint mengunci payload di pose relatif SAAT attach —

@@ -203,12 +203,19 @@ class PayloadSpawner(Node):
         """Hapus model 'payload' lama dari dunia (kalau masih ada) via service
         /world/kki_arena/remove. Gagal/tak ada -> non-fatal."""
         try:
-            subprocess.run(
-                ['ign', 'service', '-s', '/world/kki_arena/remove',
-                 '--reqtype', 'ignition.msgs.Entity',
-                 '--reptype', 'ignition.msgs.Boolean',
-                 '--timeout', '5000', '--req', 'name: "payload" type: MODEL'],
-                capture_output=True, text=True, timeout=10.0)
+            for cmd in (['gz', 'service', '-s', '/world/kki_arena/remove',
+                         '--reqtype', 'gz.msgs.Entity',
+                         '--reptype', 'gz.msgs.Boolean',
+                         '--timeout', '5000', '--req', 'name: "payload" type: MODEL'],
+                        ['ign', 'service', '-s', '/world/kki_arena/remove',
+                         '--reqtype', 'ignition.msgs.Entity',
+                         '--reptype', 'ignition.msgs.Boolean',
+                         '--timeout', '5000', '--req', 'name: "payload" type: MODEL']):
+                try:
+                    subprocess.run(cmd, capture_output=True, text=True, timeout=10.0)
+                    break
+                except FileNotFoundError:
+                    continue
             self.get_logger().info('Payload lama dihapus dari dunia')
         except Exception as e:  # noqa: BLE001
             self.get_logger().warn('remove payload lama gagal (non-fatal): %s' % e)
@@ -239,20 +246,16 @@ class PayloadSpawner(Node):
         self._publish_pose()
 
         self._spawn_seq += 1
-        sdf = PAYLOAD_SDF_TEMPLATE.format(x=x, y=y, z=z, letter=letter,
-                                          vsuf=self._spawn_seq)
-        tmp = None
+        sdf = PAYLOAD_SDF_TEMPLATE.format(x=x, y=y, z=z, letter=letter, vsuf=self._spawn_seq)
         spawned_ok = False
         try:
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.sdf', delete=False) as f:
-                f.write(sdf)
-                tmp = f.name
-            # Roll 1.5708 (=pose SDF) agar QR menghadap ATAS (dibaca kamera bawah).
-            # -x/-y/-z CLI meng-override translasi pose; -R pastikan orientasi benar.
+            # Pose sudah di SDF ({x} {y} {z} 1.5708), jadi tidak pakai -x/-y/-z/-R CLI
+            # yang memicu [UserCommands.cc:1465] Unable to update pose id:0.
+            # Kirim via -string agar tidak race /tmp yang memicu parser.cc.
             cmd = [
                 'ros2', 'run', 'ros_gz_sim', 'create',
-                '-file', tmp, '-name', 'payload',
-                '-x', str(x), '-y', str(y), '-z', str(z), '-R', '1.5708',
+                '-world', 'kki_arena',
+                '-string', sdf, '-name', 'payload',
             ]
             self.get_logger().info(
                 'Spawn payload QR=%s pos=(%.2f, %.2f, %.2f)' % (letter, x, y, z))
@@ -265,9 +268,6 @@ class PayloadSpawner(Node):
                 self.get_logger().info('Payload QR=%s spawned OK' % letter)
         except Exception as e:  # noqa: BLE001 — jangan matikan node bila spawn gagal
             self.get_logger().warn('spawn exception (FSM pakai default): %s' % e)
-        finally:
-            if tmp and os.path.exists(tmp):
-                os.unlink(tmp)
 
         # Beritahu gripper_controller HANYA bila model benar-benar muncul, agar
         # detach terjadi setelah payload ada (bukan sebelum). Bila create gagal,
