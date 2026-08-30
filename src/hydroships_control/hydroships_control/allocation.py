@@ -20,17 +20,17 @@ import numpy as np
 # Peran (axis) — T100-B kini dilabeli T200-B tapi TETAP thruster sway horizontal:
 THRUSTERS = [
     # thruster_1 = T200-E (vertikal, kanan)      CSV(123.4, 27.5, 14.2)
-    (np.array([-0.0275, -0.1234, 0.0142]),  np.array([0.0, 0.0, 1.0])),
+    (np.array([-0.130, -0.1234, 0.080]),  np.array([0.0, 0.0, 1.0])),
     # thruster_2 = T200-F (vertikal, kiri)       CSV(-122.8, 29.0, 14.8)
-    (np.array([-0.0290, 0.1228, 0.0148]),   np.array([0.0, 0.0, 1.0])),
+    (np.array([0.120, 0.1234, 0.080]),   np.array([0.0, 0.0, 1.0])),
     # thruster_3 = T100-C (surge, depan-kanan)   CSV(137.1, -129.8, 33.6)
-    (np.array([0.1298, -0.1371, 0.0336]),   np.array([1.0, 0.0, 0.0])),
+    (np.array([-0.0275, -0.1234, 0.0142]),   np.array([1.0, 0.0, 0.0])),
     # thruster_4 = T100-A (surge, depan-kiri)    CSV(-137.1, -129.6, 37.4)
-    (np.array([0.1296, 0.1371, 0.0374]),    np.array([1.0, 0.0, 0.0])),
+    (np.array([-0.0290, 0.1228, 0.0148]),    np.array([1.0, 0.0, 0.0])),
     # thruster_5 = T200-B (sway, tengah-bawah)   CSV(0.3, 45.5, -99.4)
     (np.array([-0.0455, -0.0003, -0.0994]), np.array([0.0, 1.0, 0.0])),
     # thruster_6 = T100-D (vertikal, belakang)   CSV(-0.3, 136.4, 40.3)
-    (np.array([-0.1364, 0.0003, 0.0403]),   np.array([0.0, 0.0, 1.0])),
+    (np.array([0.115, 0.0003, 0.080]),   np.array([0.0, 0.0, 1.0])),
 ]
 
 # Batas gaya per thruster (N) - konsisten dengan max/min_thrust_cmd di URDF.

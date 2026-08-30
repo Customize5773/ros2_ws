@@ -69,60 +69,32 @@
                iyy="${iyy}" iyz="${iyz}"
                izz="${izz}"/>
     </inertial>
-    <!-- Visual: model SEDERHANA dari primitif (BUKAN mesh berat lagi).
-         Sebelumnya pakai meshes/rov.stl (12 MB, ~237k segitiga hasil konversi FBX)
-         yang bentuknya acak-acak & bikin rate kamera turun ~22→10 Hz (lihat PROBLEM.md).
-         Diganti susunan box/cylinder ringan bergaya BlueROV Heavy:
-           - rangka kotak HITAM (bagian bawah)
-           - busa apung ORANYE (bagian atas)
-           - tabung elektronik abu-abu + dome kamera depan (penanda haluan +X)
-         Total tetap mengisi bbox desain 0.345 x 0.345 x 0.286 m; bow = +X (arah surge).
-         Collision TETAP kotak (untuk fisika/buoyancy) — tak diubah. -->
+    <!-- Visual: ROV KKI 2026 — Langkah 1: Ganti primitif box/cylinder ke mesh STL.
+         File mesh ditaruh di meshes/base_link.stl (dari CAD, satuan mm -> scale 0.001).
+         Sebelumnya primitif dipakai karena mesh FBX 12 MB bikin FPS drop 22->10 Hz;
+         mesh KKI ini ~90 KB (binary STL) jauh lebih ringan. Untuk full assembly
+         (282 part) nanti digabung ke 1 mesh atau folder meshes/rov_kki/ tanpa spasi.
+         Contoh ganti visual mesh:
+           <mesh filename="package://hydroships_description/meshes/file_baru.stl" scale="0.001 0.001 0.001"/>
+         Collision TETAP kotak (buoyancy) — jangan pakai mesh untuk collision. -->
 
-    <!-- Rangka utama (hitam) — bagian bawah badan. -->
+    <!-- Body utama ROV KKI — Opsi B FIX: Single merged hull (hull_visual.stl, 5.5MB, 57k verts)
+         Dibuat dari 12 part (side_frame, ballast, kaki, etc) di-merge & di-center ke (0,0,0)
+         via trimesh: Fusion X->ROS Y, Fusion Y->ROS X, scale 0.001, avg center subtracted.
+         Scale 1 1 1 karena sudah dalam meter. Outlier flange/main_enclosure dibuang (CAD tidak assemble).
+         Enclosure tube utama tetap pakai primitive cylinder di bawah hull (fallback) biar tidak bolong. -->
     <visual>
-      <origin xyz="0 0 -0.0465" rpy="0 0 0"/>
-      <geometry>
-        <box size="0.345 0.345 0.193"/>
-      </geometry>
-      <material name="hydro_frame_black">
-        <color rgba="0.10 0.10 0.11 1.0"/>
-      </material>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="package://hydroships_description/meshes/rov_kki/hull_visual.stl" scale="1 1 1"/></geometry>
+      <material name="hydro_frame_black"><color rgba="0.10 0.10 0.11 1.0"/></material>
     </visual>
-
-    <!-- Busa apung (oranye) — blok di atas, sedikit inset dari rangka. -->
+    <!-- Enclosure tube fallback (primitive) - biar tidak bolong setelah main_enclosure dibuang -->
     <visual>
-      <origin xyz="0 0 0.0965" rpy="0 0 0"/>
-      <geometry>
-        <box size="0.315 0.335 0.093"/>
-      </geometry>
-      <material name="hydro_orange">
-        <color rgba="0.95 0.45 0.05 1.0"/>
-      </material>
+      <origin xyz="0 0 0.02" rpy="0 1.5708 0"/>
+      <geometry><cylinder radius="0.065" length="0.32"/></geometry>
+      <material name="hydro_grey"><color rgba="0.55 0.55 0.58 0.6"/></material>
     </visual>
-
-    <!-- Tabung elektronik (abu-abu) — silinder membujur sumbu X di tengah badan. -->
-    <visual>
-      <origin xyz="0.0 0 0.005" rpy="0 1.5708 0"/>
-      <geometry>
-        <cylinder radius="0.058" length="0.30"/>
-      </geometry>
-      <material name="hydro_grey">
-        <color rgba="0.55 0.55 0.58 1.0"/>
-      </material>
-    </visual>
-
-    <!-- Dome kamera depan (abu gelap) — penanda haluan (+X). -->
-    <visual>
-      <origin xyz="0.175 0 0.005" rpy="0 1.5708 0"/>
-      <geometry>
-        <cylinder radius="0.045" length="0.02"/>
-      </geometry>
-      <material name="hydro_dome">
-        <color rgba="0.15 0.15 0.18 1.0"/>
-      </material>
-    </visual>
-    <!-- Collision box dipakai plugin Buoyancy untuk menghitung volume perpindahan.
+<!-- Collision box dipakai plugin Buoyancy untuk menghitung volume perpindahan.
          Ukuran (buoy_x/y/z) SENGAJA lebih kecil dari bbox visual/mounting body_x/y/z
          (rangka ROV asli berongga, volume perpindahan efektif hanya dari
          kompartemen tersegel); lihat rov_params.yaml: buoyancy_collision.
@@ -199,12 +171,12 @@
            thruster_5 = T200-B (sway/menyamping, tengah-bawah)   [eks label T100-B]
            thruster_6 = T100-D (vertikal, belakang-tengah)
          Catatan: visual_rpy/visual_offset hanya kosmetik (orientasi silinder hias). -->
-    <xacro:thruster name="thruster_1" xyz="-0.0275 -0.1234 0.0142" axis="0.0 0.0 1.0" visual_rpy="0 0 0" visual_offset="0 0 0.008"/>
-    <xacro:thruster name="thruster_2" xyz="-0.0290 0.1228 0.0148" axis="0.0 0.0 1.0" visual_rpy="0 0 0" visual_offset="0 0 0.008"/>
-    <xacro:thruster name="thruster_3" xyz="0.1298 -0.1371 0.0336" axis="1.0 0.0 0.0" visual_rpy="0 1.5708 0" visual_offset="0.008 0 0"/>
-    <xacro:thruster name="thruster_4" xyz="0.1296 0.1371 0.0374" axis="1.0 0.0 0.0" visual_rpy="0 1.5708 0" visual_offset="0.008 0 0"/>
+    <xacro:thruster name="thruster_1" xyz="-0.130  -0.1234 0.080" axis="0.0 0.0 1.0" visual_rpy="0 0 0" visual_offset="0 0 0.008"/>
+    <xacro:thruster name="thruster_2" xyz="0.120   0.1234 0.080" axis="0.0 0.0 1.0" visual_rpy="0 0 0" visual_offset="0 0 0.008"/>
+    <xacro:thruster name="thruster_3" xyz="-0.0275 -0.1234 0.0142" axis="1.0 0.0 0.0" visual_rpy="0 1.5708 0" visual_offset="0.008 0 0"/>
+    <xacro:thruster name="thruster_4" xyz="-0.0290  0.1228 0.0148" axis="1.0 0.0 0.0" visual_rpy="0 1.5708 0" visual_offset="0.008 0 0"/>
     <xacro:thruster name="thruster_5" xyz="-0.0455 -0.0003 -0.0994" axis="0.0 1.0 0.0" visual_rpy="1.5708 0 0" visual_offset="0 0.008 0"/>
-    <xacro:thruster name="thruster_6" xyz="-0.1364 0.0003 0.0403" axis="0.0 0.0 1.0" visual_rpy="0 0 0" visual_offset="0 0 0.008"/>
+    <xacro:thruster name="thruster_6" xyz="0.115 0.0003 0.080" axis="0.0 0.0 1.0" visual_rpy="0 0 0" visual_offset="0 0 0.008"/>
 
   <!-- ==================== Frame sensor (placeholder M3) ==================== -->
   <link name="imu_link"/>
@@ -308,7 +280,7 @@
        Dipasang di MUKA DEPAN ROV, menjorok ke arah depan (+X). Lihat PROBLEM.md. -->
   <xacro:property name="grip_mass" value="0.08"/>
 
-  <!-- Body gripper di muka depan ROV, menjorok ke depan (+X). -->
+  <!-- Body gripper di muka depan ROV, menjorok ke depan (+X). Opsi B: pakai mesh KKI -->
   <link name="gripper_base">
     <inertial>
       <origin xyz="0 0 0" rpy="0 0 0"/>
@@ -316,8 +288,8 @@
       <inertia ixx="1.4e-4" ixy="0.0" ixz="0.0" iyy="1.4e-4" iyz="0.0" izz="2.0e-4"/>
     </inertial>
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><box size="0.10 0.10 0.06"/></geometry>
+      <origin xyz="-0.072 0 -0.046" rpy="0 0 0"/>
+      <geometry><mesh filename="package://hydroships_description/meshes/rov_kki/gripper_visual.stl" scale="1 1 1"/></geometry>
       <material name="hydro_grip"><color rgba="0.85 0.7 0.1 1.0"/></material>
     </visual>
     <!-- Tanpa collision: gripper tidak menambah volume apung (sama alasannya
