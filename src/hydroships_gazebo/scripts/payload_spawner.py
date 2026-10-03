@@ -2,7 +2,7 @@
 """payload_spawner — spawn model payload QR random (A/B/C/D) di Gazebo Fortress.
 
 Memilih huruf QR & posisi secara random (atau via parameter), lalu spawn model
-payload via `ros2 run ros_gz_sim create` dan publikasi posisinya ke
+payload via executable `ros_gz_sim/create` dan publikasi posisinya ke
 /hydroships/payload_pose agar mission_fsm bisa navigasi APPROACH_QR dinamis.
 """
 
@@ -12,6 +12,7 @@ import subprocess
 import tempfile
 import time
 
+from ament_index_python.packages import get_package_prefix
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSDurabilityPolicy, QoSProfile
@@ -253,7 +254,7 @@ class PayloadSpawner(Node):
             # yang memicu [UserCommands.cc:1465] Unable to update pose id:0.
             # Kirim via -string agar tidak race /tmp yang memicu parser.cc.
             cmd = [
-                'ros2', 'run', 'ros_gz_sim', 'create',
+                os.path.join(get_package_prefix('ros_gz_sim'), 'lib', 'ros_gz_sim', 'create'),
                 '-world', 'kki_arena',
                 '-string', sdf, '-name', 'payload',
             ]

@@ -109,6 +109,19 @@ bash tools/ros310.sh launch hydroships_gazebo sim.launch.py --show-args
 bash tools/ros310.sh launch hydroships_bringup hydroships_mission.launch.py --show-args
 ```
 
+Verifikasi lokal 3 Oktober 2026: setelah symlink Ogre diperbaiki (lihat bagian 7),
+simulasi GUI `kki_arena.sdf` berjalan selama uji 30 detik. Diterima 280 pesan
+odometri, 279 pesan kedalaman, 56 frame kamera depan dan 70 frame kamera bawah
+(keduanya RGB 640×480), serta sinyal payload berhasil di-spawn. Spawner sekarang
+memanggil executable `ros_gz_sim/create` langsung agar tidak kembali memakai
+CLI `ros2` dengan Python sistem yang salah. Ini uji startup/aliran data;
+keberhasilan decode QR dan misi autonomous penuh belum dibuktikan.
+
+Bukti lokal: `log/ros310/gazebo-check-20261003T165542Z/result.json` dan
+`launch.log`. Tiga error shutdown ganda pada depth/odom/camera injector sudah
+diperbaiki. Saat penghentian uji masih muncul error gripper controller dan
+Gazebo memerlukan SIGTERM; seluruh proses uji sudah berhenti.
+
 ### Instalasi standar Ubuntu 22.04 / Python 3.10
 
 ```bash
