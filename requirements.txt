@@ -2,6 +2,7 @@
 # native "double free or corruption" (SIGABRT) setelah ribuan panggilan
 # QRCodeDetector.detectAndDecode; python3-opencv 4.5.4 (apt) stabil tapi
 # tak ter-link QUIRC (tak bisa decode QR sama sekali). 4.10.0.84: QUIRC ok,
-# tak reproduce crash pada re-test.
+# tak reproduce crash pada re-test. Butuh numpy<2 (1.26.4) karena abi3
+# opencv 4.10 dikompilasi numpy 1.x; numpy 2.x bikin _ARRAY_API not found.
 opencv-python==4.10.0.84
-numpy
+numpy==1.26.4
