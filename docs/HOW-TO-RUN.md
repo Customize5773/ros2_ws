@@ -67,6 +67,50 @@ Folder `build/ install/ log/` sengaja di-gitignore; regenerasi dgn `colcon build
 
 ## 2. SOURCE ENVIRONMENT  (WAJIB tiap terminal baru)
 
+### Jika Python sistem sudah 3.12 tetapi ROS Humble masih Python 3.10
+
+`rclpy._rclpy_pybind11` dengan akhiran `cpython-312` berarti interpreter salah.
+Menjalankan CLI dengan `python3.10` saja belum cukup: executable node hasil
+build lama masih dapat memakai `/usr/bin/python3` (3.12), dan script dengan
+`#!/usr/bin/env python3` mengikuti `PATH`.
+
+Environment terpisah berikut mempertahankan `.venv` dan hasil build lama.
+Pada mesin ini dependensi ROS/colcon dan OpenCV Python 3.10 sudah tersedia.
+Untuk menyiapkan ulang environment (sekali saja):
+
+```bash
+cd ~/ros2_ws
+/usr/bin/python3.10 -m venv --without-pip --system-site-packages .venv-ros310
+/usr/bin/python3.10 -m pip --python .venv-ros310/bin/python install 'setuptools<81' 'packaging>=24,<26'
+bash tools/ros310.sh build
+```
+
+Gunakan wrapper ini untuk setiap perintah ROS pada instalasi campuran tersebut:
+
+```bash
+bash tools/ros310.sh launch hydroships_gazebo sim.launch.py \
+  world:=kki_arena.sdf rov_arena_half:=2.55 payload_z:=-0.90
+bash tools/ros310.sh launch hydroships_bringup hydroships_mission.launch.py \
+  start_state:=NAV_WALL start_wall:=C
+bash tools/ros310.sh topic list
+```
+
+Pilih satu launch sesuai kebutuhan. Wrapper memakai Python 3.10 untuk CLI,
+node hasil build, dan script `env python3`; hasil build berada di
+`build/ros310` dan `install/ros310`. Wrapper juga membersihkan path GTK/GIO
+bawaan terminal VS Code Snap yang dapat memicu error `GLIBC_PRIVATE`.
+Tidak perlu `source install/setup.bash` atau alias `ros2` untuk wrapper.
+Ini perbaikan lokal instalasi campuran; prasyarat standar tetap Ubuntu 22.04.
+
+Cek pembacaan launch tanpa menyalakan Gazebo:
+
+```bash
+bash tools/ros310.sh launch hydroships_gazebo sim.launch.py --show-args
+bash tools/ros310.sh launch hydroships_bringup hydroships_mission.launch.py --show-args
+```
+
+### Instalasi standar Ubuntu 22.04 / Python 3.10
+
 ```bash
 source /opt/ros/humble/setup.bash &&
 source ~/ros2_ws/install/setup.bash
@@ -426,6 +470,40 @@ ros2 topic echo /hydroships/gripper_right/cmd
 --------------------------------------------------------------------------------
 
 ## 7. TROUBLESHOOTING
+
+- Gazebo crash `Ogre::Root::getSingleton(): Assertion msSingleton failed`:
+  Pada mesin dengan paket Ogre 2.2.5 dan 2.3.3 sekaligus, periksa versi engine
+  dan plugin. `headless:=true` tetap memuat renderer untuk sensor kamera.
+
+  ```bash
+  ldd /usr/lib/x86_64-linux-gnu/ign-rendering-6/engine-plugins/libignition-rendering-ogre2.so | grep OgreNext
+  readlink /usr/lib/x86_64-linux-gnu/OGRE-Next/RenderSystem_GL3Plus.so
+  readlink /usr/lib/x86_64-linux-gnu/OGRE-Next/Plugin_ParticleFX.so
+  ```
+
+  Jika engine memakai **2.2.5** tetapi kedua symlink plugin menuju **2.3.3**,
+  hentikan Gazebo, lalu pilih plugin 2.2.5 yang sudah terpasang:
+
+  ```bash
+  cd /usr/lib/x86_64-linux-gnu/OGRE-Next
+  test -f RenderSystem_GL3Plus.so.2.2.5 && test -f Plugin_ParticleFX.so.2.2.5 && \
+    sudo ln -sfn RenderSystem_GL3Plus.so.2.2.5 RenderSystem_GL3Plus.so && \
+    sudo ln -sfn Plugin_ParticleFX.so.2.2.5 Plugin_ParticleFX.so
+  cd ~/ros2_ws
+  ```
+
+  Ini mengubah pilihan plugin sistem dan dapat memengaruhi aplikasi Ogre 2.3.3.
+  Untuk kembali ke target sebelumnya yang terverifikasi pada mesin ini:
+
+  ```bash
+  sudo ln -sfn RenderSystem_GL3Plus.so.2.3.3 /usr/lib/x86_64-linux-gnu/OGRE-Next/RenderSystem_GL3Plus.so
+  sudo ln -sfn Plugin_ParticleFX.so.2.3.3 /usr/lib/x86_64-linux-gnu/OGRE-Next/Plugin_ParticleFX.so
+  ```
+
+  Pembaruan paket dapat mengembalikan symlink. Untuk instalasi jangka panjang,
+  gunakan kumpulan paket OS/ROS/Gazebo yang kompatibel. Pemeriksaan loader di
+  [sumber Gazebo](https://github.com/gazebosim/gz-rendering/blob/ign-rendering6/ogre2/src/Ogre2RenderEngine.cc)
+  menjelaskan bahwa nama plugin tanpa versi dipilih terlebih dahulu.
 
 - Model/perubahan tak muncul di Gazebo:
   Lupa `colcon build` + relaunch. Launch baca URDF dari `install/`. Rebuild dulu.

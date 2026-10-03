@@ -2,6 +2,7 @@
 build/
 install/
 log/
+.venv-ros310/
 
 # === Python cache ===
 __pycache__/
