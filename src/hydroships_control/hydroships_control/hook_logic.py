@@ -128,3 +128,15 @@ def hook_servo(off, vx, vy, hook_depth, gains, ey_target=0.0):
     aligned = abs(ex) < g.center_tol and abs(ey - ey_target) < g.center_tol
     near = size >= g.size_stop
     return HookServoCmd(surge, sway, target_depth, aligned, near)
+
+
+PAYLOAD_HOLE_LOCAL = (0.0, -0.003, 0.079)
+
+
+def payload_hole_world(position, quaternion):
+    """Center of the 30mm bore in world coordinates (quaternion xyzw)."""
+    x, y, z, w = quaternion
+    _, hy, hz = PAYLOAD_HOLE_LOCAL
+    return (position[0] + 2*(x*y-z*w)*hy + 2*(x*z+y*w)*hz,
+            position[1] + (1-2*(x*x+z*z))*hy + 2*(y*z-x*w)*hz,
+            position[2] + 2*(y*z+x*w)*hy + (1-2*(x*x+y*y))*hz)

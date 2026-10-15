@@ -1,0 +1,115 @@
+# Uji 3C — misi autonomous FSM, 11 Oktober 2026
+
+Pengujian lokal ROS 2 Humble / Python 3.10 / Gazebo Fortress, kolam latihan
+`pool_practice_arena.sdf`, headless, tanpa joystick fisik. Tidak mengendalikan ROV nyata.
+
+## Perbaikan
+
+- HANG sebelumnya memberi skor saat kedalaman berhenti berubah tanpa memeriksa
+  jarak ke hook. Test membuktikan posisi meleset 100 mm tetap dianggap sukses.
+  Kini keberhasilan memerlukan jarak <50 mm, sama dengan toleransi longgar
+  AUTO_RELEASE yang sudah ada.
+- Batas gaya penahan XY HANG turun dari 13,2 N pada fase pendekatan menjadi
+  2,64 N pada fase turun. Run setelah koreksi gerbang berhenti jujur dengan
+  `HANG timeout`, jarak 56 mm. Fase turun kini mempertahankan batas 13,2 N;
+  gain PD dan toleransi keberhasilan tetap.
+- ZBar dibatasi ke simbol QR. Run awal memunculkan assertion warning decoder
+  DataBar yang tidak diperlukan untuk misi ini.
+- Fixture FSM diperbarui terhadap geometri kolam aktif dan kecepatan terfilter.
+  Test geometri sebelumnya membaca box jari dari link berikutnya setelah body
+  gripper diganti mesh; kini memakai grasp envelope logis 60 mm yang masih
+  digunakan controller, bukan menyamakan mesh visual dengan geometri grasp.
+- `netifaces` ABI Python 3.10 dipasang di `.venv-ros310`; paket sistem terdeteksi
+  pip tetapi tidak dapat diimpor interpreter ROS. `ros2 topic pub` berhasil
+  menerbitkan pesan setelah perbaikan.
+- Panduan memakai topik state `/hydroships/mission/state` dan menjelaskan batas
+  reproduksibilitas `spawn_seed`.
+
+## Verifikasi
+
+- Awal: 149 test lulus, 6 gagal.
+- Setelah perbaikan: **157 test lulus** (termasuk regresi QR dan gaya HANG).
+- Build: empat paket selesai; warning metadata setuptools `tests_require`
+  masih ada, tidak menghentikan build.
+- Run awal mencapai WAIT_TRIGGER; trigger CLI gagal karena `netifaces`.
+- Run dengan gerbang HANG diperbaiki, sebelum perbaikan gaya: ABORT di HANG
+  setelah 90,77 detik; 1.594 odometri dan 835 frame per kamera tercatat.
+
+Perintah run akhir:
+
+```bash
+bash tools/ros310.sh launch hydroships_bringup hydroships_mission.launch.py \
+  headless:=true joy_trigger:=false spawn_seed:=1001 \
+  qr_letter:=C payload_x:=0.4 payload_y:=0.04
+```
+
+Probe mengirim trigger operator ketika WAIT_TRIGGER. Tidak menyuntikkan QR.
+FSM memiliki fallback ground-truth sendiri; keberhasilan state tanpa decode QR
+bukan bukti keberhasilan visual autonomy. Urutan wall masih acak.
+
+Bukti mentah lokal (diabaikan Git): `log/mission-3c-check/`, termasuk
+`run2.log`, `run3.log`, `run4.log`, `result-run3.json`, `result.json`,
+`tests-final.log`, dan `cli-check.log`.
+
+## Hasil run akhir dan pekerjaan yang masih terbuka
+
+**Belum lulus misi penuh sampai DONE.** Run akhir dibatasi 600 detik wall-clock:
+
+- Urutan wall: A → C → D → B. A/C/D selesai sampai AUTO_RELEASE dan memulai
+  payload berikutnya. B melewati HANG tetapi berhenti di SURFACE.
+- Tercatat **9.936 pesan odometri**, **5.132 frame depan**, dan **5.132 frame
+  bawah**. QR terdecode: **0**; ketiga siklus memakai fallback bawaan FSM.
+- Tidak muncul kembali assertion DataBar. Keempat wall melewati HANG dengan
+  gerbang jarak dan batas gaya yang diperbaiki. Ini satu run, bukan battery
+  statistik atau bukti keberhasilan fisik menggantung payload.
+- Log berhenti bertambah di SURFACE wall B. Pemeriksaan `/clock --once` selama
+  8 detik tidak menerima pesan. Proses Gazebo masih hidup; penyebab berhentinya
+  waktu simulasi belum teridentifikasi. Pengambilan stack dengan gdb ditolak
+  mekanisme ptrace lingkungan; tidak mengubah pengaturan kernel.
+- Probe menghentikan pengujian pada 600 detik. Node kontrol ROS berhenti bersih;
+  Gazebo memerlukan eskalasi SIGINT → SIGTERM. Traceback KeyboardInterrupt pada
+  run awal berasal dari penghentian group yang mengirim SIGINT ganda; run akhir
+  mengirim SIGINT hanya ke launch dan membiarkan launch menghentikan anaknya.
+
+Masih perlu diagnosis hang Gazebo, perbaikan deteksi QR pada render kamera,
+dan run ulang sampai DONE sebelum menyebut 3C autonomous penuh berhasil.
+Tidak dilakukan pengujian GUI visual, joystick fisik, atau perangkat ROV nyata.
+
+## Tindak lanjut: payload gagal masuk gantungan
+
+Log GUI `log/mission-3c-gui/restart.log` mengonfirmasi wall B ABORT di HANG:
+transisi turun terjadi saat error maju 39,9 mm; lalu membesar sampai 58,4 mm.
+Launch memakai `hang_approach_depth=0.14`, menimpa koreksi node untuk kolam
+latihan (`0.105`). Jalur longgar setelah 15 detik membolehkan turun pada
+error sampai 50 mm. Timer alignment juga tidak menyimpan waktu kondisi buruk,
+sehingga dwell lama dapat meloloskan posisi yang sudah meleset.
+
+Perbaikan lanjutan:
+
+- Default launch depth disamakan dengan node: 0,105 m.
+- HANG/AUTO_RELEASE memerlukan error maju dan radial <2 mm untuk
+  turun, memberi skor, atau melepas. Jalur longgar 50 mm dihapus.
+- Dwell diulang dari awal ketika alignment hilang.
+- 164 test lulus, termasuk regresi error 40 mm setelah 15 detik dan hilangnya
+  alignment di tengah dwell. Build empat paket berhasil.
+
+Uji terisolasi wall B, spawn ROV seed 1001, payload B di (0,4; 0,04): pada
+run pertama error maju saat mulai turun 4,2 mm dan saat keluar HANG 7,9 mm.
+AUTO_RELEASE mengirim detach dan mencapai tahap berikutnya. Ini belum berarti
+payload berhasil menggantung secara fisik: rekaman pose setelah lepas menunjukkan
+payload bergeser/berputar. Probe tidak menyuntik QR; trigger operator otomatis.
+Bukti: `log/hook-fix/run1.log`, `result-run1.json`, `tests-final.log`.
+
+**Koreksi geometri sederhana (ukuran dikonfirmasi pengguna):** lubang visual
+Ø30 mm dan pin Ø25 mm dipertahankan. Pusat target dan alat ukur disamakan dengan
+mesh: (0, -0,003, 0,079) m lokal payload. Collision memakai lima box tersambung,
+dengan aperture 30 × 30 mm. Ini pendekatan persegi untuk lubang bulat; kontak
+pada sudut belum merepresentasikan lingkaran persis.
+
+Feedback pose payload Gazebo mengoreksi offset pemasangan aktual; data lebih
+tua dari 0,5 s kembali ke target nominal. Deadband dikurangi menjadi 0,5 mm
+pada HANG/AUTO_RELEASE dan redaman disesuaikan agar gate 2 mm dapat dicapai.
+Build empat paket berhasil. Suite 165 test lulus; setelah penambahan satu
+regresi feedback, seluruh 22 test FSM lulus. Uji terbaru berhasil membaca QR B
+namun tertahan di APPROACH_QR (pemusatan), sehingga dihentikan sebelum HANG.
+Keberhasilan pemasangan fisik belum terverifikasi. Bukti: `log/hook-fix/run3.log`.

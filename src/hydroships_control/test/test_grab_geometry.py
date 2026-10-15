@@ -48,10 +48,9 @@ def _geom():
                   r'(-?[\d.]+)"', xacro)
     assert m, 'origin gripper_base_joint tak terbaca'
     gripper_dz = float(m.group(1))                     # z joint (negatif = turun)
-    box = re.search(r'name="gripper_base"[\s\S]*?<box size="[\d.]+ [\d.]+ ([\d.]+)"',
-                    xacro)
-    assert box, 'ukuran box gripper_base tak terbaca'
-    gripper_half_h = float(box.group(1)) / 2.0
+    # Grasp envelope tetap 60mm; mesh visual bukan collision/grasp geometry.
+    # Regex box lintas link sebelumnya justru membaca ukuran jari gripper.
+    gripper_half_h = 0.03
     rp = yaml.safe_load(_text(PARAMS))
     hull_half_h = float(rp['buoyancy_collision']['z']) / 2.0
     cob_z = float(rp['cob']['z'])
@@ -105,3 +104,12 @@ def test_gerbang_attach_konsisten_dengan_grab_depth():
         '_gripper_offset.z (%.3f) != URDF gripper_base_joint.z (%.3f) '
         '-> payload teleport tidak sampai ke gripper' % (float(m2.group(3)),
                                                          g['gripper_dz']))
+
+
+def test_launch_preserves_hook_approach_clearance():
+    launch = SRC / 'hydroships_bringup/launch/hydroships_mission.launch.py'
+    match = re.search(
+        r"DeclareLaunchArgument\('hang_approach_depth', default_value='([\d.]+)'",
+        _text(launch))
+    assert match
+    assert float(match.group(1)) == _param(FSM, 'hang_approach_depth')

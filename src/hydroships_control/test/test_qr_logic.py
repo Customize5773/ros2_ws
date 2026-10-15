@@ -17,6 +17,19 @@ from hydroships_control.qr_logic import (
 cv2 = pytest.importorskip("cv2")
 
 
+def test_pyzbar_only_scans_qr(monkeypatch):
+    from hydroships_control import qr_logic
+    if not qr_logic.PYZBAR_OK:
+        pytest.skip('pyzbar unavailable')
+    calls = []
+    def decode(img, *, symbols):
+        calls.append(symbols)
+        return []
+    monkeypatch.setattr(qr_logic._pyzbar, 'decode', decode)
+    qr_logic._pyzbar_decode(np.zeros((32, 32), dtype=np.uint8))
+    assert calls == [[qr_logic._pyzbar.ZBarSymbol.QRCODE]]
+
+
 def test_parse_wall_variants():
     assert parse_wall("A") == "A"
     assert parse_wall("SIDE_B") == "B"

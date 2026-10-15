@@ -30,57 +30,34 @@ PAYLOAD_SDF_TEMPLATE = '''<?xml version="1.0"?>
     <pose>{x} {y} {z} 1.5708 0 0</pose>
     <link name="payload_link">
       <inertial>
-        <!-- CoM di CENTROID VOLUME KOLISI, bukan di origin link.
-             Origin link ada di UJUNG plat (z=0), sedangkan volume kolisi
-             (= tempat plugin Buoyancy world menerapkan gaya apung) berpusat
-             di z~0.0594. Selisih itu bikin kopel gravitasi-vs-apung yang
-             MEMUTAR plat sampai sumbu z-nya tegak -- terukur 26 Agu: spawn
-             roll +90 (QR menghadap atas) jatuh ke roll 0 (QR menyamping)
-             dalam ~2 s. Dulu ditambal dgn DetachableJoint anchor ke
-             pool::floor; anchor itu justru men-DE-STATIC-kan lantai kolam
-             sehingga ROV menyeret lantai saat grab (terukur 0.30-0.38 m).
-             Dgn CoM & pusat apung segaris, plat diam stabil rebah di roll 90
-             tanpa anchor sama sekali.
-             Centroid tertimbang-volume dari body+slot_l+slot_r+bar:
-               V = 9.13e-5 m^3, x=0, y=0.0039, z=0.0594 -->
-        <pose>0 0.0039 0.0594 0 0 0</pose>
+        <!-- CoM follows the collision-volume centroid to avoid buoyancy torque. -->
+        <pose>0 0.000396226 0.034433962 0 0 0</pose>
         <mass>0.3</mass>
         <inertia>
           <ixx>2.51e-4</ixx><iyy>3.13e-4</iyy><izz>6.34e-5</izz>
           <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
         </inertia>
       </inertial>
-      <!-- Kolisi plat (frame LINK; saat dibawa: link x=samping, y=tebal/vertikal,
-           z=memanjang ke depan):
-           - body_collision : badan plat di BELAKANG lubang, top di bawah lingkaran
-             tip (z 0.0808) supaya tip tak mentok badan.
-           - slot_*         : dua sayap di sisi lubang (z 0.0865..0.10) — lorong
-             tip menembus plat di sini.
-           - bar_collision  : ekstensi PEKAT di DEPAN lubang (z 0.11..0.17) yang
-             bersandar di palang bawah hook saat plat turun (palang hook di
-             x +-0.0125, jadi butuh material padat di sana — sayap di x +-0.035
-             saja TIDAK menyentuh palang dan plat jatuh menembus hook).
-           slot_* di x +-0.055 (dulu 0.045): +10mm clearance vs r_tip 12.5
-           (28.5mm -> 38.5mm) untuk toleransi sway-lag ROV saat descend
-           (mis-thread fix; hang_tol tetap 25mm, bukan diperketat).
-           Tip (silinder tegak r=0.0125 di lubang) menembus lewat celah
-           z 0.075..0.11 (bawah body & atas bar_collision kosong) dan lorong
-           slot, lalu plat bersandar stabil di palang. -->
+      <!-- shortcut: box approximation of the 30mm bore; use a ring mesh if corner contact accuracy is needed. -->
       <collision name="body_collision">
-        <pose>0 0.004 0.0325 0 0 0</pose>
-        <geometry><box><size>0.05 0.02 0.065</size></box></geometry>
+        <pose>0 -0.003 0.032 0 0 0</pose>
+        <geometry><box><size>0.05 0.006 0.064</size></box></geometry>
       </collision>
       <collision name="slot_left_collision">
-        <pose>-0.055 -0.003 0.09325 0 0 0</pose>
-        <geometry><box><size>0.008 0.006 0.0135</size></box></geometry>
+        <pose>-0.020 -0.003 0.079 0 0 0</pose>
+        <geometry><box><size>0.010 0.006 0.030</size></box></geometry>
       </collision>
       <collision name="slot_right_collision">
-        <pose>0.055 -0.003 0.09325 0 0 0</pose>
-        <geometry><box><size>0.008 0.006 0.0135</size></box></geometry>
+        <pose>0.020 -0.003 0.079 0 0 0</pose>
+        <geometry><box><size>0.010 0.006 0.030</size></box></geometry>
       </collision>
       <collision name="bar_collision">
-        <pose>0 0.004 0.1275 0 0 0</pose>
-        <geometry><box><size>0.05 0.02 0.025</size></box></geometry>
+        <pose>0 -0.003 0.097 0 0 0</pose>
+        <geometry><box><size>0.05 0.006 0.006</size></box></geometry>
+      </collision>
+      <collision name="grip_tab_collision">
+        <pose>0 0.012 0.003 0 0 0</pose>
+        <geometry><box><size>0.05 0.024 0.006</size></box></geometry>
       </collision>
       <visual name="body_{vsuf}">
         <geometry>

@@ -120,3 +120,12 @@ def test_offset_helper_consistent_with_servo_input():
                                          frame_w=640, frame_h=480)
     cmd = hook_servo((ex, ey, size), vx=0.0, vy=0.0, hook_depth=0.45, gains=G)
     assert ex > 0 and cmd.sway < 0    # hook di kanan -> geser kanan
+
+
+def test_payload_hole_world_rotates_and_translates():
+    from hydroships_control.hook_logic import payload_hole_world
+    import pytest
+    assert payload_hole_world((1, 2, 3), (0, 0, 0, 1)) == pytest.approx((1, 1.997, 3.079))
+    # Rotasi 90 derajat terhadap Y mengubah offset Z menjadi X.
+    q = math.sqrt(0.5)
+    assert payload_hole_world((1, 2, 3), (0, q, 0, q)) == pytest.approx((1.079, 1.997, 3))

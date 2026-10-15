@@ -123,7 +123,7 @@ def _pyzbar_decode(img):
     if gray is None:
         return '', None
     try:
-        results = _pyzbar.decode(gray)
+        results = _pyzbar.decode(gray, symbols=[_pyzbar.ZBarSymbol.QRCODE])
     except Exception:
         return '', None
     if not results:

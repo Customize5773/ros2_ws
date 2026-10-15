@@ -82,6 +82,8 @@ Untuk menyiapkan ulang environment (sekali saja):
 cd ~/ros2_ws
 /usr/bin/python3.10 -m venv --without-pip --system-site-packages .venv-ros310
 /usr/bin/python3.10 -m pip --python .venv-ros310/bin/python install 'setuptools<81' 'packaging>=24,<26'
+# Jika ros2 topic pub gagal import netifaces akibat ABI Python sistem:
+.venv-ros310/bin/python -m pip install --ignore-installed netifaces==0.11.0
 bash tools/ros310.sh build
 ```
 
@@ -169,6 +171,14 @@ Menyalakan: sim + allocator + stabilizer + mission_fsm (IDLE->DIVE->...->DONE).
 ```bash
 ros2 launch hydroships_bringup hydroships_mission.launch.py
 ```
+
+Pada mesin ini (Python sistem 3.12, ROS Humble 3.10), gunakan:
+
+```bash
+bash tools/ros310.sh launch hydroships_bringup hydroships_mission.launch.py
+```
+
+Hasil uji dan batas validasinya: [3C-FSM-RUN-RESULTS.md](3C-FSM-RUN-RESULTS.md).
 
 Mulai dari state tertentu (lewati DIVE/SCAN):
 
@@ -348,11 +358,9 @@ for seed in 1001 1002 1003; do
 done | tee -a semua_output.log
 ```
 
-Karena `spawn_seed` diteruskan ke `_spawn_rng` (sim.launch.py:38) + RNG payload
-(`payload_spawner`), tiap seed menghasilkan pose ROV & payload yang SAMA persis
-antar run. Dengan demikian varians antar seed (1001 vs 1002 vs 1003) jelas
-terpisah dari varians dalam seed yang sama — pakailah untuk evaluasi
-perilaku autonomous yang konsisten.
+`spawn_seed` mengunci pose spawn ROV saja. Untuk mengunci payload awal, set
+`qr_letter`, `payload_x`, dan `payload_y` secara eksplisit. Urutan wall FSM
+masih acak; seed yang sama belum menjamin seluruh misi identik antar run.
 
 --------------------------------------------------------------------------------
 
@@ -608,7 +616,7 @@ source install/setup.bash
 │ TERMINAL 2: (opsional, suntik QR manual bila deteksi gagal)                    │
 │   ros2 topic pub -1 /hydroships/qr_result std_msgs/msg/String "{data: 'A'}"    │
 │ TERMINAL 3: (opsional, cek state FSM)                                          │
-│   ros2 topic echo /hydroships/fsm_state                                         │
+│   ros2 topic echo /hydroships/mission/state                                         │
 └───────────────────────────────────────────────────────────────────────────────┘
 
 ┌─ CONTOH D: GUI BRIDGE (skenario 3D) ────────────────────────────────────────┐

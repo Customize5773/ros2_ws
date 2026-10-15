@@ -22,9 +22,8 @@ WALL_TIP = {  # posisi dunia tip hook (wall_face 2.5 - hang_tip_d 0.14)
     'A': (0.0, -2.36), 'B': (0.0, 2.36), 'C': (2.36, 0.0), 'D': (-2.36, 0.0),
 }
 
-# Pusat lubang plat dalam frame payload (dari payload_body.obj / slot collision
-# z 0.0865..0.10 -> tengah ~0.0933; pakai 0.0933, nilai hang_hole_dx di FSM).
-HOLE_LOCAL = (0.0, 0.0, 0.0933)
+# Pusat lubang sesuai mesh visual payload.
+from hydroships_control.hook_logic import PAYLOAD_HOLE_LOCAL as HOLE_LOCAL
 
 
 def quat_to_rpy(q):

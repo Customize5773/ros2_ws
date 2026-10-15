@@ -209,7 +209,7 @@ def generate_launch_description():
                               description='Tick dwell (10Hz) sebelum transisi GRAB '
                                           'benar2 dipicu di APPROACH_QR.'),
         DeclareLaunchArgument('hang_forward_bias', default_value='0.0'),
-        DeclareLaunchArgument('hang_approach_depth', default_value='0.14',
+        DeclareLaunchArgument('hang_approach_depth', default_value='0.105',
                               description='m kedalaman posisi lubang di atas tip '
                                           'saat HANG/APPROACH_HOOK/AUTO_RELEASE fase 1 '
                                           '(dieksos utk kalibrasi per-wall).'),

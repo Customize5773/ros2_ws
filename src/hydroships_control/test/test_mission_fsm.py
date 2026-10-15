@@ -78,7 +78,7 @@ def nav_node():
     n = MissionFSM()
     n._to(St.NAV_WALL)
     n.wall = 'A'
-    n.x, n.y = 0.0, -2.15   # persis standoff wall A -> dist 0 < nav_tol
+    n.x, n.y = n._wall_xy(n.wall)
     n.yaw = -math.pi / 2    # menghadap wall A
     yield n
     n.destroy_node()
@@ -89,6 +89,7 @@ def test_nav_wall_fast_arrival_brakes_not_hang(nav_node, monkeypatch):
     cmds = []
     monkeypatch.setattr(nav_node.pub_manual, 'publish', lambda m: cmds.append(m))
     nav_node.vx = 0.30   # terukur runtime: 'dist 0.20m, v 0.30m/s' (STATUS.md M5)
+    nav_node._vx_filt = nav_node.vx
 
     nav_node._st_nav_wall()
 
@@ -124,7 +125,7 @@ def _hang_descent_node():
     n._to(St.HANG)
     n.wall = 'A'
     n._hang_pos_done = True          # langsung fase turun
-    n.x, n.y = 0.0, -2.0967          # target _hang_xy wall A
+    n.x, n.y = n._hang_xy(n.wall)
     n.yaw = -math.pi / 2
     n.depth = 0.28                   # rentang duduk terdoktrin 0.28..0.32
     n.hold_settle_s = 0.0            # dwell instan di test
@@ -142,14 +143,14 @@ def test_hang_seated_strict_accepts(nav_node=None):
         n.destroy_node(); rclpy.shutdown()
 
 
-def test_hang_seated_loose_accepts_with_warning(caplog):
+def test_hang_seated_outside_slot_not_scored():
     n = _hang_descent_node()
     n.x -= 0.032                     # dist 32mm > hang_tol 25mm (run 2026-08-26)
     try:
         n._st_hang()
         n._st_hang()
-        assert n.state is St.SURFACE
-        assert n.score['m3'] == 15
+        assert n.state is St.HANG
+        assert n.score['m3'] == 0
     finally:
         n.destroy_node(); rclpy.shutdown()
 
@@ -166,49 +167,65 @@ def test_hang_stalled_far_from_target_not_scored():
         n.destroy_node(); rclpy.shutdown()
 
 
+def test_hang_descent_keeps_position_force_near_hook():
+    n = _hang_descent_node()
+    n.y += 0.054  # observed drift after lowering the position-force limit
+    cmds = []
+    n.pub_manual.publish = cmds.append
+    try:
+        n._st_hang()
+        assert cmds[-1].linear.x == pytest.approx(n.approach_kp * 0.054)
+        assert n.state is St.HANG
+    finally:
+        n.destroy_node(); rclpy.shutdown()
+
+
 # ---- Fase-1 longgar (anti-JAM tip-slot, run 2026-08-26 dist 46mm) ----
 
-def test_hang_phase1_loose_accepts():
+def test_hang_phase1_misaligned_stays_above_hook():
     rclpy.init()
     n = MissionFSM()
     try:
         n._to(St.HANG)
         n.wall = 'B'
-        n.x, n.y = -0.03, 2.13       # 40mm dr target (0,2.0967); dulu ABORT
+        tx, ty = n._hang_xy(n.wall)
+        n.x, n.y = tx - 0.03, ty + 0.02
         n.yaw = math.pi / 2
         n.depth = 0.13
         n.hold_settle_s = 0.0
         n._st_hang()
-        assert n._hang_pos_done is True
+        assert n._hang_pos_done is False
     finally:
         n.destroy_node(); rclpy.shutdown()
 
 
-def test_ar_phase1_loose_accepts():
+def test_ar_phase1_misaligned_stays_above_hook():
     rclpy.init()
     n = MissionFSM()
     try:
         n._to(St.AUTO_RELEASE)
         n.wall = 'B'
-        n.x, n.y = -0.03, 2.13       # log user: macet dist 46mm -> timeout posisi
+        tx, ty = n._hang_xy(n.wall)
+        n.x, n.y = tx - 0.03, ty + 0.0333
         n.yaw = math.pi / 2
         n.depth = 0.12
         n.hold_settle_s = 0.0
         n._st_auto_release()
-        assert n._hang_pos_done is True
+        assert n._hang_pos_done is False
         assert n.state is St.AUTO_RELEASE   # lanjut fase turun, bukan timeout
     finally:
         n.destroy_node(); rclpy.shutdown()
 
 
-def test_ar_phase2_loose_seated_detaches():
+def test_ar_phase2_misaligned_does_not_detach():
     rclpy.init()
     n = MissionFSM()
     try:
         n._to(St.AUTO_RELEASE)
         n.wall = 'B'
         n._hang_pos_done = True      # preset SETELAH _to (yang me-reset flag)
-        n.x, n.y = -0.03, 2.13       # duduk geser 40mm -- tetap threading valid
+        tx, ty = n._hang_xy(n.wall)
+        n.x, n.y = tx - 0.03, ty + 0.0333
         n.yaw = math.pi / 2
         n.depth = 0.31               # rentang duduk 0.28..0.32
         n.hold_settle_s = 0.0
@@ -217,9 +234,9 @@ def test_ar_phase2_loose_seated_detaches():
         n.pub_grip.publish = lambda m: grips.append(m.data)
         n._st_auto_release()         # tick-1: set _hang_depth_max, reset hold
         n._st_auto_release()         # tick-2: stall -> LONGGOR detach
-        assert len(detaches) == 1
-        assert n._detach_sent is True
-        assert grips == ['open']
+        assert detaches == []
+        assert n._detach_sent is False
+        assert grips == []
     finally:
         n.destroy_node(); rclpy.shutdown()
 
@@ -246,3 +263,64 @@ def test_ar_phase1_stall_triggers_backoff():
         assert n._hang_pos_done is False
     finally:
         n.destroy_node(); rclpy.shutdown()
+
+
+@pytest.mark.parametrize('state', [St.HANG, St.AUTO_RELEASE])
+@pytest.mark.parametrize('forward_error, accepted', [(0.0005, True), (0.04, False)])
+def test_hook_alignment_required_even_after_15_seconds(state, forward_error, accepted):
+    rclpy.init()
+    n = MissionFSM()
+    try:
+        n._to(state)
+        n.wall = 'B'
+        tx, ty = n._hang_xy(n.wall)
+        n.x, n.y = tx, ty - forward_error
+        n.yaw = math.pi / 2
+        n.depth = n.hang_approach_depth
+        n.hold_settle_s = 0.0
+        n._elapsed = lambda: 20.0
+        if state is St.HANG:
+            n._st_hang()
+        else:
+            n._st_auto_release()
+        assert n._hang_pos_done is accepted
+    finally:
+        n.destroy_node()
+        rclpy.shutdown()
+
+
+@pytest.mark.parametrize('state', [St.HANG, St.AUTO_RELEASE])
+def test_hook_dwell_resets_when_alignment_is_lost(state):
+    rclpy.init()
+    n = MissionFSM()
+    try:
+        n._to(state)
+        n.wall = 'B'
+        tx, ty = n._hang_xy(n.wall)
+        n.x, n.y = tx, ty - 0.04
+        n.yaw = math.pi / 2
+        n.depth = n.hang_approach_depth
+        n._hold_since = n._now() - n.hold_settle_s - 1.0
+        step = n._st_hang if state is St.HANG else n._st_auto_release
+        step()
+        assert n._hang_pos_done is False
+        assert n._hold_since is None
+        n.y = ty
+        step()
+        assert n._hang_pos_done is False
+        assert n._hold_since is not None
+    finally:
+        n.destroy_node()
+        rclpy.shutdown()
+
+
+def test_hang_target_uses_fresh_attached_payload_pose(node, monkeypatch):
+    monkeypatch.setattr(node, '_now', lambda: 10.0)
+    node.x, node.y = 1.0, 2.0
+    node._grip_state = 'closed'
+    node._hole_world = (1.2, 2.1, -0.3)
+    node._hole_received = 10.0
+    tx, ty = node._tip_xy('B')
+    assert node._hang_xy('B') == pytest.approx((tx - 0.2, ty - 0.1))
+    node._hole_received = 9.0
+    assert node._hang_xy('B') == pytest.approx((tx, ty - node.hang_hole_dx))
