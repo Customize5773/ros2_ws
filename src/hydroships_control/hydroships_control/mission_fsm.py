@@ -110,11 +110,7 @@ class MissionFSM(Node):
         # descent berhenti di atas palang -> plat HOVER di tip -> "stall" di
         # AUTO_RELEASE cuma konvergensi depth hold (bukan terblok) -> detach di
         # udara -> jatuh.
-        # 0.285 = 0.32 lama - 0.035: hook kolam latihan 0.385 m dari lantai (-0.80)
-        # -> palang di z=-0.415, sedangkan arena lama 0.45 dari lantai (-0.90)
-        # -> palang -0.450. Palang naik 0.035 m, jadi base ikut 0.035 lebih dangkal.
-        # Utk world:=kki_arena.sdf kembalikan ke 0.32.
-        p('hook_depth', 0.285)       # m kedalaman base saat plat seated di palang
+        p('hook_depth', 0.32)       # m kedalaman base saat plat seated di palang
         # HANG presisi: target = LUBANG payload di atas TIP hook, bukan standoff
         # lama wall_dist-hook_dist (~0.5 m dari hook) yang membuat payload tak
         # pernah menyentuh hook. Geometri arena: muka dinding di wall_face;
@@ -123,28 +119,16 @@ class MissionFSM(Node):
         # 0.18 + tengah lubang di plat 0.079). hang_approach_depth harus DI ATAS
         # puncak tip (-0.33) supaya ROV bisa memosisikan lubang lalu TURUN
         # menembus tip (bukan menyodok tip dari samping).
-        # KOLAM PERSEGI PANJANG: muka dinding BEDA per sumbu, jadi tak boleh satu
-        # skalar. Default = kolam latihan 2,2 x 4,4 m (pool_practice_arena.sdf):
-        # dinding sisi X (wall C/D) di x=+-1.1, sisi Y (wall A/B) di y=+-2.2.
-        # Dulu satu nilai wall_face=2.5 (arena lomba 5x5 lama) dipakai utk KEEMPAT
-        # dinding -- di kolam baru target HANG wall C/D meleset 1.40 m dan jatuh
-        # 1.26 m DI LUAR dinding, jadi payload tak pernah bisa digantung.
-        # Utk world:=kki_arena.sdf (5x5 m) set KEDUANYA ke 2.5.
-        p('wall_face_x', 1.1)        # m muka dinding sisi X (wall C/D) dari pusat
-        p('wall_face_y', 2.2)        # m muka dinding sisi Y (wall A/B) dari pusat
+        # Default arena 5x5 m; kedua muka dinding berada di +/-2.5 m.
+        p('wall_face_x', 2.5)        # m muka dinding sisi X (wall C/D) dari pusat
+        p('wall_face_y', 2.5)        # m muka dinding sisi Y (wall A/B) dari pusat
         p('hang_tip_d', 0.14)        # m jarak tip hook dari muka dinding
         p('hang_hole_dx', 0.259)    # m base_link -> pusat lubang payload
         # hang_approach_depth DI ATAS hook_depth - gate_turun (0.32-0.02=0.30)
         # supaya gate kedalaman turun tak langsung lolos saat masih di approach.
         # Dgn offset z=-0.13, lubang di base_z-0.13: di atas tip (-0.33) ->
         # -depth-0.13 > -0.33 -> depth < 0.20. 0.14 (0.27-0.13) celah 0.06 m.
-        # 0.105 = 0.14 lama - 0.035 (tip kolam latihan naik 0.035 m: puncak tip
-        # -0.295, bukan -0.330). Dgn 0.14 lama clearance lubang->tip tinggal
-        # 0.025 m sehingga UJUNG PLAT menyodok tip alih-alih lewat di atasnya --
-        # terukur: HANG mandek 62 mm KURANG maju (l_err) lalu timeout.
-        # 0.105 mengembalikan clearance 0.06 m spt rancangan.
-        # Utk world:=kki_arena.sdf kembalikan ke 0.14.
-        p('hang_approach_depth', 0.105)  # m kedalaman posisi lubang di atas tip
+        p('hang_approach_depth', 0.14)  # m kedalaman posisi lubang di atas tip
         # Bore Ø30 mm dan pin Ø25 mm memberi clearance radial 2,5 mm.
         p('hang_tol', 0.002)         # m, sisakan margin sebelum turun
         p('hang_l_tol', 0.002)       # m, toleransi sepanjang sumbu maju
@@ -183,21 +167,9 @@ class MissionFSM(Node):
         # menarik payload) -- ROV masih ~0.6 m di atas lantai QR saat itu, jadi
         # ROV terjangkar. DESCEND turun ke grab_depth sebelum GRAB memicu "close".
         #
-        # Asal angka 0.60 (semua dari hydroships.urdf.xacro + rov_params.yaml,
-        # dikunci test/test_grab_geometry.py — ubah salah satunya, test gagal):
-        #   dasar gripper  = -grab_depth - 0.13 (joint z) - 0.03 (½ tinggi box)
-        #                  = -0.76  -> 0.034 m DI ATAS bidang QR (-0.794, kolam
-        #                     latihan default 2,2x4,4x0,8 m — lantai -0.80).
-        #                     Sebelumnya 0.70/-0.894 utk kolam lomba lama (-0.90);
-        #                     digeser -0.10 mengikuti lantai yg naik 0.10m.
-        #   dasar collision hull = -grab_depth - 0.091 + 0.02 (cob.z) = -0.675
-        #                  -> masih 0.12 m di atas lantai, tidak menabrak.
-        # CATATAN: pada kedalaman ini kamera bawah (-0.18) berada di -0.78, praktis
-        # sejajar bidang QR -> QR TIDAK terlihat lagi. Itu disengaja; gerbang attach
-        # memakai latch "armed" dari APPROACH_QR (gripper_logic.arm_timeout), bukan
-        # deteksi QR yang segar. XY di-hold dead-reckon selama turun.
-        # Utk world:=kki_arena.sdf (lantai -0.90), naikkan lagi ke 0.70.
-        p('grab_depth', 0.60)        # m kedalaman base_link saat mencengkeram (TUNE)
+        # Arena default: lantai -0.90 m, dasar gripper 0.16 m di bawah base.
+        # Grab pada 0.70 m menyisakan clearance 0.04 m dari lantai.
+        p('grab_depth', 0.70)        # m kedalaman base_link saat mencengkeram (TUNE)
         p('approach_kp', 90.0)       # N/m gain posisi XY -> gaya horizontal
         p('approach_kd', 140.0)       # N/(m/s) redaman kecepatan (cegah overshoot)
         p('approach_fmax', 16.0)     # N batas gaya approach
@@ -295,14 +267,8 @@ class MissionFSM(Node):
         # GRIPPER yang berada tepat di atas QR.
         p('cam_gripper_dx', 0.16)    # m, jarak gripper di depan kamera bawah (x body)
         p('gripper_base_dx', 0.18)   # m, gripper_base.x vs base_link (utk fallback XY)
-        # -0.794 = lantai kolam latihan default -0.80 (pool_practice_arena.sdf)
-        # + 6mm ketebalan plat (payload_spawner.py payload_z=-0.80). -0.894 utk
-        # world:=kki_arena.sdf (lantai -0.90). Param TERPISAH dari
-        # gripper_controller.py punya sendiri -- HARUS disamakan manual, tak ada
-        # sumber tunggal (ditemukan basi 27 Agu: masih -0.90 stlh floor naik
-        # 0.10m sejak 26 Agu, bikin ey_target salah -> APPROACH_QR tak pernah
-        # centered walau QR sudah kebaca & posisi XY presisi).
-        p('qr_floor_z', -0.794)      # m, tinggi bidang QR di dunia (payload_spawner.py)
+        # Lantai default -0.90 m + ketebalan plat 6 mm; sama dengan gripper.
+        p('qr_floor_z', -0.894)      # m, tinggi bidang QR di dunia (payload_spawner.py)
         p('cam_bottom_dz', 0.18)     # m, kamera bawah di bawah base_link
         # tan(setengah-FOV vertikal). hFOV 70° @ 4:3 -> atan(0.75*tan35°) = 27.7°.
         # (BUKAN 80°/32.2° lagi -- kamera direkalibrasi 26 Agu, fx sim 381->457,
@@ -421,7 +387,6 @@ class MissionFSM(Node):
         # payload BARU (huruf QR = wall berikutnya) utk siklus DIVE berikutnya.
         self.pub_spawn_next = self.create_publisher(
             String, '/hydroships/payload/spawn_next', 10)
-        self.pub_qr_offset_synth = self.create_publisher(PointStamped, '/hydroships/qr_offset', 10)
         self.create_subscription(Float64, '/hydroships/depth', self._on_depth, 10)
         self.create_subscription(Odometry, '/hydroships/odom', self._on_odom, 10)
         self.create_subscription(String, '/hydroships/qr_result', self._on_qr, 10)
@@ -590,6 +555,9 @@ class MissionFSM(Node):
         if s is St.REVERSE_RETURN:
             self._reverse_idx = len(self._lean_log) - 1
         if s is St.DIVE:
+            self._locked_yaw = None
+            self.qr_wall = None
+            self.qr_off = None
             self._dive_entry_depth = None
             self._dive_gerak = False
             self._dive_grace_given = False
@@ -641,7 +609,7 @@ class MissionFSM(Node):
         return dist
 
     def _goto_xy(self, tx, ty, fmax=None, min_fmax_frac=None, yaw_ref=None,
-                 deadband=0.005, kd=None):
+                 deadband=0.005, kd=None, kp=None):
         """PD posisi HOLONOMIK: dorong ROV ke (tx,ty) dunia via gaya horizontal
         body-frame (surge+sway), TANPA mengubah heading — dipakai saat sudah
         menghadap arah yang benar (mis. setelah NAV_WALL) & cuma perlu
@@ -676,9 +644,11 @@ class MissionFSM(Node):
         cl = lambda v: max(-fm, min(fm, v))
         vx = getattr(self, '_vx_filt', self.vx)
         vy = getattr(self, '_vy_filt', self.vy)
+        # Hook uses stronger PD to reject payload bias within the 2 mm clearance gate.
         damping = self.approach_kd if kd is None else kd
-        surge = self.approach_kp * bx - damping * vx
-        sway = self.approach_kp * by - damping * vy
+        position_gain = self.approach_kp if kp is None else kp
+        surge = position_gain * bx - damping * vx
+        sway = position_gain * by - damping * vy
         if abs(bx) < deadband:
             surge = -damping * vx
         if abs(by) < deadband:
@@ -908,8 +878,8 @@ class MissionFSM(Node):
         (payload di-random tiap run); param payload_x/y cuma fallback sampai
         pesan latched itu tiba.
 
-        Wall diambil dari QR asli (/hydroships/qr_result) begitu terbaca segar;
-        fallback ke urutan wall_order kalau QR tak pernah terbaca."""
+        Wall wajib diambil dari QR asli (/hydroships/qr_result);
+        tanpa decode yang valid, tunggu recovery lalu timeout tanpa memberi skor."""
         if self._locked_yaw is None:
             self._locked_yaw = self.yaw if self.yaw is not None else 0.0
         self._set_heading(self._locked_yaw)
@@ -941,9 +911,9 @@ class MissionFSM(Node):
 
         # Offset kamera->gripper: QR tidak dipusatkan di kamera melainkan di
         # ey_target, supaya GRIPPER (0.16 m di depan kamera) yang tepat di atas QR.
-        # Dihitung dari depth_target FINAL, jadi otomatis ikut menyesuaikan saat
-        # recovery menaikkan kedalaman.
-        ey_target = qr_ey_target(depth_target, self.cam_gripper_dx, self.qr_floor_z,
+        # Pakai kedalaman terukur agar target citra ikut gerakan vertikal ROV.
+        ey_target = qr_ey_target(self.depth if self.depth is not None else depth_target,
+                                 self.cam_gripper_dx, self.qr_floor_z,
                                  self.cam_bottom_dz, self.cam_vfov_half_tan,
                                  self.ey_target_max)
 
@@ -987,11 +957,12 @@ class MissionFSM(Node):
             ex, ey = self._qr_ex_filt, self._qr_ey_filt
             k = self.qr_servo_gain * self.qr_servo_sign
             # Error diukur terhadap ey_target, bukan terhadap 0.
-            body_dx = -(ey - ey_target) * k   # ey>ey_target: QR terlalu ke belakang
+            body_dx = -(ey - ey_target) * k   # +Y citra = -X body kamera bawah
             body_dy = -ex * k                 # ex>0: QR di kanan pusat -> geser kanan
             c, s = math.cos(self._locked_yaw), math.sin(self._locked_yaw)
-            tx += body_dx * c - body_dy * s
-            ty += body_dx * s + body_dy * c
+            # Error citra relatif pose SAAT INI, bukan terhadap target spawn.
+            tx = self.x + body_dx * c - body_dy * s
+            ty = self.y + body_dx * s + body_dy * c
 
         dist = self._goto_xy(tx, ty, min_fmax_frac=self.approach_min_fmax_frac)
         if int(self._elapsed() * 2) % 20 == 0:
@@ -1014,28 +985,16 @@ class MissionFSM(Node):
                                    'pusatkan QR sebelum GRAB'
                                    % (self.qr_wall, self.wall))
 
-        # R-11 Opsi 1: centered dievaluasi INDEPENDENT dari _wall_scored.
-        # qr_off (dari /hydroships/qr_offset, deteksi kontur) adalah jalur
-        # terpisah dari decode huruf (/hydroships/qr_result) yang menggerbangkan
-        # _wall_scored. Decode huruf gagal 82-89% tapi corner tetap terdeteksi,
-        # jadi centered tetap harus dicek tiap tick — bukan dihardcode False
-        # saat _wall_scored False. Huruf tetap dipakai utk self.wall + skor m1
-        # (blok qr_seen di atas), tapi tak lagi syarat utk cek centering.
-        # Dibandingkan terhadap ey_target (bukan 0) — kalau tetap terhadap 0,
-        # |ey| konvergen ke ~0.61 dan transisi GRAB tak pernah terpicu.
+        # Identitas wall dan pemusatan citra adalah dua syarat terpisah.
         centered = (off_fresh
                     and abs(self.qr_off[0]) < self.qr_center_tol
                     and abs(self.qr_off[1] - ey_target) < self.qr_center_tol)
-        # "Konvergen via jarak XY" (dead-reckon, TANPA QR pernah terlihat) tak
-        # boleh langsung lolos: gripper_base_dx (~0.18 m) menaruh kamera nyaris
-        # di batas FOV normal (~0.22 m di scan_depth), jadi gripper SUDAH dekat
-        # payload TIDAK berarti QR ada di frame kamera. Tunggu recovery (FOV
-        # diperlebar) sempat dicoba dulu -- lihat blok RECOVERY di atas.
-        # `centered` (deteksi visual kontur NYATA) tetap lolos langsung, tak
-        # perlu menunggu apa pun.
+        # Dead-reckoning hanya setelah QR berhasil dibaca dan kemudian hilang.
+        # Offset visual yang masih segar wajib dipusatkan oleh servo.
         recovery_settled = (self._approach_recovered and self._recovery_started_at is not None
                            and (self._now() - self._recovery_started_at) >= self.recovery_settle_s)
-        converged_now = centered or (dist < self.approach_tol and recovery_settled)
+        converged_now = self._wall_scored and (
+            centered or (not off_fresh and dist < self.approach_tol and recovery_settled))
 
         # P0-2.5 Kandidat #4: syarat dwell N-tick sebelum transisi GRAB
         # benar2 dipicu -- BUKAN transisi pada tick tunggal begitu kondisi
@@ -1061,29 +1020,12 @@ class MissionFSM(Node):
                    self.qr_wall or '-',
                    ('%+.2f' % self.qr_off[0]) if self.qr_off is not None else '--',
                    ('%+.2f' % self.qr_off[1]) if self.qr_off is not None else '--'))
-            if self._wall_scored:
-                self.get_logger().info(
-                    'QR terpusat (%s) -> DESCEND (%s)'
-                    % ('visual servo' if centered else 'jarak XY',
-                       self._gripper_align_txt()))
-                self._set_surge(0.0); self._to(St.DESCEND); return
-            else:
-                # Fallback: QR huruf tak pernah ter-decode (82-89% run) tapi
-                # ROV sudah konvergen — via centered (offset kontur segar) ATAU
-                # dist < approach_tol. Wall dipilih dari urutan wall_order.
-                nxt = self._next_wall()
-                if nxt is None:
-                    self.get_logger().info('Semua wall selesai, misi tuntas.')
-                    self._print_score(); self._to(St.DONE); return
-                self.wall = nxt
-                self.score['m1'] = 15
-                self._wall_scored = True
-                self.get_logger().info('QR tidak ter-decode, wall urutan %s '
-                                       'dipilih (+15) [urutan ke-%d] (%s) [%s]'
-                                       % (self.wall, len(self.done_hooks) + 1,
-                                          self._gripper_align_txt(),
-                                          'visual servo' if centered else 'jarak XY'))
-                self._set_surge(0.0); self._to(St.DESCEND); return
+            self.get_logger().info(
+                'QR terpusat (%s) -> DESCEND (%s)'
+                % ('visual servo' if centered else 'jarak XY', self._gripper_align_txt()))
+            self._set_surge(0.0)
+            self._to(St.DESCEND)
+            return
 
         if self._elapsed() > self.T['scan']:
             self.get_logger().error('APPROACH_QR timeout'); self._to(St.ABORT)
@@ -1200,9 +1142,8 @@ class MissionFSM(Node):
         visual bisa berubah tick berikutnya) sampai T['grab'] habis -> ABORT,
         supaya kesuksesan misi tak lagi bisa dibaca sbg bukti attach padahal
         gerbang menolaknya (lihat P1-OWNER-DECISIONS-AND-ROADMAP.md R-9).
-        Sinyal qr_offset SINTETIK (frame_id 'synthetic') dipublish bersama
-        tiap close karena QUIRC tak terpasang & sinyal kamera asli tak pernah
-        lolos gate — lihat gripper_controller._on_offset()."""
+        Hak attach memakai latch deteksi kamera bawah sebelum DESCEND.
+        """
         self._set_surge(0.0)
         if self.gripper_status == 'attached':
             self.score['m2'] = 15
@@ -1212,14 +1153,6 @@ class MissionFSM(Node):
         if self._hold_since is None or self.gripper_status == 'rejected':
             self._hold_since = self._now()
             self.gripper_status = None
-            ey_syn = qr_ey_target(self.depth if self.depth is not None else self.grab_depth,
-                                  self.cam_gripper_dx, self.qr_floor_z, self.cam_bottom_dz,
-                                  self.cam_vfov_half_tan, self.ey_target_max)
-            synth = PointStamped()
-            synth.header.stamp = self.get_clock().now().to_msg()
-            synth.header.frame_id = 'synthetic'
-            synth.point.x, synth.point.y, synth.point.z = 0.0, ey_syn, 0.2
-            self.pub_qr_offset_synth.publish(synth)
             self.pub_grip.publish(String(data='close'))
             self.get_logger().info('GRAB: perintah "close" -> gripper_controller')
         if self._elapsed() > self.T['grab']:
@@ -1330,7 +1263,7 @@ class MissionFSM(Node):
                 # 2026-08-26: ROV nyangkut dist 46mm, merayap 0.5mm/s,
                 # gate tak pernah lolos sampai timeout.
                 dist = self._goto_xy(tx, ty, fmax=self.nav_fmax,
-                                     yaw_ref=yaw_ref, min_fmax_frac=0.60, deadband=0.0005, kd=60.0)
+                                     yaw_ref=yaw_ref, min_fmax_frac=0.60, deadband=0.0005, kp=180.0, kd=80.0)
             # Gate arah LUBANG (sepanjang sumbu maju ROV): toleransi fisik lubang
             # hanya ~+-9 mm di arah maju (tip 25mm di lubang 50mm) vs +-28.5 mm
             # ke samping (dinding slot). Gate radial 25 mm sendiri terlalu longgar
@@ -1374,7 +1307,7 @@ class MissionFSM(Node):
         # menggesek ujung tip alih-alih masuk lubang -- kedalaman ikut merayap
         # 3 mm/15 s lalu HANG timeout. Peredaman lateral tetap dari _goto_xy.
         dist = self._goto_xy(tx, ty, fmax=self.nav_fmax, yaw_ref=yaw_ref,
-                             min_fmax_frac=0.60, deadband=0.0005, kd=60.0)
+                             min_fmax_frac=0.60, deadband=0.0005, kp=180.0, kd=80.0)
         self._set_depth(self.hook_depth)
         # Gate presisi: selain depth & yaw, UJI ULANG error lateral (dist &
         # l_err) saat plat duduk — kalau lubang bergeser selama turun (coupling
@@ -1918,7 +1851,7 @@ class MissionFSM(Node):
                 # 6.6N kalah gesekan tip-vs-slot -- run 2026-08-26 macet
                 # dist 46mm merayap 0.5mm/s sampai timeout posisi.
                 dist = self._goto_xy(tx, ty, fmax=self.nav_fmax,
-                                     yaw_ref=yaw_ref, min_fmax_frac=0.60, deadband=0.0005, kd=60.0)
+                                     yaw_ref=yaw_ref, min_fmax_frac=0.60, deadband=0.0005, kp=180.0, kd=80.0)
                 # Deteksi mandek: 15s tanpa progres -> mundur 2s dulu, JANGAN
                 # terus menekan struktur sampai timeout (run R5 2026-08-26:
                 # REVERSE serahkan posisi buruk, fase-1 beku dist 0.155 dgn
@@ -1974,7 +1907,7 @@ class MissionFSM(Node):
             # Fase 2: turun (tip menembus lubang), lalu detach. Pertahankan
             # posisi lubang di atas tip selama turun (sama spt HANG).
             dist = self._goto_xy(tx, ty, fmax=0.6 * self.nav_fmax,
-                                 yaw_ref=yaw_ref, min_fmax_frac=0.30, deadband=0.0005, kd=60.0)
+                                 yaw_ref=yaw_ref, min_fmax_frac=0.30, deadband=0.0005, kp=180.0, kd=80.0)
             self._set_depth(self.hook_depth)
             # Gate presisi saat duduk (sama spt HANG fase 2): selain stall,
             # uji ulang dist/l_err. Tanpa ini detach bisa terjadi dgn lubang
@@ -2043,6 +1976,8 @@ class MissionFSM(Node):
                     self._release_retries += 1
                     self._hang_pos_done = False
                     self._hang_depth_max = None
+                    self._hold_since = None
+                    self.t_state = self._now()
                     self._set_depth(self.hang_approach_depth)
                     self.get_logger().warn(
                         'AUTO_RELEASE retry %d/%d (depth %s, dist %.3f) — '
@@ -2101,6 +2036,10 @@ def main(args=None):
         rclpy.spin(node)
     except KeyboardInterrupt:
         pass
+    except RuntimeError as exc:
+        # Humble may finish a queued DDS callback after SIGINT closes its context.
+        if rclpy.ok() or 'Unable to convert call argument' not in str(exc):
+            raise
     finally:
         try:
             node.pub_manual.publish(Twist())

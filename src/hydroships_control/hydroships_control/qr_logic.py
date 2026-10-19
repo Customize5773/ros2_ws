@@ -123,13 +123,20 @@ def _pyzbar_decode(img):
     if gray is None:
         return '', None
     try:
+        scale = 1.0
         results = _pyzbar.decode(gray, symbols=[_pyzbar.ZBarSymbol.QRCODE])
+        if not results:
+            # Small rendered modules need interpolation before ZBar scanning.
+            scale = 3.0
+            enlarged = cv2.resize(img, None, fx=scale, fy=scale,
+                                  interpolation=cv2.INTER_CUBIC)
+            results = _pyzbar.decode(_to_gray(enlarged), symbols=[_pyzbar.ZBarSymbol.QRCODE])
     except Exception:
         return '', None
     if not results:
         return '', None
     r = results[0]
-    pts = np.asarray([(p.x, p.y) for p in r.polygon], dtype=float)
+    pts = np.asarray([(p.x, p.y) for p in r.polygon], dtype=float) / scale
     return r.data.decode('utf-8', errors='replace'), pts
 
 
@@ -162,7 +169,9 @@ def robust_decode(img, detector, debug_info=None):
     # kegagalan (moire minifikasi tekstur) yang TAK SATU PUN kandidat cv2 di
     # bawah bisa atasi (0/7 pada frame yang sama, 27 Agu).
     pz_data, pz_pts = _pyzbar_decode(img)
-    if pz_pts is not None and _quiet_zone_ok(_to_gray(img), pz_pts):
+    # A validated decode already has QR error correction; the quiet-zone
+    # heuristic is only needed for undecoded corners (as in the OpenCV path).
+    if pz_pts is not None and (pz_data or _quiet_zone_ok(_to_gray(img), pz_pts)):
         if debug_info is not None:
             debug_info['winning_candidate_index'] = -2 if pz_data else -1
             debug_info['winning_candidate_name'] = 'pyzbar' if pz_data else None
@@ -253,8 +262,9 @@ def qr_ey_target(depth, cam_gripper_dx, qr_floor_z, cam_bottom_dz,
     QR harus dibiarkan tampak di DEPAN pusat frame supaya gripper-lah yang tepat
     di atas QR.
 
-    Konvensi `qr_logic.offset_from_points`: ey > 0 = QR di BAWAH pusat frame =
-    payload di BELAKANG ROV. Maka "QR di depan" berarti ey NEGATIF.
+    Kamera Gazebo memakai +X sebagai arah pandang, +Z sebagai atas gambar.
+    Joint kamera bawah ber-pitch +90 derajat: atas gambar menjadi +X body.
+    Maka payload DI DEPAN ROV tampak di ATAS gambar (ey negatif).
 
     Geometri: kamera berada `h_cam` di atas bidang QR, dan setengah-tinggi
     petak pandang di bidang itu = h_cam * tan(½ FOV vertikal). Offset metrik

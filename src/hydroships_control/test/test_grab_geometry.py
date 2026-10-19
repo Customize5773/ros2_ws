@@ -113,3 +113,26 @@ def test_launch_preserves_hook_approach_clearance():
         _text(launch))
     assert match
     assert float(match.group(1)) == _param(FSM, 'hang_approach_depth')
+
+
+def test_default_launches_and_fsm_match_5x5_world():
+    import xml.etree.ElementTree as ET
+    world = ET.parse(SRC / 'hydroships_gazebo/worlds/kki_arena.sdf')
+    pool = world.getroot().find("world/model[@name='pool']")
+    floor = pool.find("link[@name='floor']")
+    floor_z = float(floor.find('pose').text.split()[2])
+    thickness = float(floor.find('collision/geometry/box/size').text.split()[2])
+    assert _param(SPAWNER, 'payload_z') == pytest.approx(floor_z + thickness / 2)
+    assert _param(FSM, 'qr_floor_z') == _param(GRIP, 'qr_floor_z')
+    for axis, wall in [('x', 'wall_px'), ('y', 'wall_py')]:
+        link = pool.find("link[@name='%s']" % wall)
+        i = 'xyz'.index(axis)
+        pos = float(link.find('pose').text.split()[i])
+        width = float(link.find('collision/geometry/box/size').text.split()[i])
+        assert _param(FSM, 'wall_face_' + axis) == pytest.approx(pos - width / 2)
+    launches = list((SRC / 'hydroships_bringup/launch').glob('*.py'))
+    launches.append(SRC / 'hydroships_gazebo/launch/sim.launch.py')
+    for launch in launches:
+        match = re.search(r"DeclareLaunchArgument\('world', default_value='([^']+)'", _text(launch))
+        if match:
+            assert match.group(1) == 'kki_arena.sdf', str(launch)

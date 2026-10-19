@@ -27,7 +27,7 @@ def test_pyzbar_only_scans_qr(monkeypatch):
         return []
     monkeypatch.setattr(qr_logic._pyzbar, 'decode', decode)
     qr_logic._pyzbar_decode(np.zeros((32, 32), dtype=np.uint8))
-    assert calls == [[qr_logic._pyzbar.ZBarSymbol.QRCODE]]
+    assert calls == [[qr_logic._pyzbar.ZBarSymbol.QRCODE]] * 2
 
 
 def test_parse_wall_variants():
@@ -226,3 +226,17 @@ def test_robust_decodes_real_sim_frame():
     assert data == 'A'
     assert pts is not None and len(pts) == 4
     assert parse_wall(data) == 'A'
+
+
+def test_small_rendered_qr_decodes_and_keeps_original_coordinates():
+    from pathlib import Path
+    from hydroships_control import qr_logic
+    if not qr_logic.PYZBAR_OK:
+        pytest.skip('pyzbar unavailable')
+    image = cv2.imread(str(Path(__file__).parent / 'fixtures/qr_sim_bottom_D_small.png'))
+    assert not qr_logic._pyzbar.decode(image, symbols=[qr_logic._pyzbar.ZBarSymbol.QRCODE])
+    data, points = robust_decode(image, cv2.QRCodeDetector())
+    assert data == 'D'
+    # The QR in this captured 640x480 frame occupies x=320..360, y=120..165.
+    assert 320 < points[:, 0].mean() < 360
+    assert 120 < points[:, 1].mean() < 165

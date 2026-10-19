@@ -2,17 +2,11 @@
 
 Argumen:
   headless (default: false)  -> jalankan gz sim tanpa GUI (server saja) untuk CI/cloud.
-  world    (default: pool_practice_arena.sdf) -> kolam latihan 2,2x4,4x0,8 m.
-      Ganti ke kki_arena.sdf (5x5 m) atau pool_empty.sdf (kolam kosong) bila perlu.
-  rov_random_spawn (default: true) -> spawn ROV acak DEKAT salah satu dinding kolam
-      (posisi kontes realistis & bervariasi tiap run). false = pakai rov_x/y/z.
-  rov_x,rov_y,rov_z (default: 0 0 -0.5) -> posisi manual bila rov_random_spawn=false.
-  rov_wall_margin (default: 0.5) -> jarak aman ROV dari dinding fisik (+-rov_arena_half).
-  rov_arena_half  (default: 1.1) -> setengah lebar kolam (dinding di +-nilai ini).
-      1.1 = setengah SISI PENDEK kolam latihan (2,2 m); dipakai utk kedua sumbu
-      (asumsi arena persegi) jadi sengaja dipilih sisi pendek supaya ROV tak
-      pernah spawn tembus dinding meski kolam defaultnya persegi panjang.
-      Naikkan ke 2.55 bila world diganti ke kki_arena.sdf (5x5 m).
+  world (default: kki_arena.sdf) -> kolam 5x5 m, lantai -0.90 m.
+  rov_random_spawn (default: true) -> spawn dekat salah satu dinding.
+  rov_x/rov_y/rov_z (default: 0/0/-0.5) -> pose bila random_spawn=false.
+  rov_wall_margin (default: 0.5) -> jarak aman dari muka dinding.
+  rov_arena_half (default: 2.5) -> setengah lebar interior kolam.
   spawn_seed      (default: '')   -> isi utk fix seed (replay/debug), kosong = acak penuh.
 """
 
@@ -25,17 +19,15 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
-    IncludeLaunchDescription,
+    ExecuteProcess,
     LogInfo,
     OpaqueFunction,
     RegisterEventHandler,
     TimerAction,
 )
 from launch.event_handlers import OnProcessExit
-from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
-from launch_ros.substitutions import FindPackageShare
 
 import xacro
 
@@ -103,7 +95,7 @@ def _rov_spawn_pose(context, rng):
     if not random_spawn:
         return (str(_f(context, 'rov_x', 0.0)), str(_f(context, 'rov_y', 0.0)), str(z), '0.0')
 
-    arena_half = _f(context, 'rov_arena_half', 1.1)
+    arena_half = _f(context, 'rov_arena_half', 2.5)
     margin = _f(context, 'rov_wall_margin', 0.5)
     lim = max(0.0, arena_half - margin)          # koordinat aman maks (mepet dinding)
     along = rng.uniform(-lim, lim)               # sebaran sepanjang dinding
@@ -172,13 +164,12 @@ def _launch_setup(context, *args, **kwargs):
                 os.environ[var] = share_dir + (os.pathsep + cur if cur else '')
 
     # -r: mulai berjalan; -s: server saja (tanpa GUI) untuk mode headless.
-    gz_args = '-r -s ' + world_path if headless else '-r ' + world_path
-    gz_sim = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([
-            PathJoinSubstitution([
-                FindPackageShare('ros_gz_sim'), 'launch', 'gz_sim.launch.py'])
-        ]),
-        launch_arguments={'gz_args': gz_args}.items(),
+    # Run Fortress directly: the upstream shell wrapper can leave its server
+    # alive after launch exits, contaminating the next mission's clock/topics.
+    gz_sim = ExecuteProcess(
+        cmd=['ign', 'gazebo', '-r'] + (['-s'] if headless else [])
+            + [world_path, '--force-version', '6'],
+        output='screen',
     )
 
     # Proses xacro -> URDF string. (hydroships.urdf.xacro)
@@ -323,7 +314,7 @@ def _launch_setup(context, *args, **kwargs):
             'qr_letter': qr_letter,
             'payload_x': float(payload_x) if payload_x else 0.4,
             'payload_y': float(payload_y) if payload_y else 0.04,
-            'payload_z': float(payload_z) if payload_z else -0.80,
+            'payload_z': float(payload_z) if payload_z else -0.90,
             'spawn_delay': spawn_delay + 0.5,
         }],
     )
@@ -334,10 +325,10 @@ def _launch_setup(context, *args, **kwargs):
 
 def generate_launch_description():
     return LaunchDescription([
-        DeclareLaunchArgument('world', default_value='pool_practice_arena.sdf',
+        DeclareLaunchArgument('world', default_value='kki_arena.sdf',
                               description='Nama file world di folder worlds/ '
-                                          '(pool_practice_arena.sdf = kolam latihan 2,2x4,4x0,8 m default; '
-                                          'kki_arena.sdf = arena lomba 5x5 m; pool_empty.sdf = kolam kosong).'),
+                                          '(pool_practice_arena.sdf = kolam latihan 2,2x4,4x0,8 m; '
+                                          'kki_arena.sdf = arena default 5x5 m; pool_empty.sdf = kolam kosong).'),
         DeclareLaunchArgument('headless', default_value='false',
                               description='true = server saja tanpa GUI (cloud/CI).'),
         DeclareLaunchArgument('rov_random_spawn', default_value='true',
@@ -354,10 +345,9 @@ def generate_launch_description():
         DeclareLaunchArgument('spawn_seed', default_value='',
                               description='Isi utk fix seed pose spawn acak '
                                           '(replay/debug); kosong = acak penuh tiap launch.'),
-        DeclareLaunchArgument('rov_arena_half', default_value='1.1',
+        DeclareLaunchArgument('rov_arena_half', default_value='2.5',
                               description='Setengah lebar kolam (dinding di +-nilai ini). '
-                                          '1.1 = setengah sisi pendek kolam latihan 2,2x4,4 m; '
-                                          'naikkan ke 2.55 bila world diganti ke kki_arena.sdf (5x5 m).'),
+                                          '2.5 = arena default 5x5 m; 1.1 utk kolam latihan.'),
         DeclareLaunchArgument('spawn_delay', default_value='3.0',
                               description='Detik menunda spawn ROV agar server gz '
                                           'siap dulu (naikkan bila mesin lambat).'),
@@ -367,10 +357,9 @@ def generate_launch_description():
                               description='Posisi X payload (m); dipakai bila qr_letter di-set.'),
         DeclareLaunchArgument('payload_y', default_value='0.04',
                               description='Posisi Y payload (m); dipakai bila qr_letter di-set.'),
-        DeclareLaunchArgument('payload_z', default_value='-0.80',
+        DeclareLaunchArgument('payload_z', default_value='-0.90',
                               description='Posisi Z payload (m), harus = lantai kolam (top floor). '
-                                          '-0.80 = lantai kolam latihan (default). '
-                                          'Naikkan ke -0.90 bila world:=kki_arena.sdf (arena lomba, lantai -0.9).'),
+                                          '-0.90 = arena default; -0.80 utk kolam latihan.'),
         DeclareLaunchArgument('odom_noise', default_value='false',
                               description='P2-B: true -> /hydroships/odom disuntik noise '
                                           '(bukan ground truth langsung). false = passthrough.'),

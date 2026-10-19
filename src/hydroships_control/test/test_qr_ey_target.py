@@ -5,13 +5,7 @@ jadi gripper 0.16 m DI DEPAN kamera. Memusatkan QR di kamera (ey=0) membuat
 gripper selalu melewati payload sejauh itu. `qr_ey_target` menghitung di mana QR
 HARUS tampak supaya gripper-lah yang tepat di atas QR.
 
-Uji ini juga mengunci angka yang mendasari pilihan scan_depth=0.30 (lihat komentar
-param di mission_fsm.py). CATATAN 27 Agu: setelah kamera direkalibrasi ke hFOV
-70° (26 Agu, sebelumnya 80°) dan lantai kolam naik ke -0.80 (kolam latihan,
-sebelumnya -0.90/-0.894), geometri gripper_base_dx (0.16 m) ternyata SUDAH
-memenuhi clamp ey_max di scan_depth=0.30 juga (dulu cuma 0.46 yang ter-clamp) --
-bukan regresi baru, cuma konstanta lama (0.6293/-0.894) menyembunyikan
-kenyataan geometrisnya sampai sekarang.
+Default arena 5x5 m, lantai -0.90 m, kamera pitch +90 derajat.
 """
 
 import math
@@ -20,11 +14,8 @@ import pytest
 
 from hydroships_control.mission_fsm import qr_ey_target
 
-# Konstanta geometri = default param mission_fsm (kolam latihan default, 27 Agu:
-# floor_z & TAN diperbarui mengikuti lantai kolam baru -0.80 dan kamera
-# direkalibrasi ke hFOV 70 deg -- nilai lama -0.894/0.6293 basi sejak 26 Agu).
 DX = 0.16          # cam_gripper_dx
-FLOOR_Z = -0.794   # qr_floor_z (payload_spawner.py, kolam latihan)
+FLOOR_Z = -0.894   # qr_floor_z (arena default 5x5 m)
 DZ = 0.18          # cam_bottom_dz
 TAN = 0.5252       # tan(½ FOV vertikal), hFOV 70° @ 4:3
 EY_MAX = 0.8
@@ -41,25 +32,29 @@ def test_vfov_konstanta_konsisten_dgn_fov_70_derajat():
     assert expected == pytest.approx(TAN, abs=1e-3)
 
 
-def test_scan_depth_030_terclamp_ke_ey_max():
-    """Depth operasional: h_cam=0.314, ½-tinggi=0.165 m < cam_gripper_dx
-    (0.16 m nyaris sama) -> target GEOMETRIS jauh di luar frame, ter-clamp
-    ke ey_max. Beda dari asumsi lama (-0.61, "aman") -- itu produk konstanta
-    basi (vfov 80°, floor -0.894), bukan geometri sesungguhnya."""
-    assert ey(0.30) == pytest.approx(-EY_MAX)
+def test_scan_depth_030_target_muat_di_frame():
+    assert ey(0.30) == pytest.approx(-DX / ((abs(FLOOR_Z) - 0.30 - DZ) * TAN))
+    assert -EY_MAX < ey(0.30) < 0
 
 
-def test_scan_depth_046_juga_terclamp_lebih_ekstrem():
-    """Pada 0.46, h_cam=0.154 -> target geometris jauh lebih ekstrem (~-1.98
-    tanpa clamp) drpd di 0.30 (~-0.97) -- makin dalam makin ekstrem, tapi
-    KEDUANYA sekarang ter-clamp ke ey_max yang sama (lihat catatan modul)."""
+def test_scan_depth_046_terclamp():
     assert ey(0.46) == pytest.approx(-EY_MAX)
 
 
-def test_selalu_negatif_karena_qr_harus_tampak_di_depan():
-    """Konvensi offset_from_points: ey<0 = QR di ATAS pusat = payload di DEPAN."""
-    for depth in (0.10, 0.20, 0.30, 0.40, 0.46):
-        assert ey(depth) < 0.0
+def test_target_matches_camera_joint_projection():
+    # Gazebo camera +X looks forward, +Z is image-up. Pitch +90 maps
+    # body +X (gripper ahead) to camera +Z, hence negative image y.
+    import re
+    from pathlib import Path
+    xacro = (Path(__file__).resolve().parents[2] /
+             'hydroships_description/urdf/hydroships.urdf.xacro').read_text()
+    pitch = float(re.search(r'name="camera_bottom_joint".*?rpy="0 ([\d.]+) 0"',
+                            xacro, re.S).group(1))
+    height = abs(FLOOR_Z) - 0.30 - DZ
+    camera_x = math.cos(pitch) * DX + math.sin(pitch) * height
+    camera_z = math.sin(pitch) * DX - math.cos(pitch) * height
+    # R_y(pitch)^T maps the body vector (DX, 0, -height) into camera axes.
+    assert ey(0.30) == pytest.approx(-camera_z / (camera_x * TAN), abs=1e-4)
 
 
 def test_makin_dangkal_makin_kecil_magnitudonya():

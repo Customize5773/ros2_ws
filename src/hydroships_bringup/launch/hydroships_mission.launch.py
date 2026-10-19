@@ -9,8 +9,7 @@ Contoh:
     ros2 launch hydroships_bringup hydroships_mission.launch.py start_state:=AUTO_RELEASE
     ros2 launch hydroships_bringup hydroships_mission.launch.py headless:=true
 
-Catatan: SCAN_QR menunggu /hydroships/qr_result (node QR belum ada — lihat PROBLEM.md);
-uji tanpa QR bisa dgn start_state:=GRAB/NAV_WALL/... atau publish qr_result manual.
+QR dibaca oleh qr_detector dari kamera bawah; WAIT_TRIGGER menunggu trigger operator.
 """
 
 import os
@@ -112,7 +111,7 @@ def generate_launch_description():
         DeclareLaunchArgument('joy_button_index', default_value='0',
                               description='Index tombol joystick utk trigger '
                                           'WAIT_TRIGGER (0 = A/Cross pada XInput/F310).'),
-        DeclareLaunchArgument('world', default_value='pool_practice_arena.sdf'),
+        DeclareLaunchArgument('world', default_value='kki_arena.sdf'),
         DeclareLaunchArgument('start_state', default_value='DIVE',
                               description='State awal FSM (DIVE/GRAB/NAV_WALL/HANG/SURFACE/'
                                           'WAIT_TRIGGER/APPROACH_HOOK/AUTO_RELEASE).'),
@@ -125,9 +124,9 @@ def generate_launch_description():
                               description='Posisi X payload (m); dipakai bila qr_letter di-set.'),
         DeclareLaunchArgument('payload_y', default_value='0.04',
                               description='Posisi Y payload (m); dipakai bila qr_letter di-set.'),
-        DeclareLaunchArgument('payload_z', default_value='-0.80',
+        DeclareLaunchArgument('payload_z', default_value='-0.90',
                               description='Posisi Z payload (m), harus = lantai kolam. '
-                                          'Naikkan ke -0.90 bila world:=kki_arena.sdf (arena lomba).'),
+                                          '-0.90 = lantai arena default 5x5 m.'),
         DeclareLaunchArgument('rov_random_spawn', default_value='true',
                               description='true = spawn ROV acak dekat dinding kolam (kontes); '
                                           'false = pakai rov_x/rov_y/rov_z.'),
@@ -135,7 +134,7 @@ def generate_launch_description():
         DeclareLaunchArgument('rov_y', default_value='0.0'),
         DeclareLaunchArgument('rov_z', default_value='-0.5'),
         DeclareLaunchArgument('rov_wall_margin', default_value='0.5'),
-        DeclareLaunchArgument('rov_arena_half', default_value='1.1'),
+        DeclareLaunchArgument('rov_arena_half', default_value='2.5'),
         DeclareLaunchArgument('spawn_seed', default_value='',
                               description='Isi utk fix seed pose spawn acak '
                                           '(replay/debug); kosong = acak penuh tiap launch.'),
@@ -154,13 +153,13 @@ def generate_launch_description():
                               description='Kedalaman scan QR (m). Naikkan angka = '
                                           'lebih dalam = QR lebih besar tapi petak '
                                           'pandang menyempit.'),
-        DeclareLaunchArgument('wall_face_x', default_value='1.1',
+        DeclareLaunchArgument('wall_face_x', default_value='2.5',
                               description='Muka dinding sisi X (wall C/D) dari pusat (m). '
-                                          '1.1 = kolam latihan 2,2x4,4 m (default). '
+                                          '2.5 = arena default 5x5 m. '
                                           'Set 2.5 bila world:=kki_arena.sdf (5x5 m).'),
-        DeclareLaunchArgument('wall_face_y', default_value='2.2',
+        DeclareLaunchArgument('wall_face_y', default_value='2.5',
                               description='Muka dinding sisi Y (wall A/B) dari pusat (m). '
-                                          '2.2 = kolam latihan 2,2x4,4 m (default). '
+                                          '2.5 = arena default 5x5 m. '
                                           'Set 2.5 bila world:=kki_arena.sdf (5x5 m).'),
         DeclareLaunchArgument('cam_gripper_dx', default_value='0.16',
                               description='Jarak gripper di depan kamera bawah (m). '
@@ -209,7 +208,7 @@ def generate_launch_description():
                               description='Tick dwell (10Hz) sebelum transisi GRAB '
                                           'benar2 dipicu di APPROACH_QR.'),
         DeclareLaunchArgument('hang_forward_bias', default_value='0.0'),
-        DeclareLaunchArgument('hang_approach_depth', default_value='0.105',
+        DeclareLaunchArgument('hang_approach_depth', default_value='0.14',
                               description='m kedalaman posisi lubang di atas tip '
                                           'saat HANG/APPROACH_HOOK/AUTO_RELEASE fase 1 '
                                           '(dieksos utk kalibrasi per-wall).'),

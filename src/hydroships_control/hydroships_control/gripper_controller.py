@@ -61,8 +61,7 @@ class GripperController(Node):
         p('offset_frame', 'camera_bottom_link')
         # Geometri untuk qr_ey_target — HARUS sama dengan default mission_fsm.
         p('cam_gripper_dx', 0.16)     # m, gripper_base di depan kamera bawah
-        p('qr_floor_z', -0.794)       # m, ketinggian bidang QR di dunia (kolam
-                                       # latihan default -0.80; -0.894 utk kki_arena.sdf)
+        p('qr_floor_z', -0.894)       # m, bidang QR di arena default 5x5 m
         p('cam_bottom_dz', 0.18)      # m, kamera bawah di bawah base_link
         # tan(setengah-FOV vertikal). hFOV 70° @ 4:3 -> atan(0.75*tan35°) = 27.7°.
         # HARUS sama dgn mission_fsm.py (kamera direkalibrasi 26 Agu; konstanta
@@ -141,14 +140,8 @@ class GripperController(Node):
         return self.get_clock().now().nanoseconds * 1e-9
 
     def _on_offset(self, msg: PointStamped):
-        # Hanya sinyal SINTETIK dari mission_fsm (frame_id 'synthetic') yang
-        # dipakai gate is_safe. Sinyal asli kamera bawah (camera_bottom_link)
-        # TIDAK PERNAH lolos gate: desain ey_target (-0.61) membuat |ey| >
-        # max_offset (0.30), dan QUIRC tak terpasang — sinyal asli hanya
-        # menimpa sinyal sintetik sehingga attach jadi acak ("kadang tidak
-        # kegrab"). TODO: setelah QUIRC terpasang & ey_target dipertimbangkan,
-        # perbaiki gate dan hidupkan lagi sinyal asli.
-        if msg.header.frame_id != 'synthetic':
+        # Latch hanya deteksi kamera bawah; QR buatan bukan bukti grasp aman.
+        if msg.header.frame_id != self.get_parameter('offset_frame').value:
             return
         stamp = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
         # Bila stamp kosong (0), pakai jam node agar tetap dianggap segar.
@@ -243,7 +236,7 @@ class GripperController(Node):
         di situ dulu."""
         if self._rov_pose is None:
             self.get_logger().warn('teleport payload gagal: odom belum ada')
-            return
+            return False
         x, y, z, qx, qy, qz, qw = self._rov_pose
         ox, oy, oz = self._gripper_offset
         ww, xx, yy, zz = qw*qw, qx*qx, qy*qy, qz*qz
@@ -266,16 +259,22 @@ class GripperController(Node):
                'orientation: {x: %f y: %f z: %f w: %f}'
                % (tx, ty, tz, cx, cy, cz, cw))
         try:
-            subprocess.run(
+            result = subprocess.run(
                 ['ign', 'service', '-s', '/world/kki_arena/set_pose',
                  '--reqtype', 'ignition.msgs.Pose',
                  '--reptype', 'ignition.msgs.Boolean',
                  '--timeout', '300', '--req', req],
                 capture_output=True, text=True, timeout=2.0)
+            if result.returncode != 0 or 'data: true' not in result.stdout:
+                self.get_logger().error('set_pose payload gagal: %s' %
+                                        (result.stderr or result.stdout).strip())
+                return False
             self.get_logger().info(
                 'payload teleport ke gripper: (%.3f, %.3f, %.3f)' % (tx, ty, tz))
+            return True
         except Exception as e:
             self.get_logger().warn('teleport payload exception: %s' % e)
+            return False
 
     def _on_cmd(self, msg: String):
         now = self._now()
@@ -323,6 +322,7 @@ class GripperController(Node):
             gy = y + 2*(xy+wz)*ox + (ww-xx+yy-zz)*oy + 2*(yz-wx)*oz
             dist_xy = math.hypot(px - gx, py - gy)
             if dist_xy > 0.18:
+                self.logic.attached = False
                 self.get_logger().warn('GATEDBG close: payload jauh %.3fm (gripper %.2f,%.2f vs payload %.2f,%.2f) -> tolak attach' % (dist_xy, gx, gy, px, py))
                 action = {'jaw': self.logic.jaw_close, 'joint': None, 'state': 'closed', 'reason': 'tutup TAPI payload di luar jangkauan XY %.3fm -> tak attach' % dist_xy}
                 self.logic.jaw_target = self.logic.jaw_close
@@ -332,9 +332,13 @@ class GripperController(Node):
             # tak menggeser posisi. Pindahkan payload ke gripper_base dulu
             # (via gz set_pose) supaya payload nempel TEPAT di depan gripper
             # dan tak menggantung miring / bikin ROV trim.
-            self._teleport_payload_to_gripper()
-            self.pub_attach.publish(Empty())
-            status = 'attached'
+            if self._teleport_payload_to_gripper():
+                self.pub_attach.publish(Empty())
+                status = 'attached'
+            else:
+                self.logic.attached = False
+                action['reason'] = 'set_pose gagal -> tak attach'
+                status = 'rejected'
         elif action['joint'] == 'detach':
             self.pub_detach.publish(Empty())
             status = 'detached'

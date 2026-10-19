@@ -174,7 +174,7 @@ def test_hang_descent_keeps_position_force_near_hook():
     n.pub_manual.publish = cmds.append
     try:
         n._st_hang()
-        assert cmds[-1].linear.x == pytest.approx(n.approach_kp * 0.054)
+        assert cmds[-1].linear.x == pytest.approx(180.0 * 0.054)
         assert n.state is St.HANG
     finally:
         n.destroy_node(); rclpy.shutdown()
@@ -324,3 +324,91 @@ def test_hang_target_uses_fresh_attached_payload_pose(node, monkeypatch):
     assert node._hang_xy('B') == pytest.approx((tx - 0.2, ty - 0.1))
     node._hole_received = 9.0
     assert node._hang_xy('B') == pytest.approx((tx, ty - node.hang_hole_dx))
+
+
+def test_qr_servo_corrects_from_current_pose(node, monkeypatch):
+    # A spawn-relative correction can settle at its own biased target while
+    # the observed QR remains off-centre forever (run hook-fix/run3).
+    node._to(St.APPROACH_QR)
+    node.x, node.y, node.yaw = 0.30, 0.04, 0.0
+    node.depth = node.scan_depth
+    node.payload_x, node.payload_y = 0.4, 0.04
+    node.qr_off = (0.2, 0.0, 0.15)
+    node.qr_off_time = node._now()
+    targets = []
+    monkeypatch.setattr(node, '_goto_xy', lambda x, y, **kw: targets.append((x, y)) or 0.1)
+    node._st_approach_qr()
+    from hydroships_control.qr_logic import qr_ey_target
+    ey = qr_ey_target(node.depth, node.cam_gripper_dx, node.qr_floor_z,
+                      node.cam_bottom_dz, node.cam_vfov_half_tan, node.ey_target_max)
+    assert targets[-1] == pytest.approx((node.x + ey * node.qr_servo_gain,
+                                        node.y - 0.2 * node.qr_servo_gain))
+    assert node.state is St.APPROACH_QR
+
+
+def test_no_decoded_qr_never_selects_a_random_wall(node, monkeypatch):
+    node._to(St.APPROACH_QR)
+    node.x, node.y, node.yaw = node.payload_x - node.gripper_base_dx, node.payload_y, 0.
+    node.depth = node.scan_depth
+    node._approach_recovered = True
+    node._recovery_started_at = node._now() - 10.
+    monkeypatch.setattr(node, '_elapsed', lambda: node.t_nav_qr + 5.)
+    node._st_approach_qr()
+    assert node.state is St.APPROACH_QR
+    assert node.wall is None
+    assert node.score['m1'] == 0
+    monkeypatch.setattr(node, '_elapsed', lambda: node.T['scan'] + 1.)
+    node._st_approach_qr()
+    assert node.state is St.ABORT
+
+
+def test_new_cycle_discards_old_qr_and_heading(node):
+    node.qr_wall, node.qr_off, node._locked_yaw = 'A', (0., 0., 0.2), 1.57
+    node._to(St.DIVE)
+    assert node.qr_wall is None
+    assert node.qr_off is None
+    assert node._locked_yaw is None
+
+
+@pytest.mark.parametrize('retries_left', [True, False])
+def test_release_retry_has_a_new_time_budget(node, monkeypatch, retries_left):
+    monkeypatch.setattr(node, '_now', lambda: 1000.)
+    node._to(St.AUTO_RELEASE)
+    node.wall = 'B'
+    node._hang_pos_done = True
+    node.x, node.y = node._hang_xy('B')
+    node.x += 0.10
+    node.yaw = math.pi / 2
+    node.depth = node.hook_depth
+    node.t_state -= node.T['release'] + 1.
+    if not retries_left:
+        node._release_retries = node.release_max_retries
+    node._st_auto_release()
+    if retries_left:
+        assert node.state is St.AUTO_RELEASE
+        assert not node._hang_pos_done
+        assert node._release_retries == 1
+        assert node._elapsed() == 0.
+        assert node._hold_since is None
+    else:
+        assert node.state is St.ABORT
+
+
+@pytest.mark.parametrize('shutdown, message, raises', [
+    (True, 'Unable to convert call argument to Python object', False),
+    (False, 'Unable to convert call argument to Python object', True),
+    (True, 'unrelated error', True),
+])
+def test_main_only_ignores_known_dds_error_after_shutdown(monkeypatch, shutdown, message, raises):
+    from hydroships_control import mission_fsm
+    def spin(_node):
+        if shutdown:
+            rclpy.shutdown()
+        raise RuntimeError(message)
+    monkeypatch.setattr(rclpy, 'spin', spin)
+    if raises:
+        with pytest.raises(RuntimeError, match=message):
+            mission_fsm.main()
+    else:
+        mission_fsm.main()
+    assert not rclpy.ok()

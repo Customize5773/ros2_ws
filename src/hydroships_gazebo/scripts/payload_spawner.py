@@ -120,11 +120,7 @@ class PayloadSpawner(Node):
         p('qr_letter', '')          # '' = random A/B/C/D
         p('payload_x', 0.4)         # m
         p('payload_y', 0.04)        # m
-        p('payload_z', -0.80)       # m (tepat di lantai kolam, top floor z=-0.80,
-                                    # kolam latihan default; -0.90 jika world=kki_arena.sdf.
-                                    # Selalu di-override eksplisit oleh launch file --
-                                    # nilai ini cuma dipakai kalau node dijalankan berdiri
-                                    # sendiri (ros2 run) atau dibaca test_grab_geometry.py.
+        p('payload_z', -0.90)       # m, lantai arena default 5x5 m
         p('spawn_delay', 4.0)       # s setelah node start (tunggu sim siap)
         p('randomize_pos', True)    # random posisi saat qr_letter kosong
         p('arena_x_min', 0.2)
@@ -217,23 +213,19 @@ class PayloadSpawner(Node):
             x = random.uniform(float(g('arena_x_min')), float(g('arena_x_max')))
             y = random.uniform(float(g('arena_y_min')), float(g('arena_y_max')))
 
-        # Publikasi pose SEGERA (posisi target sudah diketahui) sebelum subprocess
-        # create yg bisa lambat — FSM butuh pose utk navigasi, tak perlu tunggu model
-        # benar-benar muncul. (Republish periodik + latched di _tick sbg jaring.)
-        self._pose = (float(x), float(y), float(z))
-        self._publish_pose()
+        self._pose = None
 
         self._spawn_seq += 1
         sdf = PAYLOAD_SDF_TEMPLATE.format(x=x, y=y, z=z, letter=letter, vsuf=self._spawn_seq)
         spawned_ok = False
         try:
-            # Pose sudah di SDF ({x} {y} {z} 1.5708), jadi tidak pakai -x/-y/-z/-R CLI
-            # yang memicu [UserCommands.cc:1465] Unable to update pose id:0.
-            # Kirim via -string agar tidak race /tmp yang memicu parser.cc.
+            # create overrides SDF translation with its CLI defaults (0,0,0).
+            # Pass the advertised pose explicitly, including the QR-up rotation.
             cmd = [
                 os.path.join(get_package_prefix('ros_gz_sim'), 'lib', 'ros_gz_sim', 'create'),
                 '-world', 'kki_arena',
                 '-string', sdf, '-name', 'payload',
+                '-x', str(x), '-y', str(y), '-z', str(z), '-R', '1.5708',
             ]
             self.get_logger().info(
                 'Spawn payload QR=%s pos=(%.2f, %.2f, %.2f)' % (letter, x, y, z))
@@ -251,11 +243,10 @@ class PayloadSpawner(Node):
         # detach terjadi setelah payload ada (bukan sebelum). Bila create gagal,
         # tak ada payload -> tak ada auto-attach bawaan -> tak perlu sinyal detach.
         if spawned_ok:
+            self._pose = (float(x), float(y), float(z))
+            self._publish_pose()
             self.pub_spawned.publish(Empty())
             self.get_logger().info('Sinyal /hydroships/payload/spawned diterbitkan')
-
-        # Pastikan pose ter-publish (idempoten; sudah dipublish di awal _spawn).
-        self._publish_pose()
 
     def _publish_pose(self):
         if self._pose is None:
@@ -283,6 +274,10 @@ def main(args=None):
         rclpy.spin(node)
     except KeyboardInterrupt:
         pass
+    except RuntimeError as exc:
+        # Humble may finish a queued DDS callback after SIGINT closes its context.
+        if rclpy.ok() or 'Unable to convert call argument' not in str(exc):
+            raise
     finally:
         node.destroy_node()
         if rclpy.ok():

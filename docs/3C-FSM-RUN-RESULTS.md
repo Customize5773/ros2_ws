@@ -1,4 +1,73 @@
-# Uji 3C — misi autonomous FSM, 11 Oktober 2026
+# Uji 3C — misi autonomous FSM
+
+## Hasil terbaru: arena 5 × 5 m, 20 Oktober 2026
+
+**Lulus satu misi penuh sampai DONE: C → B → A → D, dalam 635,21 detik
+(sekitar 10 menit 35 detik).** Default launch kini `kki_arena.sdf`, dengan
+lantai −0,90 m dan muka dinding ±2,50 m. Kedalaman grab, hook, dan bidang QR
+disesuaikan dengan arena tersebut.
+
+Perbaikan dibatasi pada penyebab kegagalan yang teramati:
+
+- Koordinat spawn diteruskan eksplisit ke `ros_gz_sim/create`; sebelumnya
+  posisi yang diumumkan berbeda dari posisi payload sebenarnya.
+- Servo QR mengoreksi posisi ROV saat ini dan memakai kedalaman terukur.
+  QR kecil yang gagal dibaca mendapat percobaan ZBar dengan pembesaran 3×.
+- Pemilihan wall wajib memakai QR terdecode; fallback skor tanpa QR dan offset
+  kamera sintetis dihapus. Gripper tidak mengakui attach yang ditolak/gagal.
+- Gain posisi dan redaman hook diperbaiki, dengan gerbang alignment tetap
+  **2 mm**. Retry AUTO_RELEASE mendapat ulang waktu tunggu yang semestinya.
+- Gazebo dijalankan langsung agar shutdown tidak meninggalkan server lama.
+  Penanganan error callback ROS setelah konteks shutdown diperbaiki; error
+  runtime saat konteks aktif tetap diteruskan.
+
+Perintah reproduksi yang dipakai:
+
+```bash
+bash tools/ros310.sh launch hydroships_bringup hydroships_mission.launch.py \
+  headless:=true joy_trigger:=false spawn_seed:=1001 \
+  qr_letter:=C payload_x:=0.4 payload_y:=0.04
+```
+
+Probe mengirim trigger operator saat WAIT_TRIGGER; tidak menyuntikkan QR.
+Penggunaan biasa tetap membutuhkan trigger operator pada tahap itu.
+Tercatat **59 pesan QR** yang mencakup A/B/C/D, **4 grab**, **4 release**,
+10.834 pesan odometri, 5.510 frame bawah, dan 5.548 frame depan.
+Tidak ada error sebelum DONE atau macetnya waktu simulasi pada run ini.
+
+Pose payload Gazebo diamati setelah setiap pelepasan sampai pergantian siklus:
+
+| Wall | Lama pengamatan setelah lepas | Error akhir pusat lubang terhadap hook |
+| --- | ---: | ---: |
+| C | 4,05 s | 0,290 mm |
+| B | 4,07 s | 0,073 mm |
+| A | 4,24 s | 0,073 mm |
+| D | 4,38 s | 0,277 mm |
+
+Keempat pengamatan berakhir pada tinggi pusat lubang z = −0,4408 m;
+payload tetap duduk pada hook selama interval tersebut.
+
+Verifikasi kode terakhir: **184 test lulus**, build **empat paket berhasil**,
+dan `git diff --check` bersih. Run penuh sempat mengeluarkan traceback
+`mission_fsm` saat SIGINT setelah DONE. Setelah perbaikan khusus shutdown,
+uji 20 detik mengonfirmasi seluruh 13 proses keluar bersih tanpa traceback
+atau proses Gazebo tertinggal. Misi penuh tidak diulang setelah perubahan
+handler shutdown tersebut. Warning metadata setuptools `tests_require`
+masih ada dan tidak menghentikan build.
+
+Bukti lokal (diabaikan Git): `log/mission-3c-5x5/`, terutama `final.log`,
+`final.json`, `summary.json`, `physical-final.csv`, `shutdown-check.log`,
+`tests-final.log`, dan `build-final.log`.
+
+Batas hasil: satu run dengan seed di atas, headless; belum pengujian banyak
+seed, GUI, joystick fisik, atau ROV nyata. Navigasi presisi masih memakai pose
+Gazebo dan mekanisme attach simulasi. Payload sebelumnya diganti pada siklus
+berikutnya, sehingga ini empat siklus berurutan, bukan empat payload yang
+dipertahankan bersamaan. Collision aperture 30 × 30 mm tetap merupakan
+pendekatan persegi untuk lubang Ø30 mm; pengamatan duduk sekitar empat detik
+per wall belum menguji ketahanan jangka panjang.
+
+## Riwayat: 11 Oktober 2026 (sebelum perbaikan di atas)
 
 Pengujian lokal ROS 2 Humble / Python 3.10 / Gazebo Fortress, kolam latihan
 `pool_practice_arena.sdf`, headless, tanpa joystick fisik. Tidak mengendalikan ROV nyata.
