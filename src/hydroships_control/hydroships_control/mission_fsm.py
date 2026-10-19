@@ -1633,6 +1633,8 @@ class MissionFSM(Node):
             while j > 0 and math.hypot(tx - self.x, ty - self.y) < self.reverse_lookahead:
                 j -= 1
                 tx, ty, fyaw = _ent(j)
+            # Retain lookahead progress so the next tick cannot chase skipped points again.
+            i = max(self.reverse_tail_n, j)
             self._set_heading(fyaw)
             yaw_err = abs(wrap_to_pi(fyaw - (self.yaw or fyaw)))
             if yaw_err > math.radians(12.0):

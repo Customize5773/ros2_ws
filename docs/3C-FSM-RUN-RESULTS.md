@@ -1,6 +1,48 @@
 # Uji 3C — misi autonomous FSM
 
-## Hasil terbaru: arena 5 × 5 m, 20 Oktober 2026
+## Tindak lanjut percepatan, 20 Oktober 2026
+
+Perubahan kecil: OpenCV pada node QR memakai satu worker; perjalanan balik
+menyimpan kemajuan target lookahead agar tick berikutnya tidak kembali
+mengejar waypoint yang sudah dilewati. Tahap misi, timeout, dwell, dan gerbang
+hook 2 mm tidak dipangkas. Dua tes regresi memeriksa kemajuan jalur balik dan
+penyerahan ke waypoint presisi terakhir.
+
+Benchmark lokal lima decode per gambar, median, pada frame QR D kecil dan
+frame tanpa QR: 12 worker → 1 worker menurunkan waktu masing-masing
+118 → 71 ms dan 426 → 261 ms. Ini waktu decoder, bukan durasi misi.
+
+Uji penuh dengan perintah yang sama seperti run di bawah mencapai **DONE**,
+urutan C → B → D → A, dengan 50 pesan QR yang mencakup keempat huruf.
+
+| Pengukuran wall-clock | Run sebelumnya | Run setelah perubahan |
+| --- | ---: | ---: |
+| Total misi termasuk startup | 635,21 s | 660,52 s |
+| Total REVERSE_RETURN | 99,76 s | 80,66 s |
+| Total HANG + AUTO_RELEASE | 296,48 s | 299,69 s |
+| Peringatan reverse skip stuck | 1 | 0 |
+
+**Percepatan total belum terbukti:** perjalanan balik lebih singkat pada
+run ini, tetapi total misi sekitar 4% lebih lama. Beban komputer dan urutan
+wall tidak dikontrol sebagai benchmark berpasangan; jangan mengatribusikan
+seluruh perbedaan waktu pada perubahan kode. Run terbaru mencatat 354,30 s
+waktu simulasi; waktu simulasi baseline tidak direkam secara langsung.
+Sasaran optimasi berikutnya adalah settling kontrol hook (sekitar lima menit
+wall-clock), dengan tetap mempertahankan gerbang presisi dan pengamatan
+payload setelah release.
+
+Empat payload tetap duduk setelah release selama pengamatan 3,93–4,80 s:
+error akhir pusat lubang C/B/D/A = 0,322/0,103/0,347/0,136 mm, semuanya pada
+z = −0,4408 m. **186 tes lulus**, empat paket dibangun, tidak ada error runtime
+atau traceback shutdown, dan tidak ada proses Gazebo tertinggal.
+
+Bukti: `log/mission-3c-5x5/speed-final.log`, `speed-final.json`,
+`speed-comparison.json`, `physical-speed-final.csv`, `tests-speed-final.log`,
+dan `build-speed-final.log`. Run `speed` sebelumnya dihentikan setelah siklus
+pertama untuk memasukkan koreksi jalur balik, bukan bukti misi penuh.
+Batas simulasi/headless dan mekanisme attach pada laporan di bawah tetap berlaku.
+
+## Baseline arena 5 × 5 m, 20 Oktober 2026
 
 **Lulus satu misi penuh sampai DONE: C → B → A → D, dalam 635,21 detik
 (sekitar 10 menit 35 detik).** Default launch kini `kki_arena.sdf`, dengan

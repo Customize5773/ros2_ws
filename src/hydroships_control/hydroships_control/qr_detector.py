@@ -54,6 +54,8 @@ from hydroships_control.image_util import image_msg_to_bgr
 class QRDetector(Node):
     def __init__(self):
         super().__init__('qr_detector')
+        # Extra OpenCV workers slow these frames and compete with Gazebo/control.
+        cv2.setNumThreads(1)
         # QR payload bisa terlihat kamera bawah (bila datar) atau kamera depan
         # (bila payload berdiri, QR di muka vertikal) → dengarkan keduanya.
         self.declare_parameter('image_topics',

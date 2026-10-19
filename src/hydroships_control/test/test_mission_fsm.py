@@ -70,6 +70,39 @@ def test_timeout_without_ack_aborts(node, monkeypatch):
     assert node.state is St.ABORT
 
 
+def test_reverse_keeps_lookahead_progress_without_backtracking(node, monkeypatch):
+    node.wall = 'C'
+    node._lean_log = [(0.1 * i, 1.0, 0.0) for i in range(15)]
+    node._to(St.REVERSE_RETURN)
+    node.x, node.y, node.yaw = 1.4, 1.0, 0.0
+    targets = []
+
+    def drive(tx, ty, **kwargs):
+        targets.append(tx)
+        return math.hypot(tx - node.x, ty - node.y)
+
+    monkeypatch.setattr(node, '_goto_xy', drive)
+    node._st_reverse_return()
+    first_index = node._reverse_idx
+    assert node._lean_log[first_index][0] == targets[-1]
+    # Small drift must not reselect points already skipped by lookahead.
+    node.x += 0.15
+    node._st_reverse_return()
+    assert targets[-1] <= targets[0]
+    assert node._reverse_idx <= first_index
+    assert node.state is St.REVERSE_RETURN
+
+
+def test_reverse_lookahead_preserves_precision_tail(node):
+    node.wall = 'C'
+    node._lean_log = [(0.02 * i, 1.0, 0.0) for i in range(10)]
+    node._to(St.REVERSE_RETURN)
+    node.x, node.y, node.yaw = 0.10, 1.0, 0.0
+    node._st_reverse_return()
+    assert node._reverse_idx == node.reverse_tail_n - 1
+    assert node.state is St.REVERSE_RETURN
+
+
 # ---- NAV_WALL -> HANG handoff (gate kecepatan; overshoot hook) ----
 
 @pytest.fixture
