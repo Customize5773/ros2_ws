@@ -79,6 +79,8 @@ class MissionFSM(Node):
         p = self.declare_parameter
         p('start_state', 'DIVE')
         p('wall_order', 'random')   # 'ABCD', 'DCBA', atau 'random'
+        p('mission_loop', False)
+        p('auto_continue', False)
         p('start_delay', 3.0)
         p('start_wall', '')          # override manual utk testing start_state=NAV_WALL/HANG/dst
         p('surge_force', 25.0)       # N gaya maju horizontal
@@ -296,6 +298,8 @@ class MissionFSM(Node):
         p('docking_yaw', 90.0)       # deg putar saat docking (samping)
 
         g = lambda n: self.get_parameter(n).value
+        self.mission_loop = bool(g('mission_loop'))
+        self.auto_continue = bool(g('auto_continue'))
         self.surge = float(g('surge_force'))
         self.depth_bottom = float(g('depth_bottom'))
         self.depth_surface = float(g('depth_surface'))
@@ -1444,8 +1448,9 @@ class MissionFSM(Node):
         self._set_depth(self.depth_surface)
         self._set_heading(target_heading)
         self._set_surge(0.0, 0.0)
-        if self._trigger_received:
-            self.get_logger().info('Trigger diterima (SPACE/joystick) -> LEAN_RECORD dinding %s' % self.wall)
+        if self._trigger_received or self.auto_continue:
+            self.get_logger().info('Lanjut %s -> LEAN_RECORD dinding %s'
+                                   % ('otomatis' if self.auto_continue else 'trigger operator', self.wall))
             self._trigger_received = False
             self._to(St.LEAN_RECORD)
             return
@@ -2005,23 +2010,27 @@ class MissionFSM(Node):
                 'Payload dilepas & ROV permukaan dekat dinding (+40). Done: %s'
                 % self.done_hooks)
             if len(self.done_hooks) >= 4:
-                self._print_score(); self._to(St.DONE)
-            else:
-                # Multi-payload: minta spawner buat payload baru (QR = wall
-                # berikutnya) utk siklus berikutnya, dan RESET payload_pose agar
-                # DIVE menunggu pose BARU (latched lama = posisi payload yg sudah
-                # diambil & dipindah).
-                nxt = self._next_wall()
-                if nxt is not None:
-                    m = String(data=nxt)
-                    self.pub_spawn_next.publish(m)
-                    self.get_logger().info(
-                        'Minta payload baru utk wall %s (done: %s)'
-                        % (nxt, sorted(self.done_hooks)))
-                self.payload_pose = None
-                self._payload_pose_fallback = False
-                self.wall = None
-                self._to(St.DIVE)
+                self._print_score()
+                if not self.mission_loop:
+                    self._to(St.DONE)
+                    return
+                self.done_hooks.clear()
+                self.get_logger().info('Putaran selesai; mulai ulang urutan wall.')
+            # Multi-payload: minta spawner buat payload baru (QR = wall
+            # berikutnya) utk siklus berikutnya, dan RESET payload_pose agar
+            # DIVE menunggu pose BARU (latched lama = posisi payload yg sudah
+            # diambil & dipindah).
+            nxt = self._next_wall()
+            if nxt is not None:
+                m = String(data=nxt)
+                self.pub_spawn_next.publish(m)
+                self.get_logger().info(
+                    'Minta payload baru utk wall %s (done: %s)'
+                    % (nxt, sorted(self.done_hooks)))
+            self.payload_pose = None
+            self._payload_pose_fallback = False
+            self.wall = None
+            self._to(St.DIVE)
         elif self._elapsed() > self.T['release']:
             self.get_logger().error('AUTO_RELEASE timeout (naik ke permukaan)'); self._to(St.ABORT)
 

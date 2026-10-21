@@ -70,6 +70,11 @@ def generate_launch_description():
         output='screen',
         parameters=[{'use_sim_time': True, 'start_state': start_state,
                       'start_wall': start_wall,
+                      'wall_order': LaunchConfiguration('wall_order'),
+                      'mission_loop': ParameterValue(LaunchConfiguration('mission_loop'), value_type=bool),
+                      'auto_continue': ParameterValue(LaunchConfiguration('auto_continue'), value_type=bool),
+                      'payload_x': ParameterValue(payload_x, value_type=float),
+                      'payload_y': ParameterValue(payload_y, value_type=float),
                       'scan_depth': ParameterValue(LaunchConfiguration('scan_depth'),
                                                    value_type=float),
                       'descend_depth_tol': ParameterValue(
@@ -104,6 +109,11 @@ def generate_launch_description():
 
     return LaunchDescription([
         DeclareLaunchArgument('headless', default_value='false'),
+        DeclareLaunchArgument('wall_order', default_value='random'),
+        DeclareLaunchArgument('mission_loop', default_value='false',
+                              description='Ulangi urutan setelah empat wall selesai.'),
+        DeclareLaunchArgument('auto_continue', default_value='false',
+                              description='Lewati WAIT_TRIGGER otomatis untuk demo tanpa operator.'),
         DeclareLaunchArgument('joy_trigger', default_value='true',
                               description='true: jalankan joy_node + joy_mission_trigger '
                                           '(tombol joystick utk lewati WAIT_TRIGGER); '

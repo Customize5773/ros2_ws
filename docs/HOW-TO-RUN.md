@@ -182,6 +182,19 @@ bash tools/ros310.sh launch hydroships_bringup hydroships_mission.launch.py
 
 Hasil uji dan batas validasinya: [3C-FSM-RUN-RESULTS.md](3C-FSM-RUN-RESULTS.md).
 
+Untuk video dengan urutan **A → B → C → D → A terus berulang**, payload
+diganti di tengah kolam setelah setiap siklus dan WAIT_TRIGGER dilanjutkan otomatis:
+
+```bash
+bash tools/ros310.sh launch hydroships_bringup hydroships_mission.launch.py \
+  headless:=false joy_trigger:=false mission_loop:=true auto_continue:=true \
+  wall_order:=ABCD qr_letter:=A payload_x:=0.0 payload_y:=0.0 spawn_seed:=1001
+```
+
+Hentikan dengan Ctrl+C pada terminal launch. Mode loop mengulang setelah
+empat wall selesai; kegagalan misi tetap masuk ABORT agar tidak menyamarkan
+masalah. Default tanpa opsi ini tetap satu putaran dan menunggu trigger operator.
+
 Mulai dari state tertentu (lewati DIVE/SCAN):
 
 ```bash

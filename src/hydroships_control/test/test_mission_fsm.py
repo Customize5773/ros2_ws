@@ -445,3 +445,47 @@ def test_main_only_ignores_known_dds_error_after_shutdown(monkeypatch, shutdown,
     else:
         mission_fsm.main()
     assert not rclpy.ok()
+
+
+def test_loop_respawns_abcd_then_a(node, monkeypatch):
+    node.mission_loop = True
+    node._wall_sequence = list('ABCD')
+    spawned = []
+    monkeypatch.setattr(node.pub_spawn_next, 'publish', lambda msg: spawned.append(msg.data))
+    for wall in 'ABCDA':
+        node._to(St.AUTO_RELEASE)
+        node.wall = wall
+        node._detach_sent = True
+        node._hold_since = node._now() - 2.0
+        node.depth = node.depth_surface
+        node.payload_pose = (0.0, 0.0, -0.9)
+        node._st_auto_release()
+        assert node.state is St.DIVE
+        assert node.payload_pose is None
+        assert node.wall is None
+    assert spawned == list('BCDAB')
+    assert node.done_hooks == {'A'}
+
+
+def test_non_loop_finishes_after_four_walls(node, monkeypatch):
+    node._to(St.AUTO_RELEASE)
+    node.wall = 'D'
+    node.done_hooks = set('ABC')
+    node._detach_sent = True
+    node._hold_since = node._now() - 2.0
+    node.depth = node.depth_surface
+    spawned = []
+    monkeypatch.setattr(node.pub_spawn_next, 'publish', lambda msg: spawned.append(msg.data))
+    node._st_auto_release()
+    assert node.state is St.DONE
+    assert spawned == []
+
+
+@pytest.mark.parametrize('automatic,expected', [(False, St.WAIT_TRIGGER), (True, St.LEAN_RECORD)])
+def test_demo_auto_continue(node, automatic, expected):
+    node._to(St.WAIT_TRIGGER)
+    node.wall = 'A'
+    node.auto_continue = automatic
+    node._trigger_received = False
+    node._st_wait_trigger()
+    assert node.state is expected
